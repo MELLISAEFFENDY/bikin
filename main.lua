@@ -199,22 +199,26 @@ local function BuildUI()
     title.TextColor3 = Color3.fromRGB(235,235,235)
     title.TextXAlignment = Enum.TextXAlignment.Left
 
+    -- Button container with responsive padding
     local btnContainer = Instance.new("Frame", header)
-    btnContainer.Size = UDim2.new(0, 80, 1, 0)
-    btnContainer.Position = UDim2.new(1, -90, 0, 0)
+    btnContainer.Size = UDim2.new(0, 110, 1, 0)
+    -- place container near right edge but keep a small margin so it's not flush
+    btnContainer.Position = UDim2.new(1, -120, 0, 0)
     btnContainer.BackgroundTransparency = 1
 
+    -- Minimize: keep a small left padding inside container so it isn't flush
     local minimizeBtn = Instance.new("TextButton", btnContainer)
-    minimizeBtn.Size = UDim2.new(0, 36, 0, 24)
-    minimizeBtn.Position = UDim2.new(0, 0, 0.5, -12)
+    minimizeBtn.Size = UDim2.new(0, 36, 0, 28)
+    minimizeBtn.Position = UDim2.new(0, 8, 0.5, -14)
     minimizeBtn.Text = "_" minimizeBtn.Font = Enum.Font.GothamBold minimizeBtn.TextSize = 18
     minimizeBtn.BackgroundColor3 = Color3.fromRGB(60,60,66); minimizeBtn.TextColor3 = Color3.fromRGB(230,230,230)
     Instance.new("UICorner", minimizeBtn)
 
+    -- Close: anchored to right of container with right padding
     local closeBtn = Instance.new("TextButton", btnContainer)
-    closeBtn.Size = UDim2.new(0, 36, 0, 24)
-    closeBtn.Position = UDim2.new(1, -36, 0.5, -12)
-    closeBtn.AnchorPoint = Vector2.new(1,0)
+    closeBtn.Size = UDim2.new(0, 36, 0, 28)
+    closeBtn.AnchorPoint = Vector2.new(1, 0)
+    closeBtn.Position = UDim2.new(1, -8, 0.5, -14)
     closeBtn.Text = "X" closeBtn.Font = Enum.Font.GothamBold closeBtn.TextSize = 16
     closeBtn.BackgroundColor3 = Color3.fromRGB(160,60,60); closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", closeBtn)
@@ -264,7 +268,8 @@ local function BuildUI()
     local stopBtn = Instance.new("TextButton", actions); stopBtn.Size = UDim2.new(0.5,-6,1,0); stopBtn.Position = UDim2.new(0.5,12,0,0); stopBtn.Text = "Stop"; Instance.new("UICorner", stopBtn)
 
     -- floating toggle
-    local floatBtn = Instance.new("TextButton", screenGui); floatBtn.Name = "FloatToggle"; floatBtn.Size = UDim2.new(0,44,0,44); floatBtn.Position = UDim2.new(0,8,0,8); floatBtn.Text = "≡"; Instance.new("UICorner", floatBtn)
+    -- Floating toggle: keep margin so it doesn't overlap header on small screens
+    local floatBtn = Instance.new("TextButton", screenGui); floatBtn.Name = "FloatToggle"; floatBtn.Size = UDim2.new(0,44,0,44); floatBtn.Position = UDim2.new(0,12,0,12); floatBtn.Text = "≡"; Instance.new("UICorner", floatBtn)
     floatBtn.BackgroundColor3 = Color3.fromRGB(40,40,46); floatBtn.Font = Enum.Font.GothamBold; floatBtn.TextSize = 20; floatBtn.TextColor3 = Color3.fromRGB(235,235,235)
     floatBtn.MouseButton1Click:Connect(function() panel.Visible = not panel.Visible end)
 
