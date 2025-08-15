@@ -306,6 +306,20 @@ local function BuildUI()
     local playerTabPadding = Instance.new("UIPadding", playerTabBtn)
     playerTabPadding.PaddingLeft = UDim.new(0, 10)
 
+    local featureTabBtn = Instance.new("TextButton", sidebar)
+    featureTabBtn.Size = UDim2.new(1, -10, 0, 40)
+    featureTabBtn.Position = UDim2.new(0, 5, 0, 160)
+    featureTabBtn.Text = "⚡ Fitur"
+    featureTabBtn.Font = Enum.Font.GothamSemibold
+    featureTabBtn.TextSize = 14
+    featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+    featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+    featureTabBtn.TextXAlignment = Enum.TextXAlignment.Left
+    local featureTabCorner = Instance.new("UICorner", featureTabBtn)
+    featureTabCorner.CornerRadius = UDim.new(0, 6)
+    local featureTabPadding = Instance.new("UIPadding", featureTabBtn)
+    featureTabPadding.PaddingLeft = UDim.new(0, 10)
+
     -- Content area on the right
     local contentContainer = Instance.new("Frame", panel)
     contentContainer.Size = UDim2.new(1, -145, 1, -50)
@@ -619,6 +633,218 @@ local function BuildUI()
         end
     end)
 
+    -- Feature Tab Content
+    local featureFrame = Instance.new("Frame", contentContainer)
+    featureFrame.Size = UDim2.new(1, 0, 1, -10)
+    featureFrame.Position = UDim2.new(0, 0, 0, 0)
+    featureFrame.BackgroundTransparency = 1
+    featureFrame.Visible = false
+
+    local featureTitle = Instance.new("TextLabel", featureFrame)
+    featureTitle.Size = UDim2.new(1, 0, 0, 24)
+    featureTitle.Text = "Character Features"
+    featureTitle.Font = Enum.Font.GothamBold
+    featureTitle.TextSize = 16
+    featureTitle.TextColor3 = Color3.fromRGB(235,235,235)
+    featureTitle.BackgroundTransparency = 1
+    featureTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Speed Control Section
+    local speedSection = Instance.new("Frame", featureFrame)
+    speedSection.Size = UDim2.new(1, 0, 0, 80)
+    speedSection.Position = UDim2.new(0, 0, 0, 35)
+    speedSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    speedSection.BorderSizePixel = 0
+    Instance.new("UICorner", speedSection)
+
+    local speedLabel = Instance.new("TextLabel", speedSection)
+    speedLabel.Size = UDim2.new(1, -20, 0, 20)
+    speedLabel.Position = UDim2.new(0, 10, 0, 8)
+    speedLabel.Text = "Walk Speed: 16"
+    speedLabel.Font = Enum.Font.GothamSemibold
+    speedLabel.TextSize = 14
+    speedLabel.TextColor3 = Color3.fromRGB(235,235,235)
+    speedLabel.BackgroundTransparency = 1
+    speedLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local speedSlider = Instance.new("Frame", speedSection)
+    speedSlider.Size = UDim2.new(1, -20, 0, 20)
+    speedSlider.Position = UDim2.new(0, 10, 0, 35)
+    speedSlider.BackgroundColor3 = Color3.fromRGB(50,50,60)
+    speedSlider.BorderSizePixel = 0
+    Instance.new("UICorner", speedSlider)
+
+    local speedFill = Instance.new("Frame", speedSlider)
+    speedFill.Size = UDim2.new(0.16, 0, 1, 0) -- 16/100 = 0.16
+    speedFill.Position = UDim2.new(0, 0, 0, 0)
+    speedFill.BackgroundColor3 = Color3.fromRGB(100,150,255)
+    speedFill.BorderSizePixel = 0
+    Instance.new("UICorner", speedFill)
+
+    local speedHandle = Instance.new("TextButton", speedSlider)
+    speedHandle.Size = UDim2.new(0, 20, 1, 0)
+    speedHandle.Position = UDim2.new(0.16, -10, 0, 0)
+    speedHandle.Text = ""
+    speedHandle.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    speedHandle.BorderSizePixel = 0
+    Instance.new("UICorner", speedHandle)
+
+    local speedResetBtn = Instance.new("TextButton", speedSection)
+    speedResetBtn.Size = UDim2.new(0, 60, 0, 18)
+    speedResetBtn.Position = UDim2.new(1, -70, 0, 58)
+    speedResetBtn.Text = "Reset"
+    speedResetBtn.Font = Enum.Font.GothamSemibold
+    speedResetBtn.TextSize = 10
+    speedResetBtn.BackgroundColor3 = Color3.fromRGB(160,60,60)
+    speedResetBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", speedResetBtn)
+
+    -- Jump Control Section
+    local jumpSection = Instance.new("Frame", featureFrame)
+    jumpSection.Size = UDim2.new(1, 0, 0, 80)
+    jumpSection.Position = UDim2.new(0, 0, 0, 125)
+    jumpSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    jumpSection.BorderSizePixel = 0
+    Instance.new("UICorner", jumpSection)
+
+    local jumpLabel = Instance.new("TextLabel", jumpSection)
+    jumpLabel.Size = UDim2.new(1, -20, 0, 20)
+    jumpLabel.Position = UDim2.new(0, 10, 0, 8)
+    jumpLabel.Text = "Jump Power: 50"
+    jumpLabel.Font = Enum.Font.GothamSemibold
+    jumpLabel.TextSize = 14
+    jumpLabel.TextColor3 = Color3.fromRGB(235,235,235)
+    jumpLabel.BackgroundTransparency = 1
+    jumpLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local jumpSlider = Instance.new("Frame", jumpSection)
+    jumpSlider.Size = UDim2.new(1, -20, 0, 20)
+    jumpSlider.Position = UDim2.new(0, 10, 0, 35)
+    jumpSlider.BackgroundColor3 = Color3.fromRGB(50,50,60)
+    jumpSlider.BorderSizePixel = 0
+    Instance.new("UICorner", jumpSlider)
+
+    local jumpFill = Instance.new("Frame", jumpSlider)
+    jumpFill.Size = UDim2.new(0.1, 0, 1, 0) -- 50/500 = 0.1
+    jumpFill.Position = UDim2.new(0, 0, 0, 0)
+    jumpFill.BackgroundColor3 = Color3.fromRGB(100,255,150)
+    jumpFill.BorderSizePixel = 0
+    Instance.new("UICorner", jumpFill)
+
+    local jumpHandle = Instance.new("TextButton", jumpSlider)
+    jumpHandle.Size = UDim2.new(0, 20, 1, 0)
+    jumpHandle.Position = UDim2.new(0.1, -10, 0, 0)
+    jumpHandle.Text = ""
+    jumpHandle.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    jumpHandle.BorderSizePixel = 0
+    Instance.new("UICorner", jumpHandle)
+
+    local jumpResetBtn = Instance.new("TextButton", jumpSection)
+    jumpResetBtn.Size = UDim2.new(0, 60, 0, 18)
+    jumpResetBtn.Position = UDim2.new(1, -70, 0, 58)
+    jumpResetBtn.Text = "Reset"
+    jumpResetBtn.Font = Enum.Font.GothamSemibold
+    jumpResetBtn.TextSize = 10
+    jumpResetBtn.BackgroundColor3 = Color3.fromRGB(160,60,60)
+    jumpResetBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", jumpResetBtn)
+
+    -- Feature variables
+    local currentSpeed = 16
+    local currentJump = 50
+
+    -- Speed slider functionality
+    local draggingSpeed = false
+    speedHandle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingSpeed = true
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingSpeed = false
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement and draggingSpeed then
+            local relativeX = input.Position.X - speedSlider.AbsolutePosition.X
+            local percentage = math.clamp(relativeX / speedSlider.AbsoluteSize.X, 0, 1)
+            currentSpeed = math.floor(percentage * 100)
+            speedLabel.Text = "Walk Speed: " .. currentSpeed
+            speedFill.Size = UDim2.new(percentage, 0, 1, 0)
+            speedHandle.Position = UDim2.new(percentage, -10, 0, 0)
+            
+            -- Apply speed to character
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.WalkSpeed = currentSpeed
+            end
+        end
+    end)
+
+    -- Jump slider functionality
+    local draggingJump = false
+    jumpHandle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingJump = true
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement and draggingJump then
+            local relativeX = input.Position.X - jumpSlider.AbsolutePosition.X
+            local percentage = math.clamp(relativeX / jumpSlider.AbsoluteSize.X, 0, 1)
+            currentJump = math.floor(percentage * 500)
+            jumpLabel.Text = "Jump Power: " .. currentJump
+            jumpFill.Size = UDim2.new(percentage, 0, 1, 0)
+            jumpHandle.Position = UDim2.new(percentage, -10, 0, 0)
+            
+            -- Apply jump power to character
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.JumpPower = currentJump
+            end
+        end
+    end)
+
+    -- Reset buttons
+    speedResetBtn.MouseButton1Click:Connect(function()
+        currentSpeed = 16
+        speedLabel.Text = "Walk Speed: " .. currentSpeed
+        speedFill.Size = UDim2.new(0.16, 0, 1, 0)
+        speedHandle.Position = UDim2.new(0.16, -10, 0, 0)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = currentSpeed
+        end
+        Notify("Features", "Walk speed reset to 16")
+    end)
+
+    jumpResetBtn.MouseButton1Click:Connect(function()
+        currentJump = 50
+        jumpLabel.Text = "Jump Power: " .. currentJump
+        jumpFill.Size = UDim2.new(0.1, 0, 1, 0)
+        jumpHandle.Position = UDim2.new(0.1, -10, 0, 0)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.JumpPower = currentJump
+        end
+        Notify("Features", "Jump power reset to 50")
+    end)
+
+    -- Auto-apply features when character spawns
+    local function applyFeaturesToCharacter()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = currentSpeed
+            LocalPlayer.Character.Humanoid.JumpPower = currentJump
+        end
+    end
+
+    -- Apply features when character spawns
+    LocalPlayer.CharacterAdded:Connect(function()
+        LocalPlayer.Character:WaitForChild("Humanoid")
+        task.wait(0.1)
+        applyFeaturesToCharacter()
+    end)
+
     -- Start/Stop buttons at bottom of content container (only visible in Main tab)
     local actions = Instance.new("Frame", contentContainer)
     actions.Size = UDim2.new(1, 0, 0, 38)
@@ -673,7 +899,7 @@ local function BuildUI()
     end)
 
     -- Robust tab switching: collect tabs and provide SwitchTo
-    local Tabs = { Main = content, Teleport = teleportFrame, Player = playerFrame }
+    local Tabs = { Main = content, Teleport = teleportFrame, Player = playerFrame, Feature = featureFrame }
     local function SwitchTo(name)
         for k, v in pairs(Tabs) do
             v.Visible = (k == name)
@@ -690,6 +916,8 @@ local function BuildUI()
             teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             playerTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "AutoFish Controls"
         elseif name == "Teleport" then
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
@@ -698,22 +926,37 @@ local function BuildUI()
             mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             playerTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Island Locations"
-        else -- Player
+        elseif name == "Player" then
             playerTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             playerTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
             mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Player Teleport"
             updatePlayerList(searchBox.Text) -- Refresh when switching to player tab
+        else -- Feature
+            featureTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
+            featureTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
+            mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            playerTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            contentTitle.Text = "Character Features"
         end
     end
 
     mainTabBtn.MouseButton1Click:Connect(function() SwitchTo("Main") end)
     teleportTabBtn.MouseButton1Click:Connect(function() SwitchTo("Teleport") end)
     playerTabBtn.MouseButton1Click:Connect(function() SwitchTo("Player") end)
+    featureTabBtn.MouseButton1Click:Connect(function() SwitchTo("Feature") end)
 
     -- Start with Main visible
     SwitchTo("Main")
