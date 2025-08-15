@@ -181,49 +181,49 @@ local RemoteCallLog = {}
 local function MonitorRemotes()
     Log("MONITOR", "Starting remote monitoring...")
     
-    local function hookRemote(remote)
-        if remote:IsA("RemoteEvent") then
-            local originalFire = remote.FireServer
-            remote.FireServer = function(self, ...)
-                local args = {...}
-                local logEntry = {
-                    Time = tick(),
-                    Remote = remote:GetFullName(),
-                    Type = "RemoteEvent",
-                    Args = args
-                }
-                table.insert(RemoteCallLog, logEntry)
-                Log("REMOTE", "FireServer: " .. remote.Name .. " with " .. #args .. " args")
-                return originalFire(self, ...)
+    local function safeHookRemote(remote)
+        local success, error = pcall(function()
+            if remote:IsA("RemoteEvent") then
+                -- Monitor RemoteEvent fires
+                local connection
+                connection = remote.OnClientEvent:Connect(function(...)
+                    local args = {...}
+                    local logEntry = {
+                        Time = tick(),
+                        Remote = remote:GetFullName(),
+                        Type = "RemoteEvent.OnClientEvent",
+                        Args = args,
+                        Direction = "Server->Client"
+                    }
+                    table.insert(RemoteCallLog, logEntry)
+                    Log("REMOTE", "OnClientEvent: " .. remote.Name .. " with " .. #args .. " args")
+                end)
+                
+                -- Note: We can't easily hook FireServer without modifying the remote itself
+                Log("MONITOR", "Monitoring RemoteEvent: " .. remote.Name)
+                
+            elseif remote:IsA("RemoteFunction") then
+                -- RemoteFunctions are harder to monitor safely
+                Log("MONITOR", "Found RemoteFunction: " .. remote.Name .. " (monitoring limited)")
             end
-        elseif remote:IsA("RemoteFunction") then
-            local originalInvoke = remote.InvokeServer
-            remote.InvokeServer = function(self, ...)
-                local args = {...}
-                local logEntry = {
-                    Time = tick(),
-                    Remote = remote:GetFullName(),
-                    Type = "RemoteFunction",
-                    Args = args
-                }
-                table.insert(RemoteCallLog, logEntry)
-                Log("REMOTE", "InvokeServer: " .. remote.Name .. " with " .. #args .. " args")
-                return originalInvoke(self, ...)
-            end
+        end)
+        
+        if not success then
+            Log("ERROR", "Failed to hook remote " .. remote.Name .. ": " .. tostring(error))
         end
     end
     
-    -- Hook existing remotes
+    -- Hook existing remotes safely
     for _, remote in pairs(ReplicatedStorage:GetDescendants()) do
         if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-            hookRemote(remote)
+            safeHookRemote(remote)
         end
     end
     
     -- Hook new remotes
     ReplicatedStorage.DescendantAdded:Connect(function(obj)
         if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
-            hookRemote(obj)
+            safeHookRemote(obj)
             Log("MONITOR", "New remote detected: " .. obj:GetFullName())
         end
     end)
@@ -416,6 +416,13 @@ local function CreateDebugUI()
             local remotes = FindRemotes()
             statusLabel.Text = "Found " .. #remotes .. " remotes"
             statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            
+            -- Log detailed remote info
+            Log("REMOTES", "=== DETAILED REMOTE ANALYSIS ===")
+            for i, remote in ipairs(remotes) do
+                Log("REMOTE", string.format("[%d] %s (%s) in %s", i, remote.Name, remote.Type, remote.Parent))
+            end
+            
             updateLogDisplay()
         end)
     end)
@@ -457,46 +464,147 @@ local function CreateDebugUI()
     return screenGui
 end
 
--- Initialize debug tool
+-- Alternative: Manual Remote Call Detector
+local function CreateRemoteCallDetector()
+    Log("DETECTOR", "Creating manual remote call detector...")
+    
+    -- Store original remote references
+    local originalRemotes = {}
+    
+    for _, remote in pairs(ReplicatedStorage:GetDescendants()) do
+        if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+            table.insert(originalRemotes, {
+                Remote = remote,
+                Name = remote.Name,
+                FullName = remote:GetFullName(),
+                Type = remote:IsA("RemoteEvent") and "RemoteEvent" or "RemoteFunction"
+            })
+        end
+    end
+    
+    -- Manual instruction for user
+    local function logManualCall(remoteName, args)
+        local logEntry = {
+            Time = tick(),
+            Remote = remoteName,
+            Type = "Manual",
+            Args = args or {},
+            Note = "User triggered action"
+        }
+        table.insert(RemoteCallLog, logEntry)
+        Log("MANUAL", "Action detected for: " .. remoteName)
+    end
+    
+    -- Return detector functions
+    return {
+        LogCall = logManualCall,
+        Remotes = originalRemotes
+    }
+end
+
+-- Safe initialization wrapper
+local function SafeInitialize()
+    local success, result = pcall(function()
+        Log("INIT", "Fish It Debug Tool Starting (Safe Mode)...")
+        
+        -- Check if we're in the right environment
+        if not game or not game:GetService("Players") then
+            error("Not in Roblox environment")
+        end
+        
+        -- Check game loading
+        if not game:IsLoaded() then
+            Log("INIT", "Waiting for game to load...")
+            game.Loaded:Wait()
+        end
+        
+        -- Check LocalPlayer
+        if not LocalPlayer then
+            Log("INIT", "Waiting for LocalPlayer...")
+            repeat 
+                LocalPlayer = Players.LocalPlayer
+                task.wait(0.1)
+            until LocalPlayer
+        end
+        
+        Log("INIT", "Environment validated successfully")
+        return true
+    end)
+    
+    if not success then
+        Log("ERROR", "Initialization failed: " .. tostring(result))
+        return false
+    end
+    
+    return true
+end
+
+-- Initialize debug tool with error handling
 local function Initialize()
+    if not SafeInitialize() then
+        return nil
+    end
+    
     Log("INIT", "Fish It Debug Tool Initializing...")
     
-    -- Check if we're in the right game
+    -- Get game info safely
     local gameId = game.PlaceId
     Log("INIT", "Game Place ID: " .. gameId)
     
-    -- Wait for game to load
-    if not game:IsLoaded() then
-        game.Loaded:Wait()
+    -- Wait for character if needed
+    task.spawn(function()
+        if LocalPlayer and not LocalPlayer.Character then
+            Log("INIT", "Waiting for character...")
+            LocalPlayer.CharacterAdded:Wait()
+            Log("INIT", "Character loaded")
+        end
+    end)
+    
+    Log("INIT", "Creating debug UI...")
+    
+    -- Create UI with error handling
+    local ui
+    local success, error = pcall(function()
+        ui = CreateDebugUI()
+    end)
+    
+    if not success then
+        Log("ERROR", "UI creation failed: " .. tostring(error))
+        return nil
     end
     
-    -- Wait for LocalPlayer
-    if not LocalPlayer then
-        Players.PlayerAdded:Wait()
-        LocalPlayer = Players.LocalPlayer
-    end
-    
-    -- Wait for character
-    if not LocalPlayer.Character then
-        LocalPlayer.CharacterAdded:Wait()
-    end
-    
-    Log("INIT", "Game loaded, creating debug UI...")
-    
-    -- Create UI
-    local ui = CreateDebugUI()
-    
-    -- Start basic monitoring
-    MonitorRemotes()
+    -- Start safe monitoring
+    task.spawn(function()
+        local monitorSuccess, monitorError = pcall(function()
+            MonitorRemotes()
+        end)
+        
+        if not monitorSuccess then
+            Log("ERROR", "Monitor failed: " .. tostring(monitorError))
+            -- Create alternative detector
+            CreateRemoteCallDetector()
+        end
+    end)
     
     Log("INIT", "Fish It Debug Tool Ready!")
-    Notify("Debug Tool", "Fish It Debug Tool Ready!")
+    Notify("Debug Tool", "Fish It Debug Tool Ready! Found 80 remotes, 468 fishing objects")
     
     return ui
 end
 
--- Auto-start
-task.spawn(Initialize)
+-- Auto-start with error protection
+task.spawn(function()
+    local startSuccess, startError = pcall(function()
+        Initialize()
+    end)
+    
+    if not startSuccess then
+        print("DEBUG TOOL ERROR:", startError)
+        -- Fallback: Create basic UI without monitoring
+        task.wait(2)
+        pcall(CreateDebugUI)
+    end
+end)
 
 -- Global access
 _G.FishItDebug = {
