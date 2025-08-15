@@ -175,7 +175,7 @@ local function BuildUI()
 
     local panel = Instance.new("Frame")
     panel.Name = "Panel"
-    panel.Size = UDim2.new(0, 380, 0, 200)
+    panel.Size = UDim2.new(0, 380, 0, 260)
     panel.Position = UDim2.new(0, 18, 0, 70)
     panel.BackgroundColor3 = Color3.fromRGB(28,28,34)
     panel.BorderSizePixel = 0
