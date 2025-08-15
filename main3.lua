@@ -791,6 +791,12 @@ local function BuildUI()
         end
     end)
 
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            draggingJump = false
+        end
+    end)
+
     UserInputService.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement and draggingJump then
             local relativeX = input.Position.X - jumpSlider.AbsolutePosition.X
