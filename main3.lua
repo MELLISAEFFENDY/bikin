@@ -83,7 +83,7 @@ local AntiAFK = {
 
 local function generateRandomJumpTime()
     -- Random time between 5-10 minutes (300-600 seconds)
-    return math.random(300, 600)
+    return math.random(100, 600)
 end
 
 local function performAntiAfkJump()
