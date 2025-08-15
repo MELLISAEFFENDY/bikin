@@ -281,44 +281,6 @@ local function BuildUI()
     settingsTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
     Instance.new("UICorner", settingsTabBtn)
 
-    -- Teleport tab button
-    local teleportTabBtn = Instance.new("TextButton", tabBar)
-    teleportTabBtn.Size = UDim2.new(0, 100, 1, 0)
-    teleportTabBtn.Position = UDim2.new(0, 230, 0, 0)
-    teleportTabBtn.Text = "Teleport"
-    teleportTabBtn.Font = Enum.Font.GothamSemibold
-    teleportTabBtn.TextSize = 14
-    teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-    teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-    Instance.new("UICorner", teleportTabBtn)
-
-    -- Settings frame (hidden by default)
-    local settingsFrame = Instance.new("Frame", panel)
-    settingsFrame.Size = UDim2.new(1, -20, 1, -96)
-    settingsFrame.Position = UDim2.new(0, 10, 0, 80)
-    settingsFrame.BackgroundTransparency = 1
-    settingsFrame.Visible = false
-
-    -- Teleport frame (hidden by default)
-    local teleportFrame = Instance.new("Frame", panel)
-    teleportFrame.Size = settingsFrame.Size
-    teleportFrame.Position = settingsFrame.Position
-    teleportFrame.BackgroundTransparency = 1
-    teleportFrame.Visible = false
-    -- Placeholder teleport buttons
-    local islandBtn = Instance.new("TextButton", teleportFrame)
-    islandBtn.Size = UDim2.new(1, -20, 0, 30)
-    islandBtn.Position = UDim2.new(0, 10, 0, 10)
-    islandBtn.Text = "Islands"
-    islandBtn.Font = Enum.Font.GothamSemibold
-    islandBtn.TextSize = 14
-    islandBtn.BackgroundColor3 = Color3.fromRGB(70,130,180)
-    islandBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", islandBtn)
-    local eventBtn = Instance.new("TextButton", teleportFrame)
-    eventBtn.Size = UDim2.new(1, -20, 0, 30)
-    eventBtn.Position = UDim2.new(0, 10, 0, 50)
-    eventBtn.Text = "Events"
     eventBtn.Font = Enum.Font.GothamSemibold
     eventBtn.TextSize = 14
     eventBtn.BackgroundColor3 = Color3.fromRGB(180,130,70)
@@ -333,45 +295,6 @@ local function BuildUI()
     playerBtn.BackgroundColor3 = Color3.fromRGB(130,70,180)
     playerBtn.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", playerBtn)
-
-    -- Switch tab function
-    local function SwitchTab(name)
-        if name == "Main" then
-            mainTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
-            mainTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
-            settingsTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            settingsTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            content.Visible = true
-            actions.Visible = true
-            settingsFrame.Visible = false
-            teleportFrame.Visible = false
-        elseif name == "Teleport" then
-            teleportTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
-            teleportTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
-            mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            settingsTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            settingsTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            content.Visible = false
-            actions.Visible = false
-            settingsFrame.Visible = false
-            teleportFrame.Visible = true
-            return
-        else
-            mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            settingsTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
-            settingsTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
-            content.Visible = false
-            actions.Visible = false
-            settingsFrame.Visible = true
-            teleportFrame.Visible = false
-        end
-    end
-
-    mainTabBtn.MouseButton1Click:Connect(function() SwitchTab("Main") end)
-    settingsTabBtn.MouseButton1Click:Connect(function() SwitchTab("Settings") end)
-    teleportTabBtn.MouseButton1Click:Connect(function() SwitchTab("Teleport") end)
 
     -- content area (Main tab)
     local content = Instance.new("Frame", panel)
