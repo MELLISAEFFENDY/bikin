@@ -280,21 +280,17 @@ local function BuildUI()
     settingsTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
     settingsTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
     Instance.new("UICorner", settingsTabBtn)
+    -- Teleport tab button
+    local teleportTabBtn = Instance.new("TextButton", tabBar)
+    teleportTabBtn.Size = UDim2.new(0, 100, 1, 0)
+    teleportTabBtn.Position = UDim2.new(0, 230, 0, 0)
+    teleportTabBtn.Text = "Teleport"
+    teleportTabBtn.Font = Enum.Font.GothamSemibold
+    teleportTabBtn.TextSize = 14
+    teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+    teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+    Instance.new("UICorner", teleportTabBtn)
 
-    eventBtn.Font = Enum.Font.GothamSemibold
-    eventBtn.TextSize = 14
-    eventBtn.BackgroundColor3 = Color3.fromRGB(180,130,70)
-    eventBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", eventBtn)
-    local playerBtn = Instance.new("TextButton", teleportFrame)
-    playerBtn.Size = UDim2.new(1, -20, 0, 30)
-    playerBtn.Position = UDim2.new(0, 10, 0, 90)
-    playerBtn.Text = "Players"
-    playerBtn.Font = Enum.Font.GothamSemibold
-    playerBtn.TextSize = 14
-    playerBtn.BackgroundColor3 = Color3.fromRGB(130,70,180)
-    playerBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", playerBtn)
 
     -- content area (Main tab)
     local content = Instance.new("Frame", panel)
