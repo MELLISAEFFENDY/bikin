@@ -440,7 +440,7 @@ local function BuildUI()
         ["🏝️Coral Reefs"] = CFrame.new(-3023.97119, 337.812927, 2195.60913),
         ["🏝️ SISYPUS"] = CFrame.new(-3709.75, -96.81, -952.38),
         ["🦈 TREASURE"] = CFrame.new(-3599.90, -275.96, -1640.84),
-        ["🎣 STRINGRY"] 🏝️= CFrame.new(102.05, 29.64, 3054.35),
+        ["🎣 STRINGRY"] = CFrame.new(102.05, 29.64, 3054.35),
         ["❄️ ICE LAND"] = CFrame.new(1990.55, 3.09, 3021.91),
         ["🌋 CRATER"] = CFrame.new(990.45, 21.06, 5059.85),
         ["🌴 TROPICAL"] = CFrame.new(-2093.80, 6.26, 3654.30),
