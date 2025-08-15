@@ -387,32 +387,63 @@ local function CreateExportMenu(parentFrame)
     -- Copy to clipboard
     createExportButton("Copy to Clipboard", 1, function()
         local data = ExportDebugData()
+        
+        -- Limit data to prevent clipboard overflow
+        local maxRemotes = math.min(#data.Remotes, 50)
+        local maxFishingObjects = math.min(#data.FishingObjects, 50)
+        
         local exportText = string.format([[
 === FISH IT DEBUG EXPORT ===
 Game: %s (PlaceId: %s)
 Timestamp: %s
-Fishing Objects: %d
-Remotes: %d
+Fishing Objects: %d (showing first %d)
+Remotes: %d (showing first %d)
 Remote Calls: %d
 
-=== REMOTES ===
-]], data.GameName, data.GamePlaceId, data.Timestamp, #data.FishingObjects, #data.Remotes, #data.RemoteCalls)
+=== KEY REMOTES ===
+]], data.GameName, data.GamePlaceId, data.Timestamp, #data.FishingObjects, maxFishingObjects, #data.Remotes, maxRemotes, #data.RemoteCalls)
         
-        for i, remote in ipairs(data.Remotes) do
-            exportText = exportText .. string.format("[%d] %s (%s): %s\n", i, remote.Name, remote.Type, remote.FullName)
+        -- Add only important remotes
+        for i = 1, maxRemotes do
+            local remote = data.Remotes[i]
+            if remote then
+                exportText = exportText .. string.format("[%d] %s (%s)\n", i, remote.Name, remote.Type)
+            end
         end
         
-        exportText = exportText .. "\n=== FISHING OBJECTS ===\n"
-        for i, obj in ipairs(data.FishingObjects) do
-            exportText = exportText .. string.format("[%d] %s (%s) in %s: %s\n", i, obj.Object.Name, obj.ClassName, obj.Location, obj.FullName)
+        exportText = exportText .. "\n=== KEY FISHING OBJECTS ===\n"
+        for i = 1, maxFishingObjects do
+            local obj = data.FishingObjects[i]
+            if obj then
+                exportText = exportText .. string.format("[%d] %s (%s) in %s\n", i, obj.Object.Name, obj.ClassName, obj.Location)
+            end
         end
         
-        if CopyToClipboard(exportText) then
-            Log("EXPORT", "Data copied to clipboard successfully!")
-            Notify("Export", "Debug data copied to clipboard!")
+        exportText = exportText .. "\n=== ANALYSIS NOTES ===\n"
+        exportText = exportText .. "- Copy this data to analyze Fish It game structure\n"
+        exportText = exportText .. "- Look for fishing-related remotes and objects\n"
+        exportText = exportText .. "- Use console output for full detailed export\n"
+        
+        local success = false
+        pcall(function()
+            if setclipboard then
+                setclipboard(exportText)
+                success = true
+            elseif syn and syn.write_clipboard then
+                syn.write_clipboard(exportText)
+                success = true
+            elseif Clipboard and Clipboard.set then
+                Clipboard.set(exportText)
+                success = true
+            end
+        end)
+        
+        if success then
+            Log("EXPORT", "Optimized data copied to clipboard successfully!")
+            Notify("Export", "Debug data copied to clipboard! (Optimized version)")
         else
-            Log("ERROR", "Clipboard not supported. Data printed to console instead.")
-            print(exportText)
+            Log("ERROR", "Clipboard failed. Printing to console instead.")
+            print("\n" .. exportText)
         end
         exportMenu.Visible = false
     end)
@@ -444,6 +475,56 @@ Fish It Debug Summary:
         else
             print(summary)
             Log("EXPORT", "Summary printed to console")
+        end
+        exportMenu.Visible = false
+    end)
+    
+    -- Copy key data only (for reliable clipboard)
+    createExportButton("Copy Key Data", 3, function()
+        local data = ExportDebugData()
+        local keyData = string.format([[Fish It Key Data:
+PlaceId: %s
+Top 10 Remotes: %s
+Top 10 Fishing Objects: %s
+Analysis Ready: YES]], 
+            data.GamePlaceId,
+            table.concat((function()
+                local top = {}
+                for i = 1, math.min(10, #data.Remotes) do
+                    table.insert(top, data.Remotes[i].Name)
+                end
+                return top
+            end)(), ", "),
+            table.concat((function()
+                local top = {}
+                for i = 1, math.min(10, #data.FishingObjects) do
+                    table.insert(top, data.FishingObjects[i].Object.Name)
+                end
+                return top
+            end)(), ", ")
+        )
+        
+        local success = false
+        for attempt = 1, 5 do
+            pcall(function()
+                if setclipboard then
+                    setclipboard(keyData)
+                    success = true
+                elseif syn and syn.write_clipboard then
+                    syn.write_clipboard(keyData)
+                    success = true
+                end
+            end)
+            if success then break end
+            wait(0.05)
+        end
+        
+        if success then
+            Log("EXPORT", "Key data copied successfully!")
+            Notify("Export", "Key data copied to clipboard!")
+        else
+            print(keyData)
+            Log("EXPORT", "Key data printed to console")
         end
         exportMenu.Visible = false
     end)
