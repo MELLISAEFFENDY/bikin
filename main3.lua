@@ -210,7 +210,9 @@ local function BuildUI()
     local minimizeBtn = Instance.new("TextButton", btnContainer)
     minimizeBtn.Size = UDim2.new(0, 36, 0, 28)
     minimizeBtn.Position = UDim2.new(0, 8, 0.5, -14)
-    minimizeBtn.Text = "_" minimizeBtn.Font = Enum.Font.GothamBold minimizeBtn.TextSize = 18
+    minimizeBtn.Text = "_"
+    minimizeBtn.Font = Enum.Font.GothamBold
+    minimizeBtn.TextSize = 18
     minimizeBtn.BackgroundColor3 = Color3.fromRGB(60,60,66); minimizeBtn.TextColor3 = Color3.fromRGB(230,230,230)
     Instance.new("UICorner", minimizeBtn)
 
@@ -219,7 +221,9 @@ local function BuildUI()
     closeBtn.Size = UDim2.new(0, 36, 0, 28)
     closeBtn.AnchorPoint = Vector2.new(1, 0)
     closeBtn.Position = UDim2.new(1, -8, 0.5, -14)
-    closeBtn.Text = "X" closeBtn.Font = Enum.Font.GothamBold closeBtn.TextSize = 16
+    closeBtn.Text = "X"
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextSize = 16
     closeBtn.BackgroundColor3 = Color3.fromRGB(160,60,60); closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", closeBtn)
 
