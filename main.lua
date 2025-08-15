@@ -9,6 +9,22 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
 
+-- Ensure this runs on the client (LocalScript). If not, bail with a clear message.
+if not RunService:IsClient() then
+    warn("modern_autofish: script must run on the client as a LocalScript (e.g., StarterPlayerScripts). UI will not be created on the server.")
+    return
+end
+
+local LocalPlayer = Players.LocalPlayer
+if not LocalPlayer then
+    -- Try briefly to get LocalPlayer; if still unavailable, abort with message
+    LocalPlayer = Players.LocalPlayer
+    if not LocalPlayer then
+        warn("modern_autofish: LocalPlayer not available. Ensure this is a LocalScript running on the client (StarterPlayerScripts) and run Play in Studio.")
+        return
+    end
+end
+
 local function BuildUI()
     local playerGui = LocalPlayer:WaitForChild("PlayerGui")
     local screenGui = Instance.new("ScreenGui")
