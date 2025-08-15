@@ -223,12 +223,24 @@ local function BuildUI()
     closeBtn.BackgroundColor3 = Color3.fromRGB(160,60,60); closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", closeBtn)
 
-    -- drag logic
+    -- drag logic (with viewport clamping)
     local dragging = false; local dragStart = Vector2.new(0,0); local startPos = Vector2.new(0,0); local dragInput
     local function updateDrag(input)
         if not dragging then return end
         local delta = input.Position - dragStart
-        panel.Position = UDim2.new(0, startPos.X + delta.X, 0, startPos.Y + delta.Y)
+        local desiredX = startPos.X + delta.X
+        local desiredY = startPos.Y + delta.Y
+        local cam = workspace.CurrentCamera
+        local vw, vh = 800, 600
+        if cam and cam.ViewportSize then
+            vw, vh = cam.ViewportSize.X, cam.ViewportSize.Y
+        end
+        local panelSize = panel.AbsoluteSize
+        local maxX = math.max(0, vw - (panelSize.X or 0))
+        local maxY = math.max(0, vh - (panelSize.Y or 0))
+        local clampedX = math.clamp(desiredX, 0, maxX)
+        local clampedY = math.clamp(desiredY, 0, maxY)
+        panel.Position = UDim2.new(0, clampedX, 0, clampedY)
     end
     header.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -244,10 +256,18 @@ local function BuildUI()
     content.Size = UDim2.new(1, -20, 1, -60); content.Position = UDim2.new(0, 10, 0, 44); content.BackgroundTransparency = 1
     local leftCol = Instance.new("Frame", content); leftCol.Size = UDim2.new(0.5, -6, 1, 0); leftCol.BackgroundTransparency = 1
     local rightCol = Instance.new("Frame", content); rightCol.Size = UDim2.new(0.5, -6, 1, 0); rightCol.Position = UDim2.new(0.5, 12, 0, 0); rightCol.BackgroundTransparency = 1
+    -- thin divider between columns for visual separation
+    local divider = Instance.new("Frame", content)
+    divider.Size = UDim2.new(0, 2, 1, 0)
+    divider.Position = UDim2.new(0.5, -6, 0, 0)
+    divider.BackgroundColor3 = Color3.fromRGB(40,40,48)
+    divider.BorderSizePixel = 0
+    local dividerCorner = Instance.new("UICorner", divider)
+    dividerCorner.CornerRadius = UDim.new(0, 2)
 
     -- left: mode
     local modeLabel = Instance.new("TextLabel", leftCol); modeLabel.Size = UDim2.new(1,0,0,18); modeLabel.Text = "Mode"; modeLabel.BackgroundTransparency = 1; modeLabel.Font = Enum.Font.GothamSemibold; modeLabel.TextColor3 = Color3.fromRGB(200,200,200)
-    local modeButtons = Instance.new("Frame", leftCol); modeButtons.Size = UDim2.new(1,0,0,70); modeButtons.Position = UDim2.new(0,0,0,22); modeButtons.BackgroundTransparency = 1
+    local modeButtons = Instance.new("Frame", leftCol); modeButtons.Size = UDim2.new(1,0,0,70); modeButtons.Position = UDim2.new(0,0,0,24); modeButtons.BackgroundTransparency = 1
     local fastButton = Instance.new("TextButton", modeButtons); fastButton.Size = UDim2.new(0.48,0,0,34); fastButton.Position = UDim2.new(0,0,0,0); fastButton.Text = "Fast"; fastButton.BackgroundColor3 = Color3.fromRGB(75,95,165); Instance.new("UICorner", fastButton)
     local secureButton = Instance.new("TextButton", modeButtons); secureButton.Size = UDim2.new(0.48,0,0,34); secureButton.Position = UDim2.new(0.52,0,0,0); secureButton.Text = "Secure"; secureButton.BackgroundColor3 = Color3.fromRGB(74,155,88); Instance.new("UICorner", secureButton)
 
@@ -259,9 +279,26 @@ local function BuildUI()
     delayLabel.Font = Enum.Font.GothamSemibold
     delayLabel.TextColor3 = Color3.fromRGB(180,180,200)
     delayLabel.TextSize = 13
-    local delayControls = Instance.new("Frame", rightCol); delayControls.Size = UDim2.new(1,0,0,28); delayControls.Position = UDim2.new(0,0,0,22); delayControls.BackgroundTransparency = 1
-    local delayMinus = Instance.new("TextButton", delayControls); delayMinus.Size = UDim2.new(0,32,1,0); delayMinus.Position = UDim2.new(0,0,0,0); delayMinus.Text = "-"; Instance.new("UICorner", delayMinus)
-    local delayPlus = Instance.new("TextButton", delayControls); delayPlus.Size = UDim2.new(0,32,1,0); delayPlus.Position = UDim2.new(1,-32,0,0); delayPlus.Text = "+"; Instance.new("UICorner", delayPlus)
+    local delayControls = Instance.new("Frame", rightCol)
+    delayControls.Size = UDim2.new(1,0,0,28)
+    delayControls.Position = UDim2.new(0,0,0,26)
+    delayControls.BackgroundTransparency = 1
+    local delayMinus = Instance.new("TextButton", delayControls)
+    delayMinus.Size = UDim2.new(0,32,1,0)
+    delayMinus.Position = UDim2.new(0,4,0,0) -- small left padding
+    delayMinus.Text = "-"
+    delayMinus.BackgroundColor3 = Color3.fromRGB(72,72,72)
+    delayMinus.TextColor3 = Color3.fromRGB(255,255,255)
+    delayMinus.TextSize = 18
+    Instance.new("UICorner", delayMinus)
+    local delayPlus = Instance.new("TextButton", delayControls)
+    delayPlus.Size = UDim2.new(0,32,1,0)
+    delayPlus.Position = UDim2.new(1,-36,0,0) -- keep 4px gap from right edge
+    delayPlus.Text = "+"
+    delayPlus.BackgroundColor3 = Color3.fromRGB(72,72,72)
+    delayPlus.TextColor3 = Color3.fromRGB(255,255,255)
+    delayPlus.TextSize = 18
+    Instance.new("UICorner", delayPlus)
 
     local chanceLabel = Instance.new("TextLabel", rightCol)
     chanceLabel.Size = UDim2.new(1,0,0,18)
@@ -271,9 +308,25 @@ local function BuildUI()
     chanceLabel.Font = Enum.Font.GothamSemibold
     chanceLabel.TextColor3 = Color3.fromRGB(180,180,200)
     chanceLabel.TextSize = 13
-    local chanceControls = Instance.new("Frame", rightCol); chanceControls.Size = UDim2.new(1,0,0,28); chanceControls.Position = UDim2.new(0,0,0,82)
-    local chanceMinus = Instance.new("TextButton", chanceControls); chanceMinus.Size = UDim2.new(0,32,1,0); chanceMinus.Position = UDim2.new(0,0,0,0); chanceMinus.Text = "-"; Instance.new("UICorner", chanceMinus)
-    local chancePlus = Instance.new("TextButton", chanceControls); chancePlus.Size = UDim2.new(0,32,1,0); chancePlus.Position = UDim2.new(1,-32,0,0); chancePlus.Text = "+"; Instance.new("UICorner", chancePlus)
+    local chanceControls = Instance.new("Frame", rightCol)
+    chanceControls.Size = UDim2.new(1,0,0,28)
+    chanceControls.Position = UDim2.new(0,0,0,82)
+    local chanceMinus = Instance.new("TextButton", chanceControls)
+    chanceMinus.Size = UDim2.new(0,32,1,0)
+    chanceMinus.Position = UDim2.new(0,4,0,0)
+    chanceMinus.Text = "-"
+    chanceMinus.BackgroundColor3 = Color3.fromRGB(72,72,72)
+    chanceMinus.TextColor3 = Color3.fromRGB(255,255,255)
+    chanceMinus.TextSize = 18
+    Instance.new("UICorner", chanceMinus)
+    local chancePlus = Instance.new("TextButton", chanceControls)
+    chancePlus.Size = UDim2.new(0,32,1,0)
+    chancePlus.Position = UDim2.new(1,-36,0,0)
+    chancePlus.Text = "+"
+    chancePlus.BackgroundColor3 = Color3.fromRGB(72,72,72)
+    chancePlus.TextColor3 = Color3.fromRGB(255,255,255)
+    chancePlus.TextSize = 18
+    Instance.new("UICorner", chancePlus)
 
     -- actions
     local actions = Instance.new("Frame", panel); actions.Size = UDim2.new(1,-20,0,42); actions.Position = UDim2.new(0,10,1,-50); actions.BackgroundTransparency = 1
