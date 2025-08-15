@@ -401,9 +401,9 @@ local function BuildUI()
     Instance.new("UICorner", chancePlus)
 
     -- actions (part of Main tab) - place below mode controls to avoid overlap
-    local actions = Instance.new("Frame", content)
-    actions.Size = UDim2.new(1, 0, 0, 48)
-    actions.Position = UDim2.new(0, 0, 1, -52) -- Positioned at the bottom of the panel
+    local actions = Instance.new("Frame", panel)
+    actions.Size = UDim2.new(1, -20, 0, 48)
+    actions.Position = UDim2.new(0, 10, 1, -58) -- move closer to bottom edge to avoid covering other controls
     actions.BackgroundTransparency = 1
     local startBtn = Instance.new("TextButton", actions)
     startBtn.Size = UDim2.new(0.5, -6, 1, 0)
