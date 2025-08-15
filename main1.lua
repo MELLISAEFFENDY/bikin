@@ -336,9 +336,9 @@ local function BuildUI()
 
     -- left: mode
     local modeLabel = Instance.new("TextLabel", leftCol); modeLabel.Size = UDim2.new(1,0,0,18); modeLabel.Text = "Mode"; modeLabel.BackgroundTransparency = 1; modeLabel.Font = Enum.Font.GothamSemibold; modeLabel.TextColor3 = Color3.fromRGB(200,200,200)
-    local modeButtons = Instance.new("Frame", leftCol); modeButtons.Size = UDim2.new(1,0,0,70); modeButtons.Position = UDim2.new(0,0,0,24); modeButtons.BackgroundTransparency = 1
-    local fastButton = Instance.new("TextButton", modeButtons); fastButton.Size = UDim2.new(0.48,0,0,34); fastButton.Position = UDim2.new(0,0,0,0); fastButton.Text = "Fast"; fastButton.BackgroundColor3 = Color3.fromRGB(75,95,165); Instance.new("UICorner", fastButton)
-    local secureButton = Instance.new("TextButton", modeButtons); secureButton.Size = UDim2.new(0.48,0,0,34); secureButton.Position = UDim2.new(0.52,0,0,0); secureButton.Text = "Secure"; secureButton.BackgroundColor3 = Color3.fromRGB(74,155,88); Instance.new("UICorner", secureButton)
+        local modeButtons = Instance.new("Frame", leftCol); modeButtons.Size = UDim2.new(1,-12,0,70); modeButtons.Position = UDim2.new(0,6,0,24); modeButtons.BackgroundTransparency = 1
+        local fastButton = Instance.new("TextButton", modeButtons); fastButton.Size = UDim2.new(0.46,-6,0,34); fastButton.Position = UDim2.new(0,6,0,0); fastButton.Text = "Fast"; fastButton.BackgroundColor3 = Color3.fromRGB(75,95,165); local fastCorner = Instance.new("UICorner", fastButton); fastCorner.CornerRadius = UDim.new(0,8)
+        local secureButton = Instance.new("TextButton", modeButtons); secureButton.Size = UDim2.new(0.46,-6,0,34); secureButton.Position = UDim2.new(0.52,6,0,0); secureButton.Text = "Secure"; secureButton.BackgroundColor3 = Color3.fromRGB(74,155,88); local secureCorner = Instance.new("UICorner", secureButton); secureCorner.CornerRadius = UDim.new(0,8)
 
     -- right: numeric controls
     local delayLabel = Instance.new("TextLabel", rightCol)
@@ -402,8 +402,8 @@ local function BuildUI()
 
     -- actions (part of Main tab)
     local actions = Instance.new("Frame", content); actions.Size = UDim2.new(1,-20,0,42); actions.Position = UDim2.new(0,10,1,-50); actions.BackgroundTransparency = 1
-    local startBtn = Instance.new("TextButton", actions); startBtn.Size = UDim2.new(0.5,-6,1,0); startBtn.Position = UDim2.new(0,0,0,0); startBtn.Text = "Start"; startBtn.BackgroundColor3 = Color3.fromRGB(70,170,90); startBtn.TextColor3 = Color3.fromRGB(255,255,255); Instance.new("UICorner", startBtn)
-    local stopBtn = Instance.new("TextButton", actions); stopBtn.Size = UDim2.new(0.5,-6,1,0); stopBtn.Position = UDim2.new(0.5,12,0,0); stopBtn.Text = "Stop"; stopBtn.BackgroundColor3 = Color3.fromRGB(190,60,60); stopBtn.TextColor3 = Color3.fromRGB(255,255,255); Instance.new("UICorner", stopBtn)
+        local startBtn = Instance.new("TextButton", actions); startBtn.Size = UDim2.new(0.5,-6,1,0); startBtn.Position = UDim2.new(0,0,0,0); startBtn.Text = "Start"; startBtn.BackgroundColor3 = Color3.fromRGB(70,170,90); startBtn.TextColor3 = Color3.fromRGB(255,255,255); local startCorner = Instance.new("UICorner", startBtn); startCorner.CornerRadius = UDim.new(0,10)
+        local stopBtn = Instance.new("TextButton", actions); stopBtn.Size = UDim2.new(0.5,-6,1,0); stopBtn.Position = UDim2.new(0.5,12,0,0); stopBtn.Text = "Stop"; stopBtn.BackgroundColor3 = Color3.fromRGB(190,60,60); stopBtn.TextColor3 = Color3.fromRGB(255,255,255); local stopCorner = Instance.new("UICorner", stopBtn); stopCorner.CornerRadius = UDim.new(0,10)
 
     -- floating toggle
     -- Floating toggle: keep margin so it doesn't overlap header on small screens
