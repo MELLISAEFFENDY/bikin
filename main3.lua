@@ -247,7 +247,7 @@ local function BuildUI()
         panel.Position = UDim2.new(0, clampedX, 0, clampedY)
     end
     header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true; dragStart = input.Position; startPos = panel.AbsolutePosition; dragInput = input
             input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
         end
@@ -255,14 +255,14 @@ local function BuildUI()
     header.InputChanged:Connect(function(input) if input == dragInput and dragging then updateDrag(input) end end)
     UserInputService.InputChanged:Connect(function(input) if input == dragInput and dragging then updateDrag(input) end end)
 
-    -- Tab bar (Main / Settings)
+    -- Tab bar (Main / Settings / Teleport)
     local tabBar = Instance.new("Frame", panel)
     tabBar.Size = UDim2.new(1, -20, 0, 32)
     tabBar.Position = UDim2.new(0, 10, 0, 44)
     tabBar.BackgroundTransparency = 1
 
     local mainTabBtn = Instance.new("TextButton", tabBar)
-    mainTabBtn.Size = UDim2.new(0, 100, 1, 0)
+    mainTabBtn.Size = UDim2.new(0, 80, 1, 0)
     mainTabBtn.Position = UDim2.new(0, 0, 0, 0)
     mainTabBtn.Text = "Main"
     mainTabBtn.Font = Enum.Font.GothamSemibold
@@ -272,14 +272,24 @@ local function BuildUI()
     Instance.new("UICorner", mainTabBtn)
 
     local settingsTabBtn = Instance.new("TextButton", tabBar)
-    settingsTabBtn.Size = UDim2.new(0, 120, 1, 0)
-    settingsTabBtn.Position = UDim2.new(0, 106, 0, 0)
+    settingsTabBtn.Size = UDim2.new(0, 80, 1, 0)
+    settingsTabBtn.Position = UDim2.new(0, 86, 0, 0)
     settingsTabBtn.Text = "Settings"
     settingsTabBtn.Font = Enum.Font.GothamSemibold
     settingsTabBtn.TextSize = 14
     settingsTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
     settingsTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
     Instance.new("UICorner", settingsTabBtn)
+
+    local teleportTabBtn = Instance.new("TextButton", tabBar)
+    teleportTabBtn.Size = UDim2.new(0, 80, 1, 0)
+    teleportTabBtn.Position = UDim2.new(0, 172, 0, 0)
+    teleportTabBtn.Text = "Teleport"
+    teleportTabBtn.Font = Enum.Font.GothamSemibold
+    teleportTabBtn.TextSize = 14
+    teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+    teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+    Instance.new("UICorner", teleportTabBtn)
 
 
     -- content area (Main tab)
@@ -362,6 +372,100 @@ local function BuildUI()
     chancePlus.TextSize = 18
     Instance.new("UICorner", chancePlus)
 
+    -- Settings Tab Content
+    local settingsFrame = Instance.new("Frame", panel)
+    settingsFrame.Size = UDim2.new(1, -20, 1, -148)
+    settingsFrame.Position = UDim2.new(0, 10, 0, 80)
+    settingsFrame.BackgroundTransparency = 1
+    settingsFrame.Visible = false
+
+    local settingsTitle = Instance.new("TextLabel", settingsFrame)
+    settingsTitle.Size = UDim2.new(1, 0, 0, 24)
+    settingsTitle.Text = "Advanced Settings"
+    settingsTitle.Font = Enum.Font.GothamBold
+    settingsTitle.TextSize = 16
+    settingsTitle.TextColor3 = Color3.fromRGB(235,235,235)
+    settingsTitle.BackgroundTransparency = 1
+    settingsTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local maxActionsLabel = Instance.new("TextLabel", settingsFrame)
+    maxActionsLabel.Size = UDim2.new(1, 0, 0, 18)
+    maxActionsLabel.Position = UDim2.new(0, 0, 0, 35)
+    maxActionsLabel.Text = string.format("Max Actions/Min: %d", Config.secure_max_actions_per_minute)
+    maxActionsLabel.BackgroundTransparency = 1
+    maxActionsLabel.Font = Enum.Font.GothamSemibold
+    maxActionsLabel.TextColor3 = Color3.fromRGB(180,180,200)
+    maxActionsLabel.TextSize = 13
+
+    local maxActionsControls = Instance.new("Frame", settingsFrame)
+    maxActionsControls.Size = UDim2.new(1, 0, 0, 28)
+    maxActionsControls.Position = UDim2.new(0, 0, 0, 58)
+    maxActionsControls.BackgroundTransparency = 1
+
+    local maxActionsMinus = Instance.new("TextButton", maxActionsControls)
+    maxActionsMinus.Size = UDim2.new(0, 32, 1, 0)
+    maxActionsMinus.Position = UDim2.new(0, 4, 0, 0)
+    maxActionsMinus.Text = "-"
+    maxActionsMinus.BackgroundColor3 = Color3.fromRGB(72,72,72)
+    maxActionsMinus.TextColor3 = Color3.fromRGB(255,255,255)
+    maxActionsMinus.TextSize = 18
+    Instance.new("UICorner", maxActionsMinus)
+
+    local maxActionsPlus = Instance.new("TextButton", maxActionsControls)
+    maxActionsPlus.Size = UDim2.new(0, 32, 1, 0)
+    maxActionsPlus.Position = UDim2.new(1, -36, 0, 0)
+    maxActionsPlus.Text = "+"
+    maxActionsPlus.BackgroundColor3 = Color3.fromRGB(72,72,72)
+    maxActionsPlus.TextColor3 = Color3.fromRGB(255,255,255)
+    maxActionsPlus.TextSize = 18
+    Instance.new("UICorner", maxActionsPlus)
+
+    -- Teleport Tab Content
+    local teleportFrame = Instance.new("Frame", panel)
+    teleportFrame.Size = UDim2.new(1, -20, 1, -148)
+    teleportFrame.Position = UDim2.new(0, 10, 0, 80)
+    teleportFrame.BackgroundTransparency = 1
+    teleportFrame.Visible = false
+
+    local teleportTitle = Instance.new("TextLabel", teleportFrame)
+    teleportTitle.Size = UDim2.new(1, 0, 0, 24)
+    teleportTitle.Text = "Teleport Locations"
+    teleportTitle.Font = Enum.Font.GothamBold
+    teleportTitle.TextSize = 16
+    teleportTitle.TextColor3 = Color3.fromRGB(235,235,235)
+    teleportTitle.BackgroundTransparency = 1
+    teleportTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local spawnBtn = Instance.new("TextButton", teleportFrame)
+    spawnBtn.Size = UDim2.new(1, 0, 0, 32)
+    spawnBtn.Position = UDim2.new(0, 0, 0, 35)
+    spawnBtn.Text = "Teleport to Spawn"
+    spawnBtn.Font = Enum.Font.GothamSemibold
+    spawnBtn.TextSize = 14
+    spawnBtn.BackgroundColor3 = Color3.fromRGB(60,120,180)
+    spawnBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", spawnBtn)
+
+    local fishingAreaBtn = Instance.new("TextButton", teleportFrame)
+    fishingAreaBtn.Size = UDim2.new(1, 0, 0, 32)
+    fishingAreaBtn.Position = UDim2.new(0, 0, 0, 75)
+    fishingAreaBtn.Text = "Teleport to Fishing Area"
+    fishingAreaBtn.Font = Enum.Font.GothamSemibold
+    fishingAreaBtn.TextSize = 14
+    fishingAreaBtn.BackgroundColor3 = Color3.fromRGB(60,120,180)
+    fishingAreaBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", fishingAreaBtn)
+
+    local sellBtn = Instance.new("TextButton", teleportFrame)
+    sellBtn.Size = UDim2.new(1, 0, 0, 32)
+    sellBtn.Position = UDim2.new(0, 0, 0, 115)
+    sellBtn.Text = "Sell All Items"
+    sellBtn.Font = Enum.Font.GothamSemibold
+    sellBtn.TextSize = 14
+    sellBtn.BackgroundColor3 = Color3.fromRGB(180,120,60)
+    sellBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", sellBtn)
+
     -- actions (part of Main tab) - place below mode controls to avoid overlap
     local actions = Instance.new("Frame", panel)
     actions.Size = UDim2.new(1, -20, 0, 48)
@@ -388,6 +492,16 @@ local function BuildUI()
     floatBtn.BackgroundColor3 = Color3.fromRGB(40,40,46); floatBtn.Font = Enum.Font.GothamBold; floatBtn.TextSize = 20; floatBtn.TextColor3 = Color3.fromRGB(235,235,235)
     floatBtn.MouseButton1Click:Connect(function() panel.Visible = not panel.Visible end)
 
+    -- Teleport functions
+    local function TeleportTo(position)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(position)
+            Notify("Teleport", "Teleported successfully")
+        else
+            Notify("Teleport", "Character not found")
+        end
+    end
+
     -- Sell All behavior: call remote if present
     sellBtn.MouseButton1Click:Connect(function()
         local sellRemote = ResolveRemote("RF/SellAllItems")
@@ -399,6 +513,15 @@ local function BuildUI()
             if sellRemote:IsA("RemoteFunction") then return sellRemote:InvokeServer() else sellRemote:FireServer() end
         end)
         if ok then Notify("SellAll", "SellAll invoked") else Notify("SellAll", "SellAll failed: " .. tostring(res)) end
+    end)
+
+    -- Teleport button connections
+    spawnBtn.MouseButton1Click:Connect(function()
+        TeleportTo(Vector3.new(0, 50, 0))
+    end)
+    
+    fishingAreaBtn.MouseButton1Click:Connect(function()
+        TeleportTo(Vector3.new(100, 5, 200))
     end)
 
     -- Robust tab switching: collect tabs and provide SwitchTo
@@ -478,6 +601,16 @@ local function BuildUI()
     chancePlus.MouseButton1Click:Connect(function()
         Config.safeModeChance = math.min(100, Config.safeModeChance + 5)
         chanceLabel.Text = string.format("Safe Perfect %%: %d", Config.safeModeChance)
+    end)
+
+    -- Settings tab controls
+    maxActionsMinus.MouseButton1Click:Connect(function()
+        Config.secure_max_actions_per_minute = math.max(30, Config.secure_max_actions_per_minute - 10)
+        maxActionsLabel.Text = string.format("Max Actions/Min: %d", Config.secure_max_actions_per_minute)
+    end)
+    maxActionsPlus.MouseButton1Click:Connect(function()
+        Config.secure_max_actions_per_minute = math.min(300, Config.secure_max_actions_per_minute + 10)
+        maxActionsLabel.Text = string.format("Max Actions/Min: %d", Config.secure_max_actions_per_minute)
     end)
 
     Notify("modern_autofish", "UI ready - Select mode and press Start")
