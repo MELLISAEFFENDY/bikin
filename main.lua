@@ -9,199 +9,352 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
 
-local LocalPlayer = Players.LocalPlayer
-if not LocalPlayer then
-    warn("modern_autofish: LocalPlayer not found - run as LocalScript")
-    return
-end
+local function BuildUI()
+    local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "ModernAutoFishUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = playerGui
 
--- Utils
-local function Notify(title, text)
-    pcall(function()
-        StarterGui:SetCore("SendNotification", {Title = title, Text = text, Duration = 4})
-    end)
-    print("[modern_autofish]", title, "-", text)
-end
+    local panel = Instance.new("Frame")
+    panel.Name = "Panel"
+    panel.Size = UDim2.new(0, 380, 0, 200)
+    panel.Position = UDim2.new(0, 18, 0, 70)
+    panel.BackgroundColor3 = Color3.fromRGB(28,28,34)
+    panel.BorderSizePixel = 0
+    panel.Parent = screenGui
 
--- Remote loader helper (robust)
-local function FindNet()
-    local ok, net = pcall(function()
-        local packages = ReplicatedStorage:FindFirstChild("Packages")
-        if not packages then return nil end
-        local idx = packages:FindFirstChild("_Index")
-        if not idx then return nil end
-        local sleit = idx:FindFirstChild("sleitnick_net@0.2.0")
-        if not sleit then return nil end
-        return sleit:FindFirstChild("net")
-    end)
-    return ok and net or nil
-end
+    local panelCorner = Instance.new("UICorner") panelCorner.Parent = panel
+    local panelStroke = Instance.new("UIStroke") panelStroke.Thickness = 1 panelStroke.Color = Color3.fromRGB(40,40,48) panelStroke.Parent = panel
 
-local net = FindNet()
-if not net then
-    Notify("modern_autofish", "Warning: net package not found. Many features will not work.")
-end
+    -- Header
+    local header = Instance.new("Frame") header.Parent = panel
+    header.Size = UDim2.new(1, 0, 0, 40)
+    header.Position = UDim2.new(0, 0, 0, 0)
+    header.BackgroundTransparency = 1
 
--- Attempt to resolve remotes safely
-local function ResolveRemote(name)
-    if not net then return nil end
-    local ok, rem = pcall(function() return net:FindFirstChild(name) end)
-    if ok then return rem end
-    return nil
-end
+    -- Enable header to receive input for dragging
+    header.Active = true
+    header.Selectable = true
 
-local rodRemote = ResolveRemote("RF/ChargeFishingRod")
-local miniGameRemote = ResolveRemote("RF/RequestFishingMinigameStarted")
-local finishRemote = ResolveRemote("RE/FishingCompleted")
-local equipRemote = ResolveRemote("RE/EquipToolFromHotbar")
+    -- Drag support variables
+    local dragging = false
+    local dragStart = Vector2.new(0,0)
+    local startPos = Vector2.new(0,0)
+    local dragInput = nil
 
--- Generic safe invoker that handles RemoteEvent vs RemoteFunction and returns success+result
-local function safeInvoke(remote, ...)
-    if not remote then return false, "remote_nil" end
-    local ok, res
-    if remote:IsA("RemoteFunction") then
-        ok, res = pcall(function(...) return remote:InvokeServer(...) end, ...)
-    else
-        ok, res = pcall(function(...) remote:FireServer(...) return true end, ...)
+    local function updateDrag(input)
+        if not dragging then return end
+        local delta = input.Position - dragStart
+        panel.Position = UDim2.new(0, startPos.X + delta.X, 0, startPos.Y + delta.Y)
     end
-    return ok, res
-end
 
--- Mode: two modes
--- "fast" : behaviour inspired by new.lua (fast, less random)
--- "secure": behaviour inspired by old.lua (randomized, rate-limited, security)
-
-local Config = {
-    mode = "secure",       -- "secure" or "fast"
-    autoRecastDelay = 0.6,  -- base delay between cycles
-    safeModeChance = 70,    -- percent for safe-mode perfect cast
-    secure_max_actions_per_minute = 120,
-    secure_detection_cooldown = 5,
-    enabled = false
-}
-
--- Security state (for secure mode)
-local Security = {
-    actionsThisMinute = 0,
-    lastMinuteReset = tick(),
-    isInCooldown = false,
-    suspicion = 0
-}
-
-local stopFlag = false
-local sessionId = 0
-
--- seeding random
-math.randomseed(tick() + (LocalPlayer and LocalPlayer.UserId or 0))
-
-local function inCooldown()
-    local now = tick()
-    if now - Security.lastMinuteReset > 60 then
-        Security.actionsThisMinute = 0
-        Security.lastMinuteReset = now
-    end
-    if Security.actionsThisMinute >= Config.secure_max_actions_per_minute then
-        Security.isInCooldown = true
-        return true
-    end
-    return Security.isInCooldown
-end
-
-local function secureInvoke(remote, ...)
-    if inCooldown() then
-        return false, "cooldown"
-    end
-    Security.actionsThisMinute = Security.actionsThisMinute + 1
-    -- micro jitter
-    local jitter = 0.01 + math.random() * 0.05
-    task.wait(jitter)
-    local ok, res = safeInvoke(remote, ...)
-    if not ok then
-        Security.suspicion = Security.suspicion + 1
-        if Security.suspicion > 10 then
-            Security.isInCooldown = true
-            task.spawn(function()
-                Notify("modern_autofish", "Entering cooldown due to repeated errors")
-                task.wait(Config.secure_detection_cooldown)
-                Security.suspicion = 0
-                Security.isInCooldown = false
+    header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = panel.AbsolutePosition
+            dragInput = input
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
             end)
         end
-    end
-    return ok, res
-end
+    end)
 
--- Helper to get server time when available
-local function GetServerTime()
-    local ok, st = pcall(function() return workspace:GetServerTimeNow() end)
-    if ok and type(st) == "number" then return st end
-    return tick()
-end
-
--- Core fishing cycle implementations
-local function DoFastCycle()
-    -- fast mode uses less randomization and smaller delays
-    if equipRemote then pcall(function() equipRemote:FireServer(1) end) end
-    local usePerfect = false
-    if Config.safeModeChance and Config.safeModeChance > 0 then
-        usePerfect = math.random(1,100) <= Config.safeModeChance
-    end
-
-    local timestamp = usePerfect and GetServerTime() or GetServerTime() + math.random()*0.5
-    if rodRemote then pcall(function() rodRemote:InvokeServer(timestamp) end) end
-    task.wait(0.08 + math.random()*0.06)
-    local x = usePerfect and -1.238 or (math.random(-1000,1000)/1000)
-    local y = usePerfect and 0.969 or (math.random(0,1000)/1000)
-    if miniGameRemote then pcall(function() miniGameRemote:InvokeServer(x,y) end) end
-    task.wait(1.0 + math.random()*0.4)
-    if finishRemote then pcall(function() finishRemote:FireServer() end) end
-end
-
-local function DoSecureCycle()
-    -- secure mode: use secureInvoke with jitter, rate-limits and random delays
-    if inCooldown() then
-        task.wait(1)
-        return
-    end
-    if equipRemote then secureInvoke(equipRemote, 1) end
-
-    local usePerfect = false
-    if Config.safeModeChance and Config.safeModeChance > 0 then
-        usePerfect = math.random(1,100) <= Config.safeModeChance
-    end
-
-    local ts = GetServerTime()
-    local timestamp = usePerfect and ts or ts + (math.random()*0.8 - 0.4)
-
-    secureInvoke(rodRemote, timestamp)
-    task.wait(0.08 + math.random()*0.12)
-    local x = usePerfect and -1.2379989624023438 or (math.random(-1000,1000)/1000)
-    local y = usePerfect and 0.9800224985802423 or (math.random(0,1000)/1000)
-    secureInvoke(miniGameRemote, x, y)
-    task.wait(0.6 + math.random()*1.2)
-    if finishRemote then secureInvoke(finishRemote) end
-end
-
--- Autofish runner
-local function AutofishRunner(mySession)
-    Notify("modern_autofish", "AutoFishing started (mode: " .. Config.mode .. ")")
-    while Config.enabled and sessionId == mySession do
-        local ok, err = pcall(function()
-            if Config.mode == "fast" then
-                DoFastCycle()
-            else
-                DoSecureCycle()
-            end
-        end)
-        if not ok then
-            warn("modern_autofish: cycle error:", err)
-            Notify("modern_autofish", "Cycle error: " .. tostring(err))
-            -- small backoff
-            task.wait(0.5 + math.random()*0.5)
+    header.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            updateDrag(input)
         end
-        -- base recast delay with small random jitter
-        local delay = Config.autoRecastDelay + (math.random()*0.2 - 0.1)
-        if delay < 0.05 then delay = 0.05 end
+    end)
+
+    -- Also track global input changed for smoother movement (when using UserInputService)
+    local UIS = game:GetService("UserInputService")
+    UIS.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            updateDrag(input)
+        end
+    end)
+
+    local title = Instance.new("TextLabel")
+    title.Parent = header
+    title.Size = UDim2.new(1, -20, 1, 0)
+    title.Position = UDim2.new(0, 10, 0, 6)
+    title.BackgroundTransparency = 1
+    title.Text = "Modern AutoFish"
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 18
+    title.TextColor3 = Color3.fromRGB(235,235,235)
+    title.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Minimize and Close buttons in header
+    local btnContainer = Instance.new("Frame") btnContainer.Parent = header
+    btnContainer.Size = UDim2.new(0, 80, 1, 0)
+    btnContainer.Position = UDim2.new(1, -90, 0, 0)
+    btnContainer.BackgroundTransparency = 1
+
+    local minimizeBtn = Instance.new("TextButton") minimizeBtn.Parent = btnContainer
+    minimizeBtn.Size = UDim2.new(0, 36, 0, 24)
+    minimizeBtn.Position = UDim2.new(0, 0, 0.5, -12)
+    minimizeBtn.Text = "_"
+    minimizeBtn.Font = Enum.Font.GothamBold
+    minimizeBtn.TextSize = 18
+    minimizeBtn.BackgroundColor3 = Color3.fromRGB(60,60,66)
+    minimizeBtn.TextColor3 = Color3.fromRGB(230,230,230)
+    local minCorner = Instance.new("UICorner") minCorner.Parent = minimizeBtn
+
+    local closeBtn = Instance.new("TextButton") closeBtn.Parent = btnContainer
+    closeBtn.Size = UDim2.new(0, 36, 0, 24)
+    closeBtn.Position = UDim2.new(1, -36, 0.5, -12)
+    closeBtn.AnchorPoint = Vector2.new(1,0)
+    closeBtn.Text = "X"
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextSize = 16
+    closeBtn.BackgroundColor3 = Color3.fromRGB(160,60,60)
+    closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    local closeCorner = Instance.new("UICorner") closeCorner.Parent = closeBtn
+
+    -- Main content container
+    local content = Instance.new("Frame") content.Parent = panel
+    content.Size = UDim2.new(1, -20, 1, -60)
+    content.Position = UDim2.new(0, 10, 0, 44)
+    content.BackgroundTransparency = 1
+
+    local leftCol = Instance.new("Frame") leftCol.Parent = content
+    leftCol.Size = UDim2.new(0.5, -6, 1, 0)
+    leftCol.Position = UDim2.new(0, 0, 0, 0)
+    leftCol.BackgroundTransparency = 1
+
+    local rightCol = Instance.new("Frame") rightCol.Parent = content
+    rightCol.Size = UDim2.new(0.5, -6, 1, 0)
+    rightCol.Position = UDim2.new(0.5, 12, 0, 0)
+    rightCol.BackgroundTransparency = 1
+
+    -- Mode controls (left)
+    local modeLabel = Instance.new("TextLabel") modeLabel.Parent = leftCol
+    modeLabel.Size = UDim2.new(1, 0, 0, 18)
+    modeLabel.Position = UDim2.new(0, 0, 0, 0)
+    modeLabel.BackgroundTransparency = 1
+    modeLabel.Text = "Mode"
+    modeLabel.Font = Enum.Font.GothamSemibold
+    modeLabel.TextSize = 13
+    modeLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    modeLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local modeButtons = Instance.new("Frame") modeButtons.Parent = leftCol
+    modeButtons.Size = UDim2.new(1, 0, 0, 70)
+    modeButtons.Position = UDim2.new(0, 0, 0, 22)
+    modeButtons.BackgroundTransparency = 1
+
+    local fastButton = Instance.new("TextButton") fastButton.Parent = modeButtons
+    fastButton.Size = UDim2.new(0.48, 0, 0, 34)
+    fastButton.Position = UDim2.new(0, 0, 0, 0)
+    fastButton.Text = "Fast"
+    fastButton.Font = Enum.Font.Gotham
+    fastButton.TextSize = 14
+    fastButton.BackgroundColor3 = Color3.fromRGB(75,95,165)
+    fastButton.TextColor3 = Color3.fromRGB(255,255,255)
+    local fastCorner = Instance.new("UICorner") fastCorner.Parent = fastButton
+
+    local secureButton = Instance.new("TextButton") secureButton.Parent = modeButtons
+    secureButton.Size = UDim2.new(0.48, 0, 0, 34)
+    secureButton.Position = UDim2.new(0.52, 0, 0, 0)
+    secureButton.Text = "Secure"
+    secureButton.Font = Enum.Font.Gotham
+    secureButton.TextSize = 14
+    secureButton.BackgroundColor3 = Color3.fromRGB(74,155,88)
+    secureButton.TextColor3 = Color3.fromRGB(255,255,255)
+    local secureCorner = Instance.new("UICorner") secureCorner.Parent = secureButton
+
+    -- Right column: numeric controls
+    local delayLabel = Instance.new("TextLabel") delayLabel.Parent = rightCol
+    delayLabel.Size = UDim2.new(1, 0, 0, 18)
+    delayLabel.Position = UDim2.new(0, 0, 0, 0)
+    delayLabel.BackgroundTransparency = 1
+    delayLabel.Text = string.format("Recast Delay: %.2fs", Config.autoRecastDelay)
+    delayLabel.Font = Enum.Font.GothamSemibold
+    delayLabel.TextSize = 13
+    delayLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    delayLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local delayControls = Instance.new("Frame") delayControls.Parent = rightCol
+    delayControls.Size = UDim2.new(1, 0, 0, 28)
+    delayControls.Position = UDim2.new(0, 0, 0, 22)
+    delayControls.BackgroundTransparency = 1
+
+    local delayMinus = Instance.new("TextButton") delayMinus.Parent = delayControls
+    delayMinus.Size = UDim2.new(0, 0, 1, 0)
+    delayMinus.Size = UDim2.new(0, 32, 1, 0)
+    delayMinus.Position = UDim2.new(0, 0, 0, 0)
+    delayMinus.Text = "-"
+    delayMinus.Font = Enum.Font.GothamBold
+    delayMinus.TextSize = 18
+    delayMinus.BackgroundColor3 = Color3.fromRGB(72,72,72)
+    delayMinus.TextColor3 = Color3.fromRGB(255,255,255)
+    local delayMinusCorner = Instance.new("UICorner") delayMinusCorner.Parent = delayMinus
+
+    local delayPlus = Instance.new("TextButton") delayPlus.Parent = delayControls
+    delayPlus.Size = UDim2.new(0, 32, 1, 0)
+    delayPlus.Position = UDim2.new(1, -32, 0, 0)
+    delayPlus.Text = "+"
+    delayPlus.Font = Enum.Font.GothamBold
+    delayPlus.TextSize = 18
+    delayPlus.BackgroundColor3 = Color3.fromRGB(72,72,72)
+    delayPlus.TextColor3 = Color3.fromRGB(255,255,255)
+    local delayPlusCorner = Instance.new("UICorner") delayPlusCorner.Parent = delayPlus
+
+    local chanceLabel = Instance.new("TextLabel") chanceLabel.Parent = rightCol
+    chanceLabel.Size = UDim2.new(1, 0, 0, 18)
+    chanceLabel.Position = UDim2.new(0, 0, 0, 58)
+    chanceLabel.BackgroundTransparency = 1
+    chanceLabel.Text = string.format("Safe Perfect %%: %d", Config.safeModeChance)
+    chanceLabel.Font = Enum.Font.GothamSemibold
+    chanceLabel.TextSize = 13
+    chanceLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    chanceLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local chanceControls = Instance.new("Frame") chanceControls.Parent = rightCol
+    chanceControls.Size = UDim2.new(1, 0, 0, 28)
+    chanceControls.Position = UDim2.new(0, 0, 0, 82)
+    chanceControls.BackgroundTransparency = 1
+
+    local chanceMinus = Instance.new("TextButton") chanceMinus.Parent = chanceControls
+    chanceMinus.Size = UDim2.new(0, 32, 1, 0)
+    chanceMinus.Position = UDim2.new(0, 0, 0, 0)
+    chanceMinus.Text = "-"
+    chanceMinus.Font = Enum.Font.GothamBold
+    chanceMinus.TextSize = 18
+    chanceMinus.BackgroundColor3 = Color3.fromRGB(72,72,72)
+    chanceMinus.TextColor3 = Color3.fromRGB(255,255,255)
+    local chanceMinusCorner = Instance.new("UICorner") chanceMinusCorner.Parent = chanceMinus
+
+    local chancePlus = Instance.new("TextButton") chancePlus.Parent = chanceControls
+    chancePlus.Size = UDim2.new(0, 32, 1, 0)
+    chancePlus.Position = UDim2.new(1, -32, 0, 0)
+    chancePlus.Text = "+"
+    chancePlus.Font = Enum.Font.GothamBold
+    chancePlus.TextSize = 18
+    chancePlus.BackgroundColor3 = Color3.fromRGB(72,72,72)
+    chancePlus.TextColor3 = Color3.fromRGB(255,255,255)
+    local chancePlusCorner = Instance.new("UICorner") chancePlusCorner.Parent = chancePlus
+
+    -- Bottom action buttons
+    local actions = Instance.new("Frame") actions.Parent = panel
+    actions.Size = UDim2.new(1, -20, 0, 42)
+    actions.Position = UDim2.new(0, 10, 1, -50)
+    actions.BackgroundTransparency = 1
+
+    local startBtn = Instance.new("TextButton") startBtn.Parent = actions
+    startBtn.Size = UDim2.new(0.5, -6, 1, 0)
+    startBtn.Position = UDim2.new(0, 0, 0, 0)
+    startBtn.Text = "Start"
+    startBtn.Font = Enum.Font.GothamBold
+    startBtn.TextSize = 16
+    startBtn.BackgroundColor3 = Color3.fromRGB(50,150,200)
+    startBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    local startCorner = Instance.new("UICorner") startCorner.Parent = startBtn
+
+    local stopBtn = Instance.new("TextButton") stopBtn.Parent = actions
+    stopBtn.Size = UDim2.new(0.5, -6, 1, 0)
+    stopBtn.Position = UDim2.new(0.5, 12, 0, 0)
+    stopBtn.Text = "Stop"
+    stopBtn.Font = Enum.Font.GothamBold
+    stopBtn.TextSize = 16
+    stopBtn.BackgroundColor3 = Color3.fromRGB(160,60,60)
+    stopBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    local stopCorner = Instance.new("UICorner") stopCorner.Parent = stopBtn
+
+    -- Callbacks (preserve original behavior)
+    fastButton.MouseButton1Click:Connect(function()
+        Config.mode = "fast"
+        Notify("modern_autofish", "Mode set to FAST")
+    end)
+    secureButton.MouseButton1Click:Connect(function()
+        Config.mode = "secure"
+        Notify("modern_autofish", "Mode set to SECURE")
+    end)
+
+    -- minimize behavior
+    local origPanelSize = panel.Size
+    local minimized = false
+    minimizeBtn.MouseButton1Click:Connect(function()
+        minimized = not minimized
+        if minimized then
+            content.Visible = false
+            actions.Visible = false
+            panel.Size = UDim2.new(0, 380, 0, 60)
+        else
+            content.Visible = true
+            actions.Visible = true
+            panel.Size = origPanelSize
+        end
+    end)
+
+    -- floating button: toggles panel visibility
+    local floatBtn = Instance.new("TextButton")
+    floatBtn.Name = "FloatToggle"
+    floatBtn.Size = UDim2.new(0, 44, 0, 44)
+    floatBtn.Position = UDim2.new(0, 8, 0, 8)
+    floatBtn.AnchorPoint = Vector2.new(0,0)
+    floatBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+    floatBtn.Text = "≡"
+    floatBtn.Font = Enum.Font.GothamBold
+    floatBtn.TextSize = 20
+    floatBtn.TextColor3 = Color3.fromRGB(235,235,235)
+    floatBtn.Parent = screenGui
+    local floatCorner = Instance.new("UICorner") floatCorner.Parent = floatBtn
+
+    floatBtn.MouseButton1Click:Connect(function()
+        panel.Visible = not panel.Visible
+    end)
+
+    -- close behavior: stop autofish and remove UI
+    closeBtn.MouseButton1Click:Connect(function()
+        Config.enabled = false
+        sessionId = sessionId + 1
+        Notify("modern_autofish", "ModernAutoFish closed")
+        -- destroy UI
+        if screenGui and screenGui.Parent then
+            screenGui:Destroy()
+        end
+    end)
+
+    startBtn.MouseButton1Click:Connect(function()
+        if Config.enabled then
+            Notify("modern_autofish", "Already running")
+            return
+        end
+        Config.enabled = true
+        sessionId = sessionId + 1
+        task.spawn(function() AutofishRunner(sessionId) end)
+    end)
+
+    stopBtn.MouseButton1Click:Connect(function()
+        Config.enabled = false
+        sessionId = sessionId + 1
+    end)
+
+    delayMinus.MouseButton1Click:Connect(function()
+        Config.autoRecastDelay = math.max(0.05, Config.autoRecastDelay - 0.1)
+        delayLabel.Text = string.format("Recast Delay: %.2fs", Config.autoRecastDelay)
+    end)
+    delayPlus.MouseButton1Click:Connect(function()
+        Config.autoRecastDelay = Config.autoRecastDelay + 0.1
+        delayLabel.Text = string.format("Recast Delay: %.2fs", Config.autoRecastDelay)
+    end)
+
+    chanceMinus.MouseButton1Click:Connect(function()
+        Config.safeModeChance = math.max(0, Config.safeModeChance - 5)
+        chanceLabel.Text = string.format("Safe Perfect %%: %d", Config.safeModeChance)
+    end)
+    chancePlus.MouseButton1Click:Connect(function()
+        Config.safeModeChance = math.min(100, Config.safeModeChance + 5)
+        chanceLabel.Text = string.format("Safe Perfect %%: %d", Config.safeModeChance)
+    end)
+
+    Notify("modern_autofish", "UI ready - Select mode and press Start")
+end
         local elapsed = 0
         while elapsed < delay do
             if not Config.enabled or sessionId ~= mySession then break end
