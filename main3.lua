@@ -255,14 +255,14 @@ local function BuildUI()
     header.InputChanged:Connect(function(input) if input == dragInput and dragging then updateDrag(input) end end)
     UserInputService.InputChanged:Connect(function(input) if input == dragInput and dragging then updateDrag(input) end end)
 
-    -- Tab bar (Main / Settings / Teleport)
+    -- Tab bar (Main / Teleport)
     local tabBar = Instance.new("Frame", panel)
     tabBar.Size = UDim2.new(1, -20, 0, 32)
     tabBar.Position = UDim2.new(0, 10, 0, 44)
     tabBar.BackgroundTransparency = 1
 
     local mainTabBtn = Instance.new("TextButton", tabBar)
-    mainTabBtn.Size = UDim2.new(0, 80, 1, 0)
+    mainTabBtn.Size = UDim2.new(0, 120, 1, 0)
     mainTabBtn.Position = UDim2.new(0, 0, 0, 0)
     mainTabBtn.Text = "Main"
     mainTabBtn.Font = Enum.Font.GothamSemibold
@@ -271,19 +271,9 @@ local function BuildUI()
     mainTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
     Instance.new("UICorner", mainTabBtn)
 
-    local settingsTabBtn = Instance.new("TextButton", tabBar)
-    settingsTabBtn.Size = UDim2.new(0, 80, 1, 0)
-    settingsTabBtn.Position = UDim2.new(0, 86, 0, 0)
-    settingsTabBtn.Text = "Settings"
-    settingsTabBtn.Font = Enum.Font.GothamSemibold
-    settingsTabBtn.TextSize = 14
-    settingsTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-    settingsTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-    Instance.new("UICorner", settingsTabBtn)
-
     local teleportTabBtn = Instance.new("TextButton", tabBar)
-    teleportTabBtn.Size = UDim2.new(0, 80, 1, 0)
-    teleportTabBtn.Position = UDim2.new(0, 172, 0, 0)
+    teleportTabBtn.Size = UDim2.new(0, 120, 1, 0)
+    teleportTabBtn.Position = UDim2.new(0, 130, 0, 0)
     teleportTabBtn.Text = "Teleport"
     teleportTabBtn.Font = Enum.Font.GothamSemibold
     teleportTabBtn.TextSize = 14
@@ -372,54 +362,6 @@ local function BuildUI()
     chancePlus.TextSize = 18
     Instance.new("UICorner", chancePlus)
 
-    -- Settings Tab Content
-    local settingsFrame = Instance.new("Frame", panel)
-    settingsFrame.Size = UDim2.new(1, -20, 1, -148)
-    settingsFrame.Position = UDim2.new(0, 10, 0, 80)
-    settingsFrame.BackgroundTransparency = 1
-    settingsFrame.Visible = false
-
-    local settingsTitle = Instance.new("TextLabel", settingsFrame)
-    settingsTitle.Size = UDim2.new(1, 0, 0, 24)
-    settingsTitle.Text = "Advanced Settings"
-    settingsTitle.Font = Enum.Font.GothamBold
-    settingsTitle.TextSize = 16
-    settingsTitle.TextColor3 = Color3.fromRGB(235,235,235)
-    settingsTitle.BackgroundTransparency = 1
-    settingsTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    local maxActionsLabel = Instance.new("TextLabel", settingsFrame)
-    maxActionsLabel.Size = UDim2.new(1, 0, 0, 18)
-    maxActionsLabel.Position = UDim2.new(0, 0, 0, 35)
-    maxActionsLabel.Text = string.format("Max Actions/Min: %d", Config.secure_max_actions_per_minute)
-    maxActionsLabel.BackgroundTransparency = 1
-    maxActionsLabel.Font = Enum.Font.GothamSemibold
-    maxActionsLabel.TextColor3 = Color3.fromRGB(180,180,200)
-    maxActionsLabel.TextSize = 13
-
-    local maxActionsControls = Instance.new("Frame", settingsFrame)
-    maxActionsControls.Size = UDim2.new(1, 0, 0, 28)
-    maxActionsControls.Position = UDim2.new(0, 0, 0, 58)
-    maxActionsControls.BackgroundTransparency = 1
-
-    local maxActionsMinus = Instance.new("TextButton", maxActionsControls)
-    maxActionsMinus.Size = UDim2.new(0, 32, 1, 0)
-    maxActionsMinus.Position = UDim2.new(0, 4, 0, 0)
-    maxActionsMinus.Text = "-"
-    maxActionsMinus.BackgroundColor3 = Color3.fromRGB(72,72,72)
-    maxActionsMinus.TextColor3 = Color3.fromRGB(255,255,255)
-    maxActionsMinus.TextSize = 18
-    Instance.new("UICorner", maxActionsMinus)
-
-    local maxActionsPlus = Instance.new("TextButton", maxActionsControls)
-    maxActionsPlus.Size = UDim2.new(0, 32, 1, 0)
-    maxActionsPlus.Position = UDim2.new(1, -36, 0, 0)
-    maxActionsPlus.Text = "+"
-    maxActionsPlus.BackgroundColor3 = Color3.fromRGB(72,72,72)
-    maxActionsPlus.TextColor3 = Color3.fromRGB(255,255,255)
-    maxActionsPlus.TextSize = 18
-    Instance.new("UICorner", maxActionsPlus)
-
     -- Teleport Tab Content
     local teleportFrame = Instance.new("Frame", panel)
     teleportFrame.Size = UDim2.new(1, -20, 1, -148)
@@ -429,36 +371,86 @@ local function BuildUI()
 
     local teleportTitle = Instance.new("TextLabel", teleportFrame)
     teleportTitle.Size = UDim2.new(1, 0, 0, 24)
-    teleportTitle.Text = "Teleport Locations"
+    teleportTitle.Text = "Island Locations"
     teleportTitle.Font = Enum.Font.GothamBold
     teleportTitle.TextSize = 16
     teleportTitle.TextColor3 = Color3.fromRGB(235,235,235)
     teleportTitle.BackgroundTransparency = 1
     teleportTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-    local spawnBtn = Instance.new("TextButton", teleportFrame)
-    spawnBtn.Size = UDim2.new(1, 0, 0, 32)
-    spawnBtn.Position = UDim2.new(0, 0, 0, 35)
-    spawnBtn.Text = "Teleport to Spawn"
-    spawnBtn.Font = Enum.Font.GothamSemibold
-    spawnBtn.TextSize = 14
-    spawnBtn.BackgroundColor3 = Color3.fromRGB(60,120,180)
-    spawnBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", spawnBtn)
+    -- Create scrollable frame for islands
+    local scrollFrame = Instance.new("ScrollingFrame", teleportFrame)
+    scrollFrame.Size = UDim2.new(1, 0, 1, -30)
+    scrollFrame.Position = UDim2.new(0, 0, 0, 30)
+    scrollFrame.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    scrollFrame.BorderSizePixel = 0
+    scrollFrame.ScrollBarThickness = 6
+    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80,80,80)
+    Instance.new("UICorner", scrollFrame)
 
-    local fishingAreaBtn = Instance.new("TextButton", teleportFrame)
-    fishingAreaBtn.Size = UDim2.new(1, 0, 0, 32)
-    fishingAreaBtn.Position = UDim2.new(0, 0, 0, 75)
-    fishingAreaBtn.Text = "Teleport to Fishing Area"
-    fishingAreaBtn.Font = Enum.Font.GothamSemibold
-    fishingAreaBtn.TextSize = 14
-    fishingAreaBtn.BackgroundColor3 = Color3.fromRGB(60,120,180)
-    fishingAreaBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", fishingAreaBtn)
+    -- Island locations data
+    local islandLocations = {
+        ["Moosewood"] = CFrame.new(389, 137, 264),
+        ["Ocean"] = CFrame.new(1082, 124, -924),
+        ["Snowcap Island"] = CFrame.new(2648, 140, 2522),
+        ["Mushgrove Swamp"] = CFrame.new(-1817, 138, 1808),
+        ["Roslit Bay"] = CFrame.new(-1442, 135, 1006),
+        ["Sunstone Island"] = CFrame.new(-934, 135, -1122),
+        ["Statue Of Sovereignty"] = CFrame.new(1, 140, -918),
+        ["Moonstone Island"] = CFrame.new(-3004, 135, -1157),
+        ["Forsaken Shores"] = CFrame.new(-2853, 135, 1627),
+        ["Ancient Isle"] = CFrame.new(5896, 137, 4516),
+        ["Keepers Altar"] = CFrame.new(1296, 135, -808),
+        ["Brine Pool"] = CFrame.new(-1804, 135, 3265),
+        ["The Depths"] = CFrame.new(994, -715, 1226),
+        ["Vertigo"] = CFrame.new(-111, -515, 1049),
+        ["Volcano"] = CFrame.new(-1888, 164, 330),
+        ["Kohana Volcano"] = CFrame.new(-594.971252, 396.65213, 149.10907),
+        ["Crater Island"] = CFrame.new(1010.01001, 252, 5078.45117),
+        ["Kohana"] = CFrame.new(-650.971191, 208.693695, 711.10907),
+        ["Lost Isle"] = CFrame.new(-3618.15698, 240.836655, -1317.45801),
+        ["Stingray Shores"] = CFrame.new(45.2788086, 252.562927, 2987.10913),
+        ["Esoteric Depths"] = CFrame.new(1944.77881, 393.562927, 1371.35913),
+        ["Weather Machine"] = CFrame.new(-1488.51196, 83.1732635, 1876.30298),
+        ["Tropical Grove"] = CFrame.new(-2095.34106, 197.199997, 3718.08008),
+        ["Coral Reefs"] = CFrame.new(-3023.97119, 337.812927, 2195.60913)
+    }
 
+    -- Create island buttons
+    local yOffset = 5
+    local buttons = {}
+    for islandName, cframe in pairs(islandLocations) do
+        local btn = Instance.new("TextButton", scrollFrame)
+        btn.Size = UDim2.new(1, -10, 0, 28)
+        btn.Position = UDim2.new(0, 5, 0, yOffset)
+        btn.Text = islandName
+        btn.Font = Enum.Font.GothamSemibold
+        btn.TextSize = 12
+        btn.BackgroundColor3 = Color3.fromRGB(60,120,180)
+        btn.TextColor3 = Color3.fromRGB(255,255,255)
+        Instance.new("UICorner", btn)
+        
+        -- Store the CFrame for teleportation
+        btn.MouseButton1Click:Connect(function()
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = cframe
+                Notify("Teleport", "Teleported to " .. islandName)
+            else
+                Notify("Teleport", "Character not found")
+            end
+        end)
+        
+        table.insert(buttons, btn)
+        yOffset = yOffset + 33
+    end
+
+    -- Update scroll frame content size
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, yOffset)
+
+    -- Sell All button at bottom
     local sellBtn = Instance.new("TextButton", teleportFrame)
     sellBtn.Size = UDim2.new(1, 0, 0, 32)
-    sellBtn.Position = UDim2.new(0, 0, 0, 115)
+    sellBtn.Position = UDim2.new(0, 0, 1, -35)
     sellBtn.Text = "Sell All Items"
     sellBtn.Font = Enum.Font.GothamSemibold
     sellBtn.TextSize = 14
@@ -515,17 +507,8 @@ local function BuildUI()
         if ok then Notify("SellAll", "SellAll invoked") else Notify("SellAll", "SellAll failed: " .. tostring(res)) end
     end)
 
-    -- Teleport button connections
-    spawnBtn.MouseButton1Click:Connect(function()
-        TeleportTo(Vector3.new(0, 50, 0))
-    end)
-    
-    fishingAreaBtn.MouseButton1Click:Connect(function()
-        TeleportTo(Vector3.new(100, 5, 200))
-    end)
-
     -- Robust tab switching: collect tabs and provide SwitchTo
-    local Tabs = { Main = content, Settings = settingsFrame, Teleport = teleportFrame }
+    local Tabs = { Main = content, Teleport = teleportFrame }
     local function SwitchTo(name)
         for k, v in pairs(Tabs) do
             v.Visible = (k == name)
@@ -533,29 +516,17 @@ local function BuildUI()
         if name == "Main" then
             mainTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             mainTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
-            settingsTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            settingsTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-        elseif name == "Teleport" then
+        else -- Teleport
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             teleportTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
             mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            settingsTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            settingsTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-        else
-            mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            settingsTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
-            settingsTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
-            teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
         end
     end
 
     mainTabBtn.MouseButton1Click:Connect(function() SwitchTo("Main") end)
-    settingsTabBtn.MouseButton1Click:Connect(function() SwitchTo("Settings") end)
     teleportTabBtn.MouseButton1Click:Connect(function() SwitchTo("Teleport") end)
 
     -- Start with Main visible
@@ -601,16 +572,6 @@ local function BuildUI()
     chancePlus.MouseButton1Click:Connect(function()
         Config.safeModeChance = math.min(100, Config.safeModeChance + 5)
         chanceLabel.Text = string.format("Safe Perfect %%: %d", Config.safeModeChance)
-    end)
-
-    -- Settings tab controls
-    maxActionsMinus.MouseButton1Click:Connect(function()
-        Config.secure_max_actions_per_minute = math.max(30, Config.secure_max_actions_per_minute - 10)
-        maxActionsLabel.Text = string.format("Max Actions/Min: %d", Config.secure_max_actions_per_minute)
-    end)
-    maxActionsPlus.MouseButton1Click:Connect(function()
-        Config.secure_max_actions_per_minute = math.min(300, Config.secure_max_actions_per_minute + 10)
-        maxActionsLabel.Text = string.format("Max Actions/Min: %d", Config.secure_max_actions_per_minute)
     end)
 
     Notify("modern_autofish", "UI ready - Select mode and press Start")
