@@ -175,7 +175,7 @@ local function BuildUI()
 
     local panel = Instance.new("Frame")
     panel.Name = "Panel"
-    panel.Size = UDim2.new(0, 380, 0, 260)
+    panel.Size = UDim2.new(0, 480, 0, 320)
     panel.Position = UDim2.new(0, 18, 0, 70)
     panel.BackgroundColor3 = Color3.fromRGB(28,28,34)
     panel.BorderSizePixel = 0
@@ -255,46 +255,74 @@ local function BuildUI()
     header.InputChanged:Connect(function(input) if input == dragInput and dragging then updateDrag(input) end end)
     UserInputService.InputChanged:Connect(function(input) if input == dragInput and dragging then updateDrag(input) end end)
 
-    -- Tab bar (Main / Teleport)
-    local tabBar = Instance.new("Frame", panel)
-    tabBar.Size = UDim2.new(1, -20, 0, 32)
-    tabBar.Position = UDim2.new(0, 10, 0, 44)
-    tabBar.BackgroundTransparency = 1
+    -- Left sidebar for tabs
+    local sidebar = Instance.new("Frame", panel)
+    sidebar.Size = UDim2.new(0, 120, 1, -50)
+    sidebar.Position = UDim2.new(0, 10, 0, 45)
+    sidebar.BackgroundColor3 = Color3.fromRGB(22,22,28)
+    sidebar.BorderSizePixel = 0
+    Instance.new("UICorner", sidebar)
 
-    local mainTabBtn = Instance.new("TextButton", tabBar)
-    mainTabBtn.Size = UDim2.new(0, 120, 1, 0)
-    mainTabBtn.Position = UDim2.new(0, 0, 0, 0)
-    mainTabBtn.Text = "Main"
+    -- Tab buttons in sidebar
+    local mainTabBtn = Instance.new("TextButton", sidebar)
+    mainTabBtn.Size = UDim2.new(1, -10, 0, 40)
+    mainTabBtn.Position = UDim2.new(0, 5, 0, 10)
+    mainTabBtn.Text = "🎣 Main"
     mainTabBtn.Font = Enum.Font.GothamSemibold
     mainTabBtn.TextSize = 14
     mainTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
     mainTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
-    Instance.new("UICorner", mainTabBtn)
+    mainTabBtn.TextXAlignment = Enum.TextXAlignment.Left
+    local mainTabCorner = Instance.new("UICorner", mainTabBtn)
+    mainTabCorner.CornerRadius = UDim.new(0, 6)
+    local mainTabPadding = Instance.new("UIPadding", mainTabBtn)
+    mainTabPadding.PaddingLeft = UDim.new(0, 10)
 
-    local teleportTabBtn = Instance.new("TextButton", tabBar)
-    teleportTabBtn.Size = UDim2.new(0, 120, 1, 0)
-    teleportTabBtn.Position = UDim2.new(0, 130, 0, 0)
-    teleportTabBtn.Text = "Teleport"
+    local teleportTabBtn = Instance.new("TextButton", sidebar)
+    teleportTabBtn.Size = UDim2.new(1, -10, 0, 40)
+    teleportTabBtn.Position = UDim2.new(0, 5, 0, 60)
+    teleportTabBtn.Text = "🌍 Teleport"
     teleportTabBtn.Font = Enum.Font.GothamSemibold
     teleportTabBtn.TextSize = 14
     teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
     teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-    Instance.new("UICorner", teleportTabBtn)
+    teleportTabBtn.TextXAlignment = Enum.TextXAlignment.Left
+    local teleportTabCorner = Instance.new("UICorner", teleportTabBtn)
+    teleportTabCorner.CornerRadius = UDim.new(0, 6)
+    local teleportTabPadding = Instance.new("UIPadding", teleportTabBtn)
+    teleportTabPadding.PaddingLeft = UDim.new(0, 10)
 
+    -- Content area on the right
+    local contentContainer = Instance.new("Frame", panel)
+    contentContainer.Size = UDim2.new(1, -145, 1, -50)
+    contentContainer.Position = UDim2.new(0, 140, 0, 45)
+    contentContainer.BackgroundTransparency = 1
 
     -- content area (Main tab)
-    local content = Instance.new("Frame", panel)
-    content.Size = UDim2.new(1, -20, 1, -148); content.Position = UDim2.new(0, 10, 0, 80); content.BackgroundTransparency = 1
-    local leftCol = Instance.new("Frame", content); leftCol.Size = UDim2.new(0.5, -6, 1, 0); leftCol.BackgroundTransparency = 1
-    local rightCol = Instance.new("Frame", content); rightCol.Size = UDim2.new(0.5, -6, 1, 0); rightCol.Position = UDim2.new(0.5, 12, 0, 0); rightCol.BackgroundTransparency = 1
-    -- thin divider between columns for visual separation
-    local divider = Instance.new("Frame", content)
-    divider.Size = UDim2.new(0, 2, 1, 0)
-    divider.Position = UDim2.new(0.5, -6, 0, 0)
-    divider.BackgroundColor3 = Color3.fromRGB(40,40,48)
-    divider.BorderSizePixel = 0
-    local dividerCorner = Instance.new("UICorner", divider)
-    dividerCorner.CornerRadius = UDim.new(0, 2)
+    local content = Instance.new("Frame", contentContainer)
+    content.Size = UDim2.new(1, 0, 1, -55)
+    content.Position = UDim2.new(0, 0, 0, 0)
+    content.BackgroundTransparency = 1
+
+    -- Title for current tab
+    local contentTitle = Instance.new("TextLabel", content)
+    contentTitle.Size = UDim2.new(1, 0, 0, 24)
+    contentTitle.Text = "AutoFish Controls"
+    contentTitle.Font = Enum.Font.GothamBold
+    contentTitle.TextSize = 16
+    contentTitle.TextColor3 = Color3.fromRGB(235,235,235)
+    contentTitle.BackgroundTransparency = 1
+    contentTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local leftCol = Instance.new("Frame", content)
+    leftCol.Size = UDim2.new(0.5, -6, 1, -30)
+    leftCol.Position = UDim2.new(0, 0, 0, 30)
+    leftCol.BackgroundTransparency = 1
+
+    local rightCol = Instance.new("Frame", content)
+    rightCol.Size = UDim2.new(0.5, -6, 1, -30)
+    rightCol.Position = UDim2.new(0.5, 6, 0, 30)
+    rightCol.BackgroundTransparency = 1
 
     -- left: mode
     local modeLabel = Instance.new("TextLabel", leftCol); modeLabel.Size = UDim2.new(1,0,0,18); modeLabel.Text = "Mode"; modeLabel.BackgroundTransparency = 1; modeLabel.Font = Enum.Font.GothamSemibold; modeLabel.TextColor3 = Color3.fromRGB(200,200,200)
@@ -363,9 +391,9 @@ local function BuildUI()
     Instance.new("UICorner", chancePlus)
 
     -- Teleport Tab Content
-    local teleportFrame = Instance.new("Frame", panel)
-    teleportFrame.Size = UDim2.new(1, -20, 1, -148)
-    teleportFrame.Position = UDim2.new(0, 10, 0, 80)
+    local teleportFrame = Instance.new("Frame", contentContainer)
+    teleportFrame.Size = UDim2.new(1, 0, 1, -55)
+    teleportFrame.Position = UDim2.new(0, 0, 0, 0)
     teleportFrame.BackgroundTransparency = 1
     teleportFrame.Visible = false
 
@@ -380,7 +408,7 @@ local function BuildUI()
 
     -- Create scrollable frame for islands
     local scrollFrame = Instance.new("ScrollingFrame", teleportFrame)
-    scrollFrame.Size = UDim2.new(1, 0, 1, -30)
+    scrollFrame.Size = UDim2.new(1, 0, 1, -65)
     scrollFrame.Position = UDim2.new(0, 0, 0, 30)
     scrollFrame.BackgroundColor3 = Color3.fromRGB(35,35,42)
     scrollFrame.BorderSizePixel = 0
@@ -447,7 +475,7 @@ local function BuildUI()
     -- Update scroll frame content size
     scrollFrame.CanvasSize = UDim2.new(0, 0, 0, yOffset)
 
-    -- Sell All button at bottom
+    -- Sell All button at bottom of teleport frame
     local sellBtn = Instance.new("TextButton", teleportFrame)
     sellBtn.Size = UDim2.new(1, 0, 0, 32)
     sellBtn.Position = UDim2.new(0, 0, 1, -35)
@@ -458,10 +486,10 @@ local function BuildUI()
     sellBtn.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", sellBtn)
 
-    -- actions (part of Main tab) - place below mode controls to avoid overlap
-    local actions = Instance.new("Frame", panel)
-    actions.Size = UDim2.new(1, -20, 0, 48)
-    actions.Position = UDim2.new(0, 10, 1, -58) -- move closer to bottom edge to avoid covering other controls
+    -- Start/Stop buttons at bottom of content container (only visible in Main tab)
+    local actions = Instance.new("Frame", contentContainer)
+    actions.Size = UDim2.new(1, 0, 0, 48)
+    actions.Position = UDim2.new(0, 0, 1, -50)
     actions.BackgroundTransparency = 1
     local startBtn = Instance.new("TextButton", actions)
     startBtn.Size = UDim2.new(0.5, -6, 1, 0)
@@ -469,14 +497,16 @@ local function BuildUI()
     startBtn.Text = "Start"
     startBtn.BackgroundColor3 = Color3.fromRGB(70,170,90)
     startBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    local startCorner = Instance.new("UICorner", startBtn); startCorner.CornerRadius = UDim.new(0,10)
+    startBtn.Font = Enum.Font.GothamSemibold
+    local startCorner = Instance.new("UICorner", startBtn); startCorner.CornerRadius = UDim.new(0,8)
     local stopBtn = Instance.new("TextButton", actions)
     stopBtn.Size = UDim2.new(0.5, -6, 1, 0)
-    stopBtn.Position = UDim2.new(0.5, 12, 0, 0)
+    stopBtn.Position = UDim2.new(0.5, 6, 0, 0)
     stopBtn.Text = "Stop"
     stopBtn.BackgroundColor3 = Color3.fromRGB(190,60,60)
     stopBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    local stopCorner = Instance.new("UICorner", stopBtn); stopCorner.CornerRadius = UDim.new(0,10)
+    stopBtn.Font = Enum.Font.GothamSemibold
+    local stopCorner = Instance.new("UICorner", stopBtn); stopCorner.CornerRadius = UDim.new(0,8)
 
     -- floating toggle
     -- Floating toggle: keep margin so it doesn't overlap header on small screens
@@ -513,16 +543,23 @@ local function BuildUI()
         for k, v in pairs(Tabs) do
             v.Visible = (k == name)
         end
+        
+        -- Show/hide action buttons based on tab
+        actions.Visible = (name == "Main")
+        
+        -- Update tab colors and content title
         if name == "Main" then
             mainTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             mainTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            contentTitle.Text = "AutoFish Controls"
         else -- Teleport
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             teleportTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
             mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            contentTitle.Text = "Island Locations"
         end
     end
 
@@ -539,9 +576,9 @@ local function BuildUI()
     local origPanelSize = panel.Size; local minimized = false
     minimizeBtn.MouseButton1Click:Connect(function()
         minimized = not minimized
-        content.Visible = not minimized
-        actions.Visible = not minimized
-        panel.Size = minimized and UDim2.new(0,380,0,60) or origPanelSize
+        sidebar.Visible = not minimized
+        contentContainer.Visible = not minimized
+        panel.Size = minimized and UDim2.new(0,480,0,50) or origPanelSize
     end)
 
     closeBtn.MouseButton1Click:Connect(function()
