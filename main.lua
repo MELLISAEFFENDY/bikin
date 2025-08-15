@@ -283,6 +283,7 @@ local function BuildUI()
     delayControls.Size = UDim2.new(1,0,0,28)
     delayControls.Position = UDim2.new(0,0,0,26)
     delayControls.BackgroundTransparency = 1
+    delayControls.BackgroundColor3 = Color3.fromRGB(28,28,34)
     local delayMinus = Instance.new("TextButton", delayControls)
     delayMinus.Size = UDim2.new(0,32,1,0)
     delayMinus.Position = UDim2.new(0,4,0,0) -- small left padding
@@ -311,6 +312,8 @@ local function BuildUI()
     local chanceControls = Instance.new("Frame", rightCol)
     chanceControls.Size = UDim2.new(1,0,0,28)
     chanceControls.Position = UDim2.new(0,0,0,82)
+    chanceControls.BackgroundTransparency = 1
+    chanceControls.BackgroundColor3 = Color3.fromRGB(28,28,34)
     local chanceMinus = Instance.new("TextButton", chanceControls)
     chanceMinus.Size = UDim2.new(0,32,1,0)
     chanceMinus.Position = UDim2.new(0,4,0,0)
