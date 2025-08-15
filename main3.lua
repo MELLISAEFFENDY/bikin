@@ -281,6 +281,17 @@ local function BuildUI()
     settingsTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
     Instance.new("UICorner", settingsTabBtn)
 
+    -- Teleport tab button
+    local teleportTabBtn = Instance.new("TextButton", tabBar)
+    teleportTabBtn.Size = UDim2.new(0, 100, 1, 0)
+    teleportTabBtn.Position = UDim2.new(0, 230, 0, 0)
+    teleportTabBtn.Text = "Teleport"
+    teleportTabBtn.Font = Enum.Font.GothamSemibold
+    teleportTabBtn.TextSize = 14
+    teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+    teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+    Instance.new("UICorner", teleportTabBtn)
+
     -- Settings frame (hidden by default)
     local settingsFrame = Instance.new("Frame", panel)
     settingsFrame.Size = UDim2.new(1, -20, 1, -96)
@@ -288,17 +299,40 @@ local function BuildUI()
     settingsFrame.BackgroundTransparency = 1
     settingsFrame.Visible = false
 
-    -- Sell All button in Settings
-    local sellBtn = Instance.new("TextButton", settingsFrame)
-    sellBtn.Size = UDim2.new(0.6, 0, 0, 40)
-    sellBtn.Position = UDim2.new(0.5, -0.3 * settingsFrame.AbsoluteSize.X/2, 0, 10)
-    sellBtn.AnchorPoint = Vector2.new(0.5, 0)
-    sellBtn.Text = "Sell All Items"
-    sellBtn.Font = Enum.Font.GothamBold
-    sellBtn.TextSize = 16
-    sellBtn.BackgroundColor3 = Color3.fromRGB(70,130,170)
-    sellBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", sellBtn)
+    -- Teleport frame (hidden by default)
+    local teleportFrame = Instance.new("Frame", panel)
+    teleportFrame.Size = settingsFrame.Size
+    teleportFrame.Position = settingsFrame.Position
+    teleportFrame.BackgroundTransparency = 1
+    teleportFrame.Visible = false
+    -- Placeholder teleport buttons
+    local islandBtn = Instance.new("TextButton", teleportFrame)
+    islandBtn.Size = UDim2.new(1, -20, 0, 30)
+    islandBtn.Position = UDim2.new(0, 10, 0, 10)
+    islandBtn.Text = "Islands"
+    islandBtn.Font = Enum.Font.GothamSemibold
+    islandBtn.TextSize = 14
+    islandBtn.BackgroundColor3 = Color3.fromRGB(70,130,180)
+    islandBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", islandBtn)
+    local eventBtn = Instance.new("TextButton", teleportFrame)
+    eventBtn.Size = UDim2.new(1, -20, 0, 30)
+    eventBtn.Position = UDim2.new(0, 10, 0, 50)
+    eventBtn.Text = "Events"
+    eventBtn.Font = Enum.Font.GothamSemibold
+    eventBtn.TextSize = 14
+    eventBtn.BackgroundColor3 = Color3.fromRGB(180,130,70)
+    eventBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", eventBtn)
+    local playerBtn = Instance.new("TextButton", teleportFrame)
+    playerBtn.Size = UDim2.new(1, -20, 0, 30)
+    playerBtn.Position = UDim2.new(0, 10, 0, 90)
+    playerBtn.Text = "Players"
+    playerBtn.Font = Enum.Font.GothamSemibold
+    playerBtn.TextSize = 14
+    playerBtn.BackgroundColor3 = Color3.fromRGB(130,70,180)
+    playerBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", playerBtn)
 
     -- Switch tab function
     local function SwitchTab(name)
@@ -307,22 +341,37 @@ local function BuildUI()
             mainTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
             settingsTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             settingsTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            if content then content.Visible = true end
-            if actions then actions.Visible = true end
+            content.Visible = true
+            actions.Visible = true
             settingsFrame.Visible = false
+            teleportFrame.Visible = false
+        elseif name == "Teleport" then
+            teleportTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
+            teleportTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
+            mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            settingsTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            settingsTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            content.Visible = false
+            actions.Visible = false
+            settingsFrame.Visible = false
+            teleportFrame.Visible = true
+            return
         else
             mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             settingsTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             settingsTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
-            if content then content.Visible = false end
-            if actions then actions.Visible = false end
+            content.Visible = false
+            actions.Visible = false
             settingsFrame.Visible = true
+            teleportFrame.Visible = false
         end
     end
 
     mainTabBtn.MouseButton1Click:Connect(function() SwitchTab("Main") end)
     settingsTabBtn.MouseButton1Click:Connect(function() SwitchTab("Settings") end)
+    teleportTabBtn.MouseButton1Click:Connect(function() SwitchTab("Teleport") end)
 
     -- content area (Main tab)
     local content = Instance.new("Frame", panel)
@@ -444,7 +493,7 @@ local function BuildUI()
     end)
 
     -- Robust tab switching: collect tabs and provide SwitchTo
-    local Tabs = { Main = content, Settings = settingsFrame }
+    local Tabs = { Main = content, Settings = settingsFrame, Teleport = teleportFrame }
     local function SwitchTo(name)
         for k, v in pairs(Tabs) do
             v.Visible = (k == name)
@@ -454,16 +503,28 @@ local function BuildUI()
             mainTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
             settingsTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             settingsTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+        elseif name == "Teleport" then
+            teleportTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
+            teleportTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
+            mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            settingsTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            settingsTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
         else
             mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             settingsTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             settingsTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
+            teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
         end
     end
 
     mainTabBtn.MouseButton1Click:Connect(function() SwitchTo("Main") end)
     settingsTabBtn.MouseButton1Click:Connect(function() SwitchTo("Settings") end)
+    teleportTabBtn.MouseButton1Click:Connect(function() SwitchTo("Teleport") end)
 
     -- Start with Main visible
     SwitchTo("Main")
