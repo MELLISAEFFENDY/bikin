@@ -69,8 +69,52 @@ local Config = {
     safeModeChance = 70,
     secure_max_actions_per_minute = 120,
     secure_detection_cooldown = 5,
-    enabled = false
+    enabled = false,
+    antiAfkEnabled = false
 }
+
+-- AntiAFK System
+local AntiAFK = {
+    enabled = false,
+    lastJumpTime = 0,
+    nextJumpTime = 0,
+    sessionId = 0
+}
+
+local function generateRandomJumpTime()
+    -- Random time between 5-10 minutes (300-600 seconds)
+    return math.random(300, 600)
+end
+
+local function performAntiAfkJump()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.Jump = true
+        local currentTime = tick()
+        AntiAFK.lastJumpTime = currentTime
+        AntiAFK.nextJumpTime = currentTime + generateRandomJumpTime()
+        
+        local nextJumpMinutes = math.floor((AntiAFK.nextJumpTime - currentTime) / 60)
+        local nextJumpSeconds = math.floor((AntiAFK.nextJumpTime - currentTime) % 60)
+        Notify("AntiAFK", string.format("Jump performed! Next jump in %dm %ds", nextJumpMinutes, nextJumpSeconds))
+    end
+end
+
+local function AntiAfkRunner(mySessionId)
+    AntiAFK.nextJumpTime = tick() + generateRandomJumpTime()
+    Notify("AntiAFK", "AntiAFK system started")
+    
+    while AntiAFK.enabled and AntiAFK.sessionId == mySessionId do
+        local currentTime = tick()
+        
+        if currentTime >= AntiAFK.nextJumpTime then
+            performAntiAfkJump()
+        end
+        
+        task.wait(1) -- Check every second
+    end
+    
+    Notify("AntiAFK", "AntiAFK system stopped")
+end
 
 local Security = { actionsThisMinute = 0, lastMinuteReset = tick(), isInCooldown = false, suspicion = 0 }
 local sessionId = 0
@@ -421,13 +465,42 @@ local function BuildUI()
     -- Sell All button in Main tab
     local sellBtn = Instance.new("TextButton", content)
     sellBtn.Size = UDim2.new(1, 0, 0, 32)
-    sellBtn.Position = UDim2.new(0, 0, 1, -35)
+    sellBtn.Position = UDim2.new(0, 0, 1, -67)
     sellBtn.Text = "Sell All Items"
     sellBtn.Font = Enum.Font.GothamSemibold
     sellBtn.TextSize = 14
     sellBtn.BackgroundColor3 = Color3.fromRGB(180,120,60)
     sellBtn.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", sellBtn)
+
+    -- AntiAFK Section
+    local antiAfkSection = Instance.new("Frame", content)
+    antiAfkSection.Size = UDim2.new(1, 0, 0, 28)
+    antiAfkSection.Position = UDim2.new(0, 0, 1, -35)
+    antiAfkSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    antiAfkSection.BorderSizePixel = 0
+    Instance.new("UICorner", antiAfkSection)
+
+    local antiAfkLabel = Instance.new("TextLabel", antiAfkSection)
+    antiAfkLabel.Size = UDim2.new(0.6, -10, 1, 0)
+    antiAfkLabel.Position = UDim2.new(0, 10, 0, 0)
+    antiAfkLabel.Text = "AntiAFK: Disabled"
+    antiAfkLabel.Font = Enum.Font.GothamSemibold
+    antiAfkLabel.TextSize = 12
+    antiAfkLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    antiAfkLabel.BackgroundTransparency = 1
+    antiAfkLabel.TextXAlignment = Enum.TextXAlignment.Left
+    antiAfkLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+    local antiAfkToggle = Instance.new("TextButton", antiAfkSection)
+    antiAfkToggle.Size = UDim2.new(0, 60, 0, 20)
+    antiAfkToggle.Position = UDim2.new(1, -70, 0.5, -10)
+    antiAfkToggle.Text = "OFF"
+    antiAfkToggle.Font = Enum.Font.GothamBold
+    antiAfkToggle.TextSize = 10
+    antiAfkToggle.BackgroundColor3 = Color3.fromRGB(160,60,60)
+    antiAfkToggle.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", antiAfkToggle)
 
     -- Teleport Tab Content
     local teleportFrame = Instance.new("Frame", contentContainer)
@@ -971,6 +1044,29 @@ local function BuildUI()
     fastButton.MouseButton1Click:Connect(function() Config.mode = "fast"; Notify("modern_autofish", "Mode set to FAST") end)
     secureButton.MouseButton1Click:Connect(function() Config.mode = "secure"; Notify("modern_autofish", "Mode set to SECURE") end)
 
+    -- AntiAFK toggle
+    antiAfkToggle.MouseButton1Click:Connect(function()
+        AntiAFK.enabled = not AntiAFK.enabled
+        Config.antiAfkEnabled = AntiAFK.enabled
+        
+        if AntiAFK.enabled then
+            antiAfkToggle.Text = "ON"
+            antiAfkToggle.BackgroundColor3 = Color3.fromRGB(70,170,90)
+            antiAfkLabel.Text = "AntiAFK: Enabled"
+            antiAfkLabel.TextColor3 = Color3.fromRGB(100,255,150)
+            
+            AntiAFK.sessionId = AntiAFK.sessionId + 1
+            task.spawn(function() AntiAfkRunner(AntiAFK.sessionId) end)
+        else
+            antiAfkToggle.Text = "OFF"
+            antiAfkToggle.BackgroundColor3 = Color3.fromRGB(160,60,60)
+            antiAfkLabel.Text = "AntiAFK: Disabled"
+            antiAfkLabel.TextColor3 = Color3.fromRGB(200,200,200)
+            
+            AntiAFK.sessionId = AntiAFK.sessionId + 1
+        end
+    end)
+
     local origPanelSize = panel.Size; local minimized = false
     minimizeBtn.MouseButton1Click:Connect(function()
         minimized = not minimized
@@ -981,6 +1077,7 @@ local function BuildUI()
 
     closeBtn.MouseButton1Click:Connect(function()
         Config.enabled = false; sessionId = sessionId + 1
+        AntiAFK.enabled = false; AntiAFK.sessionId = AntiAFK.sessionId + 1
         Notify("modern_autofish", "ModernAutoFish closed")
         if screenGui and screenGui.Parent then screenGui:Destroy() end
     end)
@@ -1020,7 +1117,17 @@ _G.ModernAutoFish = {
     Start = function() if not Config.enabled then Config.enabled = true; sessionId = sessionId + 1; task.spawn(function() AutofishRunner(sessionId) end) end end,
     Stop = function() Config.enabled = false; sessionId = sessionId + 1 end,
     SetMode = function(m) if m == "fast" or m == "secure" then Config.mode = m end end,
-    Config = Config
+    ToggleAntiAFK = function() 
+        AntiAFK.enabled = not AntiAFK.enabled
+        if AntiAFK.enabled then
+            AntiAFK.sessionId = AntiAFK.sessionId + 1
+            task.spawn(function() AntiAfkRunner(AntiAFK.sessionId) end)
+        else
+            AntiAFK.sessionId = AntiAFK.sessionId + 1
+        end
+    end,
+    Config = Config,
+    AntiAFK = AntiAFK
 }
 
 print("modern_autofish loaded - UI created and API available via _G.ModernAutoFish")
