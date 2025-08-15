@@ -267,10 +267,11 @@ local function AnalyzeGameStructure()
     return structure
 end
 
--- Export functions
+-- Export functions with multiple options
 local function ExportDebugData()
     local data = {
         GameName = "Fish It",
+        GamePlaceId = game.PlaceId,
         Timestamp = os.date("%Y-%m-%d %H:%M:%S"),
         GameStructure = AnalyzeGameStructure(),
         FishingObjects = FindFishingObjects(),
@@ -281,6 +282,178 @@ local function ExportDebugData()
     
     Log("EXPORT", "Debug data collected. Objects found: " .. #data.FishingObjects .. ", Remotes: " .. #data.Remotes)
     return data
+end
+
+-- Convert data to readable string format
+local function DataToString(data, indent)
+    indent = indent or 0
+    local spaces = string.rep("  ", indent)
+    
+    if type(data) == "table" then
+        local result = "{\n"
+        for k, v in pairs(data) do
+            result = result .. spaces .. "  " .. tostring(k) .. " = "
+            if type(v) == "table" then
+                result = result .. DataToString(v, indent + 1)
+            else
+                result = result .. tostring(v)
+            end
+            result = result .. ",\n"
+        end
+        result = result .. spaces .. "}"
+        return result
+    else
+        return tostring(data)
+    end
+end
+
+-- Copy to clipboard (if supported)
+local function CopyToClipboard(text)
+    local success, error = pcall(function()
+        if setclipboard then
+            setclipboard(text)
+            return true
+        elseif syn and syn.write_clipboard then
+            syn.write_clipboard(text)
+            return true
+        elseif Clipboard and Clipboard.set then
+            Clipboard.set(text)
+            return true
+        else
+            return false
+        end
+    end)
+    
+    return success
+end
+
+-- Create export menu
+local function CreateExportMenu(parentFrame)
+    local exportMenu = Instance.new("Frame", parentFrame)
+    exportMenu.Size = UDim2.new(0, 200, 0, 150)
+    exportMenu.Position = UDim2.new(0.5, -100, 0.5, -75)
+    exportMenu.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+    exportMenu.BorderSizePixel = 0
+    exportMenu.Visible = false
+    Instance.new("UICorner", exportMenu)
+    
+    local menuTitle = Instance.new("TextLabel", exportMenu)
+    menuTitle.Size = UDim2.new(1, 0, 0, 25)
+    menuTitle.Text = "Export Options"
+    menuTitle.Font = Enum.Font.GothamBold
+    menuTitle.TextSize = 12
+    menuTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    menuTitle.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+    Instance.new("UICorner", menuTitle)
+    
+    local function createExportButton(text, position, callback)
+        local btn = Instance.new("TextButton", exportMenu)
+        btn.Size = UDim2.new(1, -20, 0, 25)
+        btn.Position = UDim2.new(0, 10, 0, 30 + position * 30)
+        btn.Text = text
+        btn.Font = Enum.Font.GothamSemibold
+        btn.TextSize = 10
+        btn.BackgroundColor3 = Color3.fromRGB(70, 120, 200)
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Instance.new("UICorner", btn)
+        btn.MouseButton1Click:Connect(callback)
+        return btn
+    end
+    
+    -- Export to console
+    createExportButton("Print to Console", 0, function()
+        local data = ExportDebugData()
+        print("=== FISH IT DEBUG EXPORT ===")
+        print("Game:", data.GameName, "PlaceId:", data.GamePlaceId)
+        print("Timestamp:", data.Timestamp)
+        print("Fishing Objects Found:", #data.FishingObjects)
+        print("Remotes Found:", #data.Remotes)
+        print("Remote Calls Logged:", #data.RemoteCalls)
+        
+        print("\n=== REMOTES LIST ===")
+        for i, remote in ipairs(data.Remotes) do
+            print(string.format("[%d] %s (%s): %s", i, remote.Name, remote.Type, remote.FullName))
+        end
+        
+        print("\n=== FISHING OBJECTS ===")
+        for i, obj in ipairs(data.FishingObjects) do
+            print(string.format("[%d] %s (%s) in %s", i, obj.Object.Name, obj.ClassName, obj.Location))
+        end
+        
+        Log("EXPORT", "Data printed to console")
+        exportMenu.Visible = false
+    end)
+    
+    -- Copy to clipboard
+    createExportButton("Copy to Clipboard", 1, function()
+        local data = ExportDebugData()
+        local exportText = string.format([[
+=== FISH IT DEBUG EXPORT ===
+Game: %s (PlaceId: %s)
+Timestamp: %s
+Fishing Objects: %d
+Remotes: %d
+Remote Calls: %d
+
+=== REMOTES ===
+]], data.GameName, data.GamePlaceId, data.Timestamp, #data.FishingObjects, #data.Remotes, #data.RemoteCalls)
+        
+        for i, remote in ipairs(data.Remotes) do
+            exportText = exportText .. string.format("[%d] %s (%s): %s\n", i, remote.Name, remote.Type, remote.FullName)
+        end
+        
+        exportText = exportText .. "\n=== FISHING OBJECTS ===\n"
+        for i, obj in ipairs(data.FishingObjects) do
+            exportText = exportText .. string.format("[%d] %s (%s) in %s: %s\n", i, obj.Object.Name, obj.ClassName, obj.Location, obj.FullName)
+        end
+        
+        if CopyToClipboard(exportText) then
+            Log("EXPORT", "Data copied to clipboard successfully!")
+            Notify("Export", "Debug data copied to clipboard!")
+        else
+            Log("ERROR", "Clipboard not supported. Data printed to console instead.")
+            print(exportText)
+        end
+        exportMenu.Visible = false
+    end)
+    
+    -- Save summary
+    createExportButton("Quick Summary", 2, function()
+        local data = ExportDebugData()
+        local summary = string.format([[
+Fish It Debug Summary:
+- Game PlaceId: %s
+- Total Remotes: %d
+- Fishing Objects: %d
+- Top Remotes: %s
+- Key Objects: %s
+]], 
+            data.GamePlaceId,
+            #data.Remotes,
+            #data.FishingObjects,
+            table.concat({data.Remotes[1] and data.Remotes[1].Name or "None", 
+                         data.Remotes[2] and data.Remotes[2].Name or "None",
+                         data.Remotes[3] and data.Remotes[3].Name or "None"}, ", "),
+            table.concat({data.FishingObjects[1] and data.FishingObjects[1].Object.Name or "None",
+                         data.FishingObjects[2] and data.FishingObjects[2].Object.Name or "None",
+                         data.FishingObjects[3] and data.FishingObjects[3].Object.Name or "None"}, ", ")
+        )
+        
+        if CopyToClipboard(summary) then
+            Log("EXPORT", "Summary copied to clipboard!")
+        else
+            print(summary)
+            Log("EXPORT", "Summary printed to console")
+        end
+        exportMenu.Visible = false
+    end)
+    
+    -- Close button
+    createExportButton("Close", 3, function()
+        exportMenu.Visible = false
+    end)
+    
+    return exportMenu
 end
 
 -- Create Debug UI
@@ -384,6 +557,9 @@ local function CreateDebugUI()
     logDisplay.TextXAlignment = Enum.TextXAlignment.Left
     logDisplay.TextYAlignment = Enum.TextYAlignment.Top
     logDisplay.TextWrapped = true
+
+    -- Create export menu
+    local exportMenu = CreateExportMenu(panel)
     
     -- Update log display
     local function updateLogDisplay()
@@ -435,17 +611,9 @@ local function CreateDebugUI()
     end)
     
     createButton("Export", 3, function()
-        statusLabel.Text = "Exporting debug data..."
+        exportMenu.Visible = not exportMenu.Visible
+        statusLabel.Text = "Choose export option..."
         statusLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
-        
-        task.spawn(function()
-            local data = ExportDebugData()
-            -- In a real implementation, this would save to file or copy to clipboard
-            Log("EXPORT", "Data exported successfully!")
-            statusLabel.Text = "Debug data exported"
-            statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-            updateLogDisplay()
-        end)
     end)
     
     -- Close button
