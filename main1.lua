@@ -424,6 +424,31 @@ local function BuildUI()
         if ok then Notify("SellAll", "SellAll invoked") else Notify("SellAll", "SellAll failed: " .. tostring(res)) end
     end)
 
+    -- Robust tab switching: collect tabs and provide SwitchTo
+    local Tabs = { Main = content, Settings = settingsFrame }
+    local function SwitchTo(name)
+        for k, v in pairs(Tabs) do
+            v.Visible = (k == name)
+        end
+        if name == "Main" then
+            mainTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
+            mainTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
+            settingsTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            settingsTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+        else
+            mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            settingsTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
+            settingsTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
+        end
+    end
+
+    mainTabBtn.MouseButton1Click:Connect(function() SwitchTo("Main") end)
+    settingsTabBtn.MouseButton1Click:Connect(function() SwitchTo("Settings") end)
+
+    -- Start with Main visible
+    SwitchTo("Main")
+
     -- callbacks
     fastButton.MouseButton1Click:Connect(function() Config.mode = "fast"; Notify("modern_autofish", "Mode set to FAST") end)
     secureButton.MouseButton1Click:Connect(function() Config.mode = "secure"; Notify("modern_autofish", "Mode set to SECURE") end)
