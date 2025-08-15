@@ -97,6 +97,97 @@ local function FindFishingStuff()
     
     return fishingObjects
 end
+local function ExportData()
+    local remotes = FindAllRemotes()
+    local fishingStuff = FindFishingStuff()
+    
+    local exportText = string.format([[
+=== FISH IT SIMPLE DEBUG EXPORT ===
+Game PlaceId: %s
+Timestamp: %s
+Found %d Remotes and %d Fishing Objects
+
+=== REMOTES (%d total) ===
+]], game.PlaceId, os.date("%Y-%m-%d %H:%M:%S"), #remotes, #fishingStuff, #remotes)
+    
+    for i, remote in ipairs(remotes) do
+        exportText = exportText .. string.format("[%d] %s (%s): %s\n", i, remote.Name, remote.Type, remote.Path)
+    end
+    
+    exportText = exportText .. string.format("\n=== FISHING OBJECTS (%d total) ===\n", #fishingStuff)
+    for i, obj in ipairs(fishingStuff) do
+        exportText = exportText .. string.format("[%d] %s (%s) in %s: %s\n", i, obj.Name, obj.Type, obj.Location, obj.Path)
+    end
+    
+    -- Try to copy to clipboard
+    local copied = false
+    pcall(function()
+        if setclipboard then
+            setclipboard(exportText)
+            copied = true
+        elseif syn and syn.write_clipboard then
+            syn.write_clipboard(exportText)
+            copied = true
+        end
+    end)
+    
+    if copied then
+        SafeLog("✅ Data copied to clipboard!")
+    else
+        SafeLog("📄 Data printed to console (clipboard not available)")
+        print(exportText)
+    end
+    
+    return exportText
+end
+    SafeLog("Scanning for fishing objects...")
+    local fishingObjects = {}
+    
+    local keywords = {"fish", "rod", "cast", "catch", "reel", "hook", "bait", "lure", "tackle", "sell"}
+    
+    pcall(function()
+        -- Scan ReplicatedStorage
+        for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+            local name = string.lower(obj.Name)
+            for _, keyword in pairs(keywords) do
+                if string.find(name, keyword) then
+                    table.insert(fishingObjects, {
+                        Name = obj.Name,
+                        Type = obj.ClassName,
+                        Path = obj:GetFullName(),
+                        Location = "ReplicatedStorage"
+                    })
+                    break
+                end
+            end
+        end
+        
+        -- Scan Workspace
+        for _, obj in pairs(game.Workspace:GetDescendants()) do
+            local name = string.lower(obj.Name)
+            for _, keyword in pairs(keywords) do
+                if string.find(name, keyword) then
+                    table.insert(fishingObjects, {
+                        Name = obj.Name,
+                        Type = obj.ClassName,
+                        Path = obj:GetFullName(),
+                        Location = "Workspace"
+                    })
+                    break
+                end
+            end
+        end
+    end)
+    
+    SafeLog("Found " .. #fishingObjects .. " fishing objects")
+    
+    -- Print detailed list
+    for i, obj in ipairs(fishingObjects) do
+        print(string.format("[%d] %s (%s) in %s: %s", i, obj.Name, obj.Type, obj.Location, obj.Path))
+    end
+    
+    return fishingObjects
+end
 
 -- Simple UI
 local function CreateSimpleUI()
@@ -110,7 +201,7 @@ local function CreateSimpleUI()
         screenGui.Parent = LocalPlayer.PlayerGui
         
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(0, 300, 0, 200)
+        frame.Size = UDim2.new(0, 300, 0, 240)
         frame.Position = UDim2.new(0, 20, 0, 20)
         frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         frame.Parent = screenGui
@@ -149,9 +240,17 @@ local function CreateSimpleUI()
         btn3.TextColor3 = Color3.fromRGB(255, 255, 255)
         btn3.Parent = frame
         
+        local btn4 = Instance.new("TextButton")
+        btn4.Size = UDim2.new(1, -10, 0, 30)
+        btn4.Position = UDim2.new(0, 5, 0, 160)
+        btn4.Text = "Export Data"
+        btn4.BackgroundColor3 = Color3.fromRGB(150, 100, 200)
+        btn4.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn4.Parent = frame
+        
         local closeBtn = Instance.new("TextButton")
         closeBtn.Size = UDim2.new(1, -10, 0, 30)
-        closeBtn.Position = UDim2.new(0, 5, 0, 160)
+        closeBtn.Position = UDim2.new(0, 5, 0, 200)
         closeBtn.Text = "Close"
         closeBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 100)
         closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -172,6 +271,10 @@ local function CreateSimpleUI()
             if LocalPlayer.Character then
                 SafeLog("Character Position: " .. tostring(LocalPlayer.Character.HumanoidRootPart.Position))
             end
+        end)
+        
+        btn4.MouseButton1Click:Connect(function()
+            task.spawn(ExportData)
         end)
         
         closeBtn.MouseButton1Click:Connect(function()
