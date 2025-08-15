@@ -292,6 +292,20 @@ local function BuildUI()
     local teleportTabPadding = Instance.new("UIPadding", teleportTabBtn)
     teleportTabPadding.PaddingLeft = UDim.new(0, 10)
 
+    local playerTabBtn = Instance.new("TextButton", sidebar)
+    playerTabBtn.Size = UDim2.new(1, -10, 0, 40)
+    playerTabBtn.Position = UDim2.new(0, 5, 0, 110)
+    playerTabBtn.Text = "👥 Player"
+    playerTabBtn.Font = Enum.Font.GothamSemibold
+    playerTabBtn.TextSize = 14
+    playerTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+    playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+    playerTabBtn.TextXAlignment = Enum.TextXAlignment.Left
+    local playerTabCorner = Instance.new("UICorner", playerTabBtn)
+    playerTabCorner.CornerRadius = UDim.new(0, 6)
+    local playerTabPadding = Instance.new("UIPadding", playerTabBtn)
+    playerTabPadding.PaddingLeft = UDim.new(0, 10)
+
     -- Content area on the right
     local contentContainer = Instance.new("Frame", panel)
     contentContainer.Size = UDim2.new(1, -145, 1, -50)
@@ -479,6 +493,132 @@ local function BuildUI()
     -- Update scroll frame content size
     scrollFrame.CanvasSize = UDim2.new(0, 0, 0, yOffset)
 
+    -- Player Tab Content
+    local playerFrame = Instance.new("Frame", contentContainer)
+    playerFrame.Size = UDim2.new(1, 0, 1, -10)
+    playerFrame.Position = UDim2.new(0, 0, 0, 0)
+    playerFrame.BackgroundTransparency = 1
+    playerFrame.Visible = false
+
+    local playerTitle = Instance.new("TextLabel", playerFrame)
+    playerTitle.Size = UDim2.new(1, 0, 0, 24)
+    playerTitle.Text = "Player List"
+    playerTitle.Font = Enum.Font.GothamBold
+    playerTitle.TextSize = 16
+    playerTitle.TextColor3 = Color3.fromRGB(235,235,235)
+    playerTitle.BackgroundTransparency = 1
+    playerTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Search box for players
+    local searchBox = Instance.new("TextBox", playerFrame)
+    searchBox.Size = UDim2.new(1, 0, 0, 28)
+    searchBox.Position = UDim2.new(0, 0, 0, 30)
+    searchBox.PlaceholderText = "Search player..."
+    searchBox.Text = ""
+    searchBox.Font = Enum.Font.GothamSemibold
+    searchBox.TextSize = 12
+    searchBox.BackgroundColor3 = Color3.fromRGB(45,45,52)
+    searchBox.TextColor3 = Color3.fromRGB(255,255,255)
+    searchBox.BorderSizePixel = 0
+    Instance.new("UICorner", searchBox)
+
+    -- Create scrollable frame for players
+    local playerScrollFrame = Instance.new("ScrollingFrame", playerFrame)
+    playerScrollFrame.Size = UDim2.new(1, 0, 1, -65)
+    playerScrollFrame.Position = UDim2.new(0, 0, 0, 65)
+    playerScrollFrame.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    playerScrollFrame.BorderSizePixel = 0
+    playerScrollFrame.ScrollBarThickness = 6
+    playerScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80,80,80)
+    Instance.new("UICorner", playerScrollFrame)
+
+    -- Player list management
+    local playerButtons = {}
+    local function updatePlayerList(filter)
+        -- Clear existing buttons
+        for _, btn in pairs(playerButtons) do
+            btn:Destroy()
+        end
+        playerButtons = {}
+        
+        local yPos = 5
+        local players = Players:GetPlayers()
+        
+        for _, player in pairs(players) do
+            if not filter or filter == "" or string.lower(player.Name):find(string.lower(filter)) or string.lower(player.DisplayName):find(string.lower(filter)) then
+                local playerBtn = Instance.new("TextButton", playerScrollFrame)
+                playerBtn.Size = UDim2.new(1, -10, 0, 32)
+                playerBtn.Position = UDim2.new(0, 5, 0, yPos)
+                playerBtn.Text = "🎮 " .. player.DisplayName .. " (@" .. player.Name .. ")"
+                playerBtn.Font = Enum.Font.GothamSemibold
+                playerBtn.TextSize = 11
+                playerBtn.BackgroundColor3 = player == LocalPlayer and Color3.fromRGB(100,150,100) or Color3.fromRGB(80,120,180)
+                playerBtn.TextColor3 = Color3.fromRGB(255,255,255)
+                playerBtn.TextXAlignment = Enum.TextXAlignment.Left
+                Instance.new("UICorner", playerBtn)
+                
+                local btnPadding = Instance.new("UIPadding", playerBtn)
+                btnPadding.PaddingLeft = UDim.new(0, 8)
+                
+                -- Teleport to player functionality
+                if player ~= LocalPlayer then
+                    playerBtn.MouseButton1Click:Connect(function()
+                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and 
+                           LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                            LocalPlayer.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
+                            Notify("Player Teleport", "Teleported to " .. player.DisplayName)
+                        else
+                            Notify("Player Teleport", "Cannot teleport to " .. player.DisplayName .. " - Character not found")
+                        end
+                    end)
+                else
+                    playerBtn.Text = "🎮 " .. player.DisplayName .. " (@" .. player.Name .. ") [YOU]"
+                end
+                
+                table.insert(playerButtons, playerBtn)
+                yPos = yPos + 37
+            end
+        end
+        
+        playerScrollFrame.CanvasSize = UDim2.new(0, 0, 0, yPos)
+    end
+
+    -- Search functionality
+    searchBox.Changed:Connect(function(property)
+        if property == "Text" then
+            updatePlayerList(searchBox.Text)
+        end
+    end)
+
+    -- Auto-refresh player list every 5 seconds
+    local function autoRefreshPlayers()
+        while true do
+            if playerFrame.Visible then
+                updatePlayerList(searchBox.Text)
+            end
+            task.wait(5)
+        end
+    end
+    
+    task.spawn(autoRefreshPlayers)
+
+    -- Initial player list load
+    updatePlayerList()
+    
+    -- Player join/leave events
+    Players.PlayerAdded:Connect(function()
+        if playerFrame.Visible then
+            updatePlayerList(searchBox.Text)
+        end
+    end)
+    
+    Players.PlayerRemoving:Connect(function()
+        if playerFrame.Visible then
+            task.wait(0.1) -- Small delay to ensure player is removed
+            updatePlayerList(searchBox.Text)
+        end
+    end)
+
     -- Start/Stop buttons at bottom of content container (only visible in Main tab)
     local actions = Instance.new("Frame", contentContainer)
     actions.Size = UDim2.new(1, 0, 0, 38)
@@ -533,7 +673,7 @@ local function BuildUI()
     end)
 
     -- Robust tab switching: collect tabs and provide SwitchTo
-    local Tabs = { Main = content, Teleport = teleportFrame }
+    local Tabs = { Main = content, Teleport = teleportFrame, Player = playerFrame }
     local function SwitchTo(name)
         for k, v in pairs(Tabs) do
             v.Visible = (k == name)
@@ -548,18 +688,32 @@ local function BuildUI()
             mainTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            playerTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "AutoFish Controls"
-        else -- Teleport
+        elseif name == "Teleport" then
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             teleportTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
             mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            playerTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Island Locations"
+        else -- Player
+            playerTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
+            playerTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
+            mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            contentTitle.Text = "Player Teleport"
+            updatePlayerList(searchBox.Text) -- Refresh when switching to player tab
         end
     end
 
     mainTabBtn.MouseButton1Click:Connect(function() SwitchTo("Main") end)
     teleportTabBtn.MouseButton1Click:Connect(function() SwitchTo("Teleport") end)
+    playerTabBtn.MouseButton1Click:Connect(function() SwitchTo("Player") end)
 
     -- Start with Main visible
     SwitchTo("Main")
