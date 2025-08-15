@@ -252,20 +252,33 @@ local function BuildUI()
     local secureButton = Instance.new("TextButton", modeButtons); secureButton.Size = UDim2.new(0.48,0,0,34); secureButton.Position = UDim2.new(0.52,0,0,0); secureButton.Text = "Secure"; secureButton.BackgroundColor3 = Color3.fromRGB(74,155,88); Instance.new("UICorner", secureButton)
 
     -- right: numeric controls
-    local delayLabel = Instance.new("TextLabel", rightCol); delayLabel.Size = UDim2.new(1,0,0,18); delayLabel.Text = string.format("Recast Delay: %.2fs", Config.autoRecastDelay); delayLabel.BackgroundTransparency = 1; delayLabel.Font = Enum.Font.GothamSemibold
+    local delayLabel = Instance.new("TextLabel", rightCol)
+    delayLabel.Size = UDim2.new(1,0,0,18)
+    delayLabel.Text = string.format("Recast Delay: %.2fs", Config.autoRecastDelay)
+    delayLabel.BackgroundTransparency = 1
+    delayLabel.Font = Enum.Font.GothamSemibold
+    delayLabel.TextColor3 = Color3.fromRGB(180,180,200)
+    delayLabel.TextSize = 13
     local delayControls = Instance.new("Frame", rightCol); delayControls.Size = UDim2.new(1,0,0,28); delayControls.Position = UDim2.new(0,0,0,22); delayControls.BackgroundTransparency = 1
     local delayMinus = Instance.new("TextButton", delayControls); delayMinus.Size = UDim2.new(0,32,1,0); delayMinus.Position = UDim2.new(0,0,0,0); delayMinus.Text = "-"; Instance.new("UICorner", delayMinus)
     local delayPlus = Instance.new("TextButton", delayControls); delayPlus.Size = UDim2.new(0,32,1,0); delayPlus.Position = UDim2.new(1,-32,0,0); delayPlus.Text = "+"; Instance.new("UICorner", delayPlus)
 
-    local chanceLabel = Instance.new("TextLabel", rightCol); chanceLabel.Size = UDim2.new(1,0,0,18); chanceLabel.Position = UDim2.new(0,0,0,58); chanceLabel.Text = string.format("Safe Perfect %%: %d", Config.safeModeChance); chanceLabel.BackgroundTransparency = 1; chanceLabel.Font = Enum.Font.GothamSemibold
+    local chanceLabel = Instance.new("TextLabel", rightCol)
+    chanceLabel.Size = UDim2.new(1,0,0,18)
+    chanceLabel.Position = UDim2.new(0,0,0,58)
+    chanceLabel.Text = string.format("Safe Perfect %%: %d", Config.safeModeChance)
+    chanceLabel.BackgroundTransparency = 1
+    chanceLabel.Font = Enum.Font.GothamSemibold
+    chanceLabel.TextColor3 = Color3.fromRGB(180,180,200)
+    chanceLabel.TextSize = 13
     local chanceControls = Instance.new("Frame", rightCol); chanceControls.Size = UDim2.new(1,0,0,28); chanceControls.Position = UDim2.new(0,0,0,82)
     local chanceMinus = Instance.new("TextButton", chanceControls); chanceMinus.Size = UDim2.new(0,32,1,0); chanceMinus.Position = UDim2.new(0,0,0,0); chanceMinus.Text = "-"; Instance.new("UICorner", chanceMinus)
     local chancePlus = Instance.new("TextButton", chanceControls); chancePlus.Size = UDim2.new(0,32,1,0); chancePlus.Position = UDim2.new(1,-32,0,0); chancePlus.Text = "+"; Instance.new("UICorner", chancePlus)
 
     -- actions
     local actions = Instance.new("Frame", panel); actions.Size = UDim2.new(1,-20,0,42); actions.Position = UDim2.new(0,10,1,-50); actions.BackgroundTransparency = 1
-    local startBtn = Instance.new("TextButton", actions); startBtn.Size = UDim2.new(0.5,-6,1,0); startBtn.Position = UDim2.new(0,0,0,0); startBtn.Text = "Start"; Instance.new("UICorner", startBtn)
-    local stopBtn = Instance.new("TextButton", actions); stopBtn.Size = UDim2.new(0.5,-6,1,0); stopBtn.Position = UDim2.new(0.5,12,0,0); stopBtn.Text = "Stop"; Instance.new("UICorner", stopBtn)
+    local startBtn = Instance.new("TextButton", actions); startBtn.Size = UDim2.new(0.5,-6,1,0); startBtn.Position = UDim2.new(0,0,0,0); startBtn.Text = "Start"; startBtn.BackgroundColor3 = Color3.fromRGB(70,170,90); startBtn.TextColor3 = Color3.fromRGB(255,255,255); Instance.new("UICorner", startBtn)
+    local stopBtn = Instance.new("TextButton", actions); stopBtn.Size = UDim2.new(0.5,-6,1,0); stopBtn.Position = UDim2.new(0.5,12,0,0); stopBtn.Text = "Stop"; stopBtn.BackgroundColor3 = Color3.fromRGB(190,60,60); stopBtn.TextColor3 = Color3.fromRGB(255,255,255); Instance.new("UICorner", stopBtn)
 
     -- floating toggle
     -- Floating toggle: keep margin so it doesn't overlap header on small screens
