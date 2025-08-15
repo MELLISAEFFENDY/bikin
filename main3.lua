@@ -300,7 +300,7 @@ local function BuildUI()
 
     -- content area (Main tab)
     local content = Instance.new("Frame", contentContainer)
-    content.Size = UDim2.new(1, 0, 1, -55)
+    content.Size = UDim2.new(1, 0, 1, -85)
     content.Position = UDim2.new(0, 0, 0, 0)
     content.BackgroundTransparency = 1
 
@@ -390,9 +390,20 @@ local function BuildUI()
     chancePlus.TextSize = 18
     Instance.new("UICorner", chancePlus)
 
+    -- Sell All button in Main tab
+    local sellBtn = Instance.new("TextButton", content)
+    sellBtn.Size = UDim2.new(1, 0, 0, 32)
+    sellBtn.Position = UDim2.new(0, 0, 1, -35)
+    sellBtn.Text = "Sell All Items"
+    sellBtn.Font = Enum.Font.GothamSemibold
+    sellBtn.TextSize = 14
+    sellBtn.BackgroundColor3 = Color3.fromRGB(180,120,60)
+    sellBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", sellBtn)
+
     -- Teleport Tab Content
     local teleportFrame = Instance.new("Frame", contentContainer)
-    teleportFrame.Size = UDim2.new(1, 0, 1, -55)
+    teleportFrame.Size = UDim2.new(1, 0, 1, -10)
     teleportFrame.Position = UDim2.new(0, 0, 0, 0)
     teleportFrame.BackgroundTransparency = 1
     teleportFrame.Visible = false
@@ -408,7 +419,7 @@ local function BuildUI()
 
     -- Create scrollable frame for islands
     local scrollFrame = Instance.new("ScrollingFrame", teleportFrame)
-    scrollFrame.Size = UDim2.new(1, 0, 1, -65)
+    scrollFrame.Size = UDim2.new(1, 0, 1, -30)
     scrollFrame.Position = UDim2.new(0, 0, 0, 30)
     scrollFrame.BackgroundColor3 = Color3.fromRGB(35,35,42)
     scrollFrame.BorderSizePixel = 0
@@ -418,30 +429,23 @@ local function BuildUI()
 
     -- Island locations data
     local islandLocations = {
-        ["Moosewood"] = CFrame.new(389, 137, 264),
-        ["Ocean"] = CFrame.new(1082, 124, -924),
-        ["Snowcap Island"] = CFrame.new(2648, 140, 2522),
-        ["Mushgrove Swamp"] = CFrame.new(-1817, 138, 1808),
-        ["Roslit Bay"] = CFrame.new(-1442, 135, 1006),
-        ["Sunstone Island"] = CFrame.new(-934, 135, -1122),
-        ["Statue Of Sovereignty"] = CFrame.new(1, 140, -918),
-        ["Moonstone Island"] = CFrame.new(-3004, 135, -1157),
-        ["Forsaken Shores"] = CFrame.new(-2853, 135, 1627),
-        ["Ancient Isle"] = CFrame.new(5896, 137, 4516),
-        ["Keepers Altar"] = CFrame.new(1296, 135, -808),
-        ["Brine Pool"] = CFrame.new(-1804, 135, 3265),
-        ["The Depths"] = CFrame.new(994, -715, 1226),
-        ["Vertigo"] = CFrame.new(-111, -515, 1049),
-        ["Volcano"] = CFrame.new(-1888, 164, 330),
-        ["Kohana Volcano"] = CFrame.new(-594.971252, 396.65213, 149.10907),
-        ["Crater Island"] = CFrame.new(1010.01001, 252, 5078.45117),
-        ["Kohana"] = CFrame.new(-650.971191, 208.693695, 711.10907),
-        ["Lost Isle"] = CFrame.new(-3618.15698, 240.836655, -1317.45801),
-        ["Stingray Shores"] = CFrame.new(45.2788086, 252.562927, 2987.10913),
-        ["Esoteric Depths"] = CFrame.new(1944.77881, 393.562927, 1371.35913),
-        ["Weather Machine"] = CFrame.new(-1488.51196, 83.1732635, 1876.30298),
-        ["Tropical Grove"] = CFrame.new(-2095.34106, 197.199997, 3718.08008),
-        ["Coral Reefs"] = CFrame.new(-3023.97119, 337.812927, 2195.60913)
+        ["🏝️Kohana Volcano"] = CFrame.new(-594.971252, 396.65213, 149.10907),
+        ["🏝️Crater Island"] = CFrame.new(1010.01001, 252, 5078.45117),
+        ["🏝️Kohana"] = CFrame.new(-650.971191, 208.693695, 711.10907),
+        ["🏝️Lost Isle"] = CFrame.new(-3618.15698, 240.836655, -1317.45801),
+        ["🏝️Stingray Shores"] = CFrame.new(45.2788086, 252.562927, 2987.10913),
+        ["🏝️Esoteric Depths"] = CFrame.new(1944.77881, 393.562927, 1371.35913),
+        ["🏝️Weather Machine"] = CFrame.new(-1488.51196, 83.1732635, 1876.30298),
+        ["🏝️Tropical Grove"] = CFrame.new(-2095.34106, 197.199997, 3718.08008),
+        ["🏝️Coral Reefs"] = CFrame.new(-3023.97119, 337.812927, 2195.60913),
+        ["🏝️ SISYPUS"] = CFrame.new(-3709.75, -96.81, -952.38),
+        ["🦈 TREASURE"] = CFrame.new(-3599.90, -275.96, -1640.84),
+        ["🎣 STRINGRY"] 🏝️= CFrame.new(102.05, 29.64, 3054.35),
+        ["❄️ ICE LAND"] = CFrame.new(1990.55, 3.09, 3021.91),
+        ["🌋 CRATER"] = CFrame.new(990.45, 21.06, 5059.85),
+        ["🌴 TROPICAL"] = CFrame.new(-2093.80, 6.26, 3654.30),
+        ["🗿 STONE"] = CFrame.new(-2636.19, 124.87, -27.49),
+        ["⚙️ MACHINE"] = CFrame.new(-1551.25, 2.87, 1920.26)
     }
 
     -- Create island buttons
@@ -475,21 +479,10 @@ local function BuildUI()
     -- Update scroll frame content size
     scrollFrame.CanvasSize = UDim2.new(0, 0, 0, yOffset)
 
-    -- Sell All button at bottom of teleport frame
-    local sellBtn = Instance.new("TextButton", teleportFrame)
-    sellBtn.Size = UDim2.new(1, 0, 0, 32)
-    sellBtn.Position = UDim2.new(0, 0, 1, -35)
-    sellBtn.Text = "Sell All Items"
-    sellBtn.Font = Enum.Font.GothamSemibold
-    sellBtn.TextSize = 14
-    sellBtn.BackgroundColor3 = Color3.fromRGB(180,120,60)
-    sellBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", sellBtn)
-
     -- Start/Stop buttons at bottom of content container (only visible in Main tab)
     local actions = Instance.new("Frame", contentContainer)
-    actions.Size = UDim2.new(1, 0, 0, 48)
-    actions.Position = UDim2.new(0, 0, 1, -50)
+    actions.Size = UDim2.new(1, 0, 0, 38)
+    actions.Position = UDim2.new(0, 0, 1, -80)
     actions.BackgroundTransparency = 1
     local startBtn = Instance.new("TextButton", actions)
     startBtn.Size = UDim2.new(0.5, -6, 1, 0)
@@ -498,6 +491,7 @@ local function BuildUI()
     startBtn.BackgroundColor3 = Color3.fromRGB(70,170,90)
     startBtn.TextColor3 = Color3.fromRGB(255,255,255)
     startBtn.Font = Enum.Font.GothamSemibold
+    startBtn.TextSize = 14
     local startCorner = Instance.new("UICorner", startBtn); startCorner.CornerRadius = UDim.new(0,8)
     local stopBtn = Instance.new("TextButton", actions)
     stopBtn.Size = UDim2.new(0.5, -6, 1, 0)
@@ -506,6 +500,7 @@ local function BuildUI()
     stopBtn.BackgroundColor3 = Color3.fromRGB(190,60,60)
     stopBtn.TextColor3 = Color3.fromRGB(255,255,255)
     stopBtn.Font = Enum.Font.GothamSemibold
+    stopBtn.TextSize = 14
     local stopCorner = Instance.new("UICorner", stopBtn); stopCorner.CornerRadius = UDim.new(0,8)
 
     -- floating toggle
