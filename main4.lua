@@ -378,6 +378,20 @@ local function BuildUI()
     local dashboardTabPadding = Instance.new("UIPadding", dashboardTabBtn)
     dashboardTabPadding.PaddingLeft = UDim.new(0, 10)
 
+    local advancedTabBtn = Instance.new("TextButton", sidebar)
+    advancedTabBtn.Size = UDim2.new(1, -10, 0, 40)
+    advancedTabBtn.Position = UDim2.new(0, 5, 0, 260)
+    advancedTabBtn.Text = "🚀 Advanced"
+    advancedTabBtn.Font = Enum.Font.GothamSemibold
+    advancedTabBtn.TextSize = 14
+    advancedTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+    advancedTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+    advancedTabBtn.TextXAlignment = Enum.TextXAlignment.Left
+    local advancedTabCorner = Instance.new("UICorner", advancedTabBtn)
+    advancedTabCorner.CornerRadius = UDim.new(0, 6)
+    local advancedTabPadding = Instance.new("UIPadding", advancedTabBtn)
+    advancedTabPadding.PaddingLeft = UDim.new(0, 10)
+
     -- Content area on the right
     local contentContainer = Instance.new("Frame", panel)
     contentContainer.Size = UDim2.new(1, -145, 1, -50)
@@ -1196,6 +1210,235 @@ local function BuildUI()
         end
     end)
 
+    -- 🚀 Advanced Tab Content
+    local advancedFrame = Instance.new("Frame", contentContainer)
+    advancedFrame.Size = UDim2.new(1, 0, 1, -10)
+    advancedFrame.Position = UDim2.new(0, 0, 0, 0)
+    advancedFrame.BackgroundTransparency = 1
+    advancedFrame.Visible = false
+
+    local advancedTitle = Instance.new("TextLabel", advancedFrame)
+    advancedTitle.Size = UDim2.new(1, 0, 0, 24)
+    advancedTitle.Text = "🚀 Advanced Automation"
+    advancedTitle.Font = Enum.Font.GothamBold
+    advancedTitle.TextSize = 16
+    advancedTitle.TextColor3 = Color3.fromRGB(235,235,235)
+    advancedTitle.BackgroundTransparency = 1
+    advancedTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local advancedScroll = Instance.new("ScrollingFrame", advancedFrame)
+    advancedScroll.Size = UDim2.new(1, 0, 1, -40)
+    advancedScroll.Position = UDim2.new(0, 0, 0, 30)
+    advancedScroll.BackgroundTransparency = 1
+    advancedScroll.BorderSizePixel = 0
+    advancedScroll.ScrollBarThickness = 4
+    advancedScroll.ScrollBarImageColor3 = Color3.fromRGB(64,64,64)
+    advancedScroll.CanvasSize = UDim2.new(0, 0, 0, 800)
+
+    -- Weather Event Section
+    local weatherSection = Instance.new("Frame", advancedScroll)
+    weatherSection.Size = UDim2.new(1, 0, 0, 150)
+    weatherSection.Position = UDim2.new(0, 0, 0, 10)
+    weatherSection.BackgroundColor3 = Color3.fromRGB(48,48,54)
+    local weatherCorner = Instance.new("UICorner", weatherSection)
+    weatherCorner.CornerRadius = UDim.new(0, 8)
+
+    local weatherTitle = Instance.new("TextLabel", weatherSection)
+    weatherTitle.Size = UDim2.new(1, -20, 0, 30)
+    weatherTitle.Position = UDim2.new(0, 10, 0, 10)
+    weatherTitle.Text = "🌤️ Weather Event Automation"
+    weatherTitle.Font = Enum.Font.GothamBold
+    weatherTitle.TextSize = 14
+    weatherTitle.TextColor3 = Color3.fromRGB(255,193,7)
+    weatherTitle.BackgroundTransparency = 1
+    weatherTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local weatherDesc = Instance.new("TextLabel", weatherSection)
+    weatherDesc.Size = UDim2.new(1, -20, 0, 40)
+    weatherDesc.Position = UDim2.new(0, 10, 0, 40)
+    weatherDesc.Text = "Automatically purchase weather effects for optimal fishing conditions"
+    weatherDesc.Font = Enum.Font.Gotham
+    weatherDesc.TextSize = 12
+    weatherDesc.TextColor3 = Color3.fromRGB(180,180,180)
+    weatherDesc.BackgroundTransparency = 1
+    weatherDesc.TextXAlignment = Enum.TextXAlignment.Left
+    weatherDesc.TextWrapped = true
+
+    local weatherToggle = Instance.new("TextButton", weatherSection)
+    weatherToggle.Size = UDim2.new(0, 120, 0, 30)
+    weatherToggle.Position = UDim2.new(0, 10, 0, 90)
+    weatherToggle.Text = "Auto Weather: OFF"
+    weatherToggle.Font = Enum.Font.GothamSemibold
+    weatherToggle.TextSize = 12
+    weatherToggle.BackgroundColor3 = Color3.fromRGB(220,53,69)
+    weatherToggle.TextColor3 = Color3.fromRGB(255,255,255)
+    local weatherToggleCorner = Instance.new("UICorner", weatherToggle)
+    weatherToggleCorner.CornerRadius = UDim.new(0, 6)
+
+    local weatherBuyBtn = Instance.new("TextButton", weatherSection)
+    weatherBuyBtn.Size = UDim2.new(0, 100, 0, 30)
+    weatherBuyBtn.Position = UDim2.new(0, 140, 0, 90)
+    weatherBuyBtn.Text = "Buy Event"
+    weatherBuyBtn.Font = Enum.Font.GothamSemibold
+    weatherBuyBtn.TextSize = 12
+    weatherBuyBtn.BackgroundColor3 = Color3.fromRGB(40,167,69)
+    weatherBuyBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    local weatherBuyCorner = Instance.new("UICorner", weatherBuyBtn)
+    weatherBuyCorner.CornerRadius = UDim.new(0, 6)
+
+    -- Boat Management Section
+    local boatSection = Instance.new("Frame", advancedScroll)
+    boatSection.Size = UDim2.new(1, 0, 0, 150)
+    boatSection.Position = UDim2.new(0, 0, 0, 170)
+    boatSection.BackgroundColor3 = Color3.fromRGB(48,48,54)
+    local boatCorner = Instance.new("UICorner", boatSection)
+    boatCorner.CornerRadius = UDim.new(0, 8)
+
+    local boatTitle = Instance.new("TextLabel", boatSection)
+    boatTitle.Size = UDim2.new(1, -20, 0, 30)
+    boatTitle.Position = UDim2.new(0, 10, 0, 10)
+    boatTitle.Text = "🚢 Boat Management"
+    boatTitle.Font = Enum.Font.GothamBold
+    boatTitle.TextSize = 14
+    boatTitle.TextColor3 = Color3.fromRGB(52,152,219)
+    boatTitle.BackgroundTransparency = 1
+    boatTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local boatDesc = Instance.new("TextLabel", boatSection)
+    boatDesc.Size = UDim2.new(1, -20, 0, 40)
+    boatDesc.Position = UDim2.new(0, 10, 0, 40)
+    boatDesc.Text = "Smart boat spawning and positioning for optimal fishing spots"
+    boatDesc.Font = Enum.Font.Gotham
+    boatDesc.TextSize = 12
+    boatDesc.TextColor3 = Color3.fromRGB(180,180,180)
+    boatDesc.BackgroundTransparency = 1
+    boatDesc.TextXAlignment = Enum.TextXAlignment.Left
+    boatDesc.TextWrapped = true
+
+    local spawnBoatBtn = Instance.new("TextButton", boatSection)
+    spawnBoatBtn.Size = UDim2.new(0, 100, 0, 30)
+    spawnBoatBtn.Position = UDim2.new(0, 10, 0, 90)
+    spawnBoatBtn.Text = "Spawn Boat"
+    spawnBoatBtn.Font = Enum.Font.GothamSemibold
+    spawnBoatBtn.TextSize = 12
+    spawnBoatBtn.BackgroundColor3 = Color3.fromRGB(40,167,69)
+    spawnBoatBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    local spawnBoatCorner = Instance.new("UICorner", spawnBoatBtn)
+    spawnBoatCorner.CornerRadius = UDim.new(0, 6)
+
+    local despawnBoatBtn = Instance.new("TextButton", boatSection)
+    despawnBoatBtn.Size = UDim2.new(0, 100, 0, 30)
+    despawnBoatBtn.Position = UDim2.new(0, 120, 0, 90)
+    despawnBoatBtn.Text = "Despawn"
+    despawnBoatBtn.Font = Enum.Font.GothamSemibold
+    despawnBoatBtn.TextSize = 12
+    despawnBoatBtn.BackgroundColor3 = Color3.fromRGB(220,53,69)
+    despawnBoatBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    local despawnBoatCorner = Instance.new("UICorner", despawnBoatBtn)
+    despawnBoatCorner.CornerRadius = UDim.new(0, 6)
+
+    -- Enchanting Section
+    local enchantSection = Instance.new("Frame", advancedScroll)
+    enchantSection.Size = UDim2.new(1, 0, 0, 150)
+    enchantSection.Position = UDim2.new(0, 0, 0, 330)
+    enchantSection.BackgroundColor3 = Color3.fromRGB(48,48,54)
+    local enchantCorner = Instance.new("UICorner", enchantSection)
+    enchantCorner.CornerRadius = UDim.new(0, 8)
+
+    local enchantTitle = Instance.new("TextLabel", enchantSection)
+    enchantTitle.Size = UDim2.new(1, -20, 0, 30)
+    enchantTitle.Position = UDim2.new(0, 10, 0, 10)
+    enchantTitle.Text = "💎 Enchanting Integration"
+    enchantTitle.Font = Enum.Font.GothamBold
+    enchantTitle.TextSize = 14
+    enchantTitle.TextColor3 = Color3.fromRGB(138,43,226)
+    enchantTitle.BackgroundTransparency = 1
+    enchantTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local enchantDesc = Instance.new("TextLabel", enchantSection)
+    enchantDesc.Size = UDim2.new(1, -20, 0, 40)
+    enchantDesc.Position = UDim2.new(0, 10, 0, 40)
+    enchantDesc.Text = "Auto-enchant fishing equipment for maximum efficiency"
+    enchantDesc.Font = Enum.Font.Gotham
+    enchantDesc.TextSize = 12
+    enchantDesc.TextColor3 = Color3.fromRGB(180,180,180)
+    enchantDesc.BackgroundTransparency = 1
+    enchantDesc.TextXAlignment = Enum.TextXAlignment.Left
+    enchantDesc.TextWrapped = true
+
+    local enchantToggle = Instance.new("TextButton", enchantSection)
+    enchantToggle.Size = UDim2.new(0, 120, 0, 30)
+    enchantToggle.Position = UDim2.new(0, 10, 0, 90)
+    enchantToggle.Text = "Auto Enchant: OFF"
+    enchantToggle.Font = Enum.Font.GothamSemibold
+    enchantToggle.TextSize = 12
+    enchantToggle.BackgroundColor3 = Color3.fromRGB(220,53,69)
+    enchantToggle.TextColor3 = Color3.fromRGB(255,255,255)
+    local enchantToggleCorner = Instance.new("UICorner", enchantToggle)
+    enchantToggleCorner.CornerRadius = UDim.new(0, 6)
+
+    local rollEnchantBtn = Instance.new("TextButton", enchantSection)
+    rollEnchantBtn.Size = UDim2.new(0, 100, 0, 30)
+    rollEnchantBtn.Position = UDim2.new(0, 140, 0, 90)
+    rollEnchantBtn.Text = "Roll Enchant"
+    rollEnchantBtn.Font = Enum.Font.GothamSemibold
+    rollEnchantBtn.TextSize = 12
+    rollEnchantBtn.BackgroundColor3 = Color3.fromRGB(138,43,226)
+    rollEnchantBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    local rollEnchantCorner = Instance.new("UICorner", rollEnchantBtn)
+    rollEnchantCorner.CornerRadius = UDim.new(0, 6)
+
+    -- Trading Section
+    local tradeSection = Instance.new("Frame", advancedScroll)
+    tradeSection.Size = UDim2.new(1, 0, 0, 150)
+    tradeSection.Position = UDim2.new(0, 0, 0, 490)
+    tradeSection.BackgroundColor3 = Color3.fromRGB(48,48,54)
+    local tradeCorner = Instance.new("UICorner", tradeSection)
+    tradeCorner.CornerRadius = UDim.new(0, 8)
+
+    local tradeTitle = Instance.new("TextLabel", tradeSection)
+    tradeTitle.Size = UDim2.new(1, -20, 0, 30)
+    tradeTitle.Position = UDim2.new(0, 10, 0, 10)
+    tradeTitle.Text = "🔄 Trading System"
+    tradeTitle.Font = Enum.Font.GothamBold
+    tradeTitle.TextSize = 14
+    tradeTitle.TextColor3 = Color3.fromRGB(255,152,0)
+    tradeTitle.BackgroundTransparency = 1
+    tradeTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local tradeDesc = Instance.new("TextLabel", tradeSection)
+    tradeDesc.Size = UDim2.new(1, -20, 0, 40)
+    tradeDesc.Position = UDim2.new(0, 10, 0, 40)
+    tradeDesc.Text = "Smart trading automation for optimizing fish values and exchanges"
+    tradeDesc.Font = Enum.Font.Gotham
+    tradeDesc.TextSize = 12
+    tradeDesc.TextColor3 = Color3.fromRGB(180,180,180)
+    tradeDesc.BackgroundTransparency = 1
+    tradeDesc.TextXAlignment = Enum.TextXAlignment.Left
+    tradeDesc.TextWrapped = true
+
+    local tradeToggle = Instance.new("TextButton", tradeSection)
+    tradeToggle.Size = UDim2.new(0, 120, 0, 30)
+    tradeToggle.Position = UDim2.new(0, 10, 0, 90)
+    tradeToggle.Text = "Auto Trade: OFF"
+    tradeToggle.Font = Enum.Font.GothamSemibold
+    tradeToggle.TextSize = 12
+    tradeToggle.BackgroundColor3 = Color3.fromRGB(220,53,69)
+    tradeToggle.TextColor3 = Color3.fromRGB(255,255,255)
+    local tradeToggleCorner = Instance.new("UICorner", tradeToggle)
+    tradeToggleCorner.CornerRadius = UDim.new(0, 6)
+
+    local initiateTradeBtn = Instance.new("TextButton", tradeSection)
+    initiateTradeBtn.Size = UDim2.new(0, 100, 0, 30)
+    initiateTradeBtn.Position = UDim2.new(0, 140, 0, 90)
+    initiateTradeBtn.Text = "Initiate Trade"
+    initiateTradeBtn.Font = Enum.Font.GothamSemibold
+    initiateTradeBtn.TextSize = 12
+    initiateTradeBtn.BackgroundColor3 = Color3.fromRGB(255,152,0)
+    initiateTradeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    local initiateTradeCorner = Instance.new("UICorner", initiateTradeBtn)
+    initiateTradeCorner.CornerRadius = UDim.new(0, 6)
+
     -- Start/Stop buttons at bottom of content container (only visible in Main tab)
     local actions = Instance.new("Frame", contentContainer)
     actions.Size = UDim2.new(1, 0, 0, 38)
@@ -1250,7 +1493,7 @@ local function BuildUI()
     end)
 
     -- Robust tab switching: collect tabs and provide SwitchTo
-    local Tabs = { Main = content, Teleport = teleportFrame, Player = playerFrame, Feature = featureFrame, Dashboard = dashboardFrame }
+    local Tabs = { Main = content, Teleport = teleportFrame, Player = playerFrame, Feature = featureFrame, Dashboard = dashboardFrame, Advanced = advancedFrame }
     local function SwitchTo(name)
         for k, v in pairs(Tabs) do
             v.Visible = (k == name)
@@ -1329,6 +1572,137 @@ local function BuildUI()
     playerTabBtn.MouseButton1Click:Connect(function() SwitchTo("Player") end)
     featureTabBtn.MouseButton1Click:Connect(function() SwitchTo("Feature") end)
     dashboardTabBtn.MouseButton1Click:Connect(function() SwitchTo("Dashboard") end)
+    advancedTabBtn.MouseButton1Click:Connect(function() SwitchTo("Advanced") end)
+
+    -- Advanced Features
+    local AdvancedFeatures = {
+        autoWeather = false,
+        autoEnchant = false,
+        autoTrade = false
+    }
+
+    -- Weather Event Functions
+    local function PurchaseWeatherEvent()
+        local weatherRemote = GetRemote("RF/PurchaseWeatherEvent")
+        if weatherRemote then
+            pcall(function() weatherRemote:FireServer() end)
+            Notify("Weather", "Weather event purchased!")
+        else
+            Notify("Error", "Weather remote not found")
+        end
+    end
+
+    -- Boat Management Functions
+    local function SpawnBoat()
+        local spawnRemote = GetRemote("RF/SpawnBoat")
+        if spawnRemote then
+            pcall(function() spawnRemote:FireServer() end)
+            Notify("Boat", "Boat spawned successfully!")
+        else
+            Notify("Error", "Spawn boat remote not found")
+        end
+    end
+
+    local function DespawnBoat()
+        local despawnRemote = GetRemote("RF/DespawnBoat")
+        if despawnRemote then
+            pcall(function() despawnRemote:FireServer() end)
+            Notify("Boat", "Boat despawned!")
+        else
+            Notify("Error", "Despawn boat remote not found")
+        end
+    end
+
+    -- Enchanting Functions
+    local function ActivateEnchantingAltar()
+        local enchantRemote = GetRemote("RE/ActivateEnchantingAltar")
+        if enchantRemote then
+            pcall(function() enchantRemote:FireServer() end)
+            Notify("Enchanting", "Enchanting altar activated!")
+        else
+            Notify("Error", "Enchanting altar remote not found")
+        end
+    end
+
+    local function RollEnchant()
+        local rollRemote = GetRemote("RE/RollEnchant")
+        if rollRemote then
+            pcall(function() rollRemote:FireServer() end)
+            Notify("Enchanting", "Enchantment rolled!")
+        else
+            Notify("Error", "Roll enchant remote not found")
+        end
+    end
+
+    -- Trading Functions
+    local function InitiateTrade()
+        local tradeRemote = GetRemote("RF/InitiateTrade")
+        if tradeRemote then
+            pcall(function() tradeRemote:FireServer() end)
+            Notify("Trading", "Trade initiated!")
+        else
+            Notify("Error", "Trade remote not found")
+        end
+    end
+
+    -- Event Handlers for Advanced Features
+    weatherToggle.MouseButton1Click:Connect(function()
+        AdvancedFeatures.autoWeather = not AdvancedFeatures.autoWeather
+        weatherToggle.Text = AdvancedFeatures.autoWeather and "Auto Weather: ON" or "Auto Weather: OFF"
+        weatherToggle.BackgroundColor3 = AdvancedFeatures.autoWeather and Color3.fromRGB(40,167,69) or Color3.fromRGB(220,53,69)
+    end)
+
+    weatherBuyBtn.MouseButton1Click:Connect(PurchaseWeatherEvent)
+    spawnBoatBtn.MouseButton1Click:Connect(SpawnBoat)
+    despawnBoatBtn.MouseButton1Click:Connect(DespawnBoat)
+
+    enchantToggle.MouseButton1Click:Connect(function()
+        AdvancedFeatures.autoEnchant = not AdvancedFeatures.autoEnchant
+        enchantToggle.Text = AdvancedFeatures.autoEnchant and "Auto Enchant: ON" or "Auto Enchant: OFF"
+        enchantToggle.BackgroundColor3 = AdvancedFeatures.autoEnchant and Color3.fromRGB(40,167,69) or Color3.fromRGB(220,53,69)
+    end)
+
+    rollEnchantBtn.MouseButton1Click:Connect(RollEnchant)
+
+    tradeToggle.MouseButton1Click:Connect(function()
+        AdvancedFeatures.autoTrade = not AdvancedFeatures.autoTrade
+        tradeToggle.Text = AdvancedFeatures.autoTrade and "Auto Trade: ON" or "Auto Trade: OFF"
+        tradeToggle.BackgroundColor3 = AdvancedFeatures.autoTrade and Color3.fromRGB(40,167,69) or Color3.fromRGB(220,53,69)
+    end)
+
+    initiateTradeBtn.MouseButton1Click:Connect(InitiateTrade)
+
+    -- Auto Weather Event Loop
+    spawn(function()
+        while true do
+            wait(30) -- Check every 30 seconds
+            if AdvancedFeatures.autoWeather and Config.enabled then
+                PurchaseWeatherEvent()
+            end
+        end
+    end)
+
+    -- Auto Enchanting Loop
+    spawn(function()
+        while true do
+            wait(60) -- Check every minute
+            if AdvancedFeatures.autoEnchant and Config.enabled then
+                ActivateEnchantingAltar()
+                wait(2)
+                RollEnchant()
+            end
+        end
+    end)
+
+    -- Auto Trading Loop
+    spawn(function()
+        while true do
+            wait(120) -- Check every 2 minutes
+            if AdvancedFeatures.autoTrade and Config.enabled then
+                InitiateTrade()
+            end
+        end
+    end)
 
     -- Start with Main visible
     SwitchTo("Main")
