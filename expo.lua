@@ -86,11 +86,31 @@ local function SaveToFile(data, filename)
     return saved, fullPath
 end
 
--- Enhanced fish scanning function
+-- Enhanced fish scanning function - focused on Fish It game fish names
 local function scanFishData()
     print("\n=== SCANNING FISH DATA ===")
     local fishData = {}
-    local fishKeywords = {"fish", "clown", "angel", "shark", "ray", "tuna", "bass", "cod", "salmon", "trout", "carp", "pike", "eel", "squid", "octopus", "crab", "lobster", "shrimp", "jellyfish", "starfish", "seahorse", "dolphin", "whale", "manta", "barracuda", "grouper", "snapper", "mackerel", "flounder", "sole", "halibut", "swordfish", "marlin", "sailfish", "mahi", "dorado", "yellowtail", "bluefin", "albacore", "skipjack", "bonito", "wahoo", "kingfish", "amberjack", "pompano", "permit", "tarpon", "bonefish", "redfish", "snook", "striper", "bluefish", "weakfish", "fluke", "porgy", "scup", "blackfish", "sea bass", "rockfish", "lingcod", "cabezon", "sculpin", "greenling", "perch", "croaker", "drum", "sheepshead", "triggerfish", "filefish", "boxfish", "cowfish", "puffer", "balloonfish", "fugu", "tetraodontidae", "chromis", "damsel", "wrasse", "parrot", "surgeon", "tang", "unicorn", "moorish", "butterfly", "bannerfish", "coral", "reef", "tropical", "exotic", "rare", "legendary", "mythical", "golden", "silver", "rainbow", "neon", "glow", "electric", "fire", "ice", "shadow", "ghost", "spirit", "cursed", "blessed", "ancient", "fossil", "prehistoric", "deep", "abyss", "trench", "surface", "shallow", "pond", "lake", "river", "stream", "ocean", "sea", "bay", "gulf", "strait", "channel", "inlet", "lagoon", "estuary", "delta", "marsh", "swamp", "mangrove"}
+    
+    -- Fish It specific fish names based on the debug data
+    local fishItFishNames = {
+        -- From the debug data we can see these fish names
+        "angelfish", "clownfish", "chromis", "dartfish", "tilefish", "damselfish",
+        "boa angelfish", "cow clownfish", "darwin clownfish", "enchanted angelfish",
+        "flame angelfish", "korean angelfish", "maze angelfish", "bandit angelfish",
+        "scissortail dartfish", "skunk tilefish", "white clownfish", "yello damselfish",
+        "yellowstate angelfish", "slurpfish chromis", "gingerbread clownfish",
+        "festive pufferfish", "blumato clownfish", "conspi angelfish", "lined cardinal",
+        "masked angelfish", "watanabei angelfish", "ballina angelfish", "pilot fish",
+        "pufferfish", "racoon butterfly fish", "worm fish", "viperfish",
+        "spotted lantern fish", "monk fish", "jellyfish", "boar fish", "blob fish",
+        "angler fish", "dead fish", "skeleton fish", "swordfish", "ghost worm fish",
+        -- Common fishing game fish
+        "bass", "cod", "salmon", "trout", "tuna", "shark", "ray", "eel", "crab",
+        "lobster", "shrimp", "starfish", "seahorse", "octopus", "squid"
+    }
+    
+    -- Also scan for general fish keywords but be more specific
+    local fishKeywords = {"fish", "clown", "angel", "shark", "ray", "crab", "lobster", "shrimp", "jellyfish", "starfish", "seahorse", "octopus", "squid", "eel", "bass", "cod", "salmon", "trout", "tuna", "puffer", "chromis", "damsel", "dart"}
     
     local function searchForFish(parent, path, depth)
         if depth <= 0 then return end
@@ -101,20 +121,22 @@ local function scanFishData()
                 local isModuleScript = child:IsA("ModuleScript")
                 local isModel = child:IsA("Model")
                 local isTool = child:IsA("Tool")
+                local foundFish = false
                 
-                -- Check if object relates to fish
-                for _, keyword in pairs(fishKeywords) do
-                    if string.find(name, keyword) then
+                -- First check for exact fish names from Fish It
+                for _, fishName in pairs(fishItFishNames) do
+                    if string.find(name, string.lower(fishName)) then
                         local fishInfo = {
                             name = child.Name,
                             class = child.ClassName,
                             path = path .. "." .. child.Name,
                             fullName = child:GetFullName(),
                             location = parent.Name,
-                            type = "Unknown"
+                            type = "Unknown",
+                            fishType = fishName -- Store the actual fish type found
                         }
                         
-                        -- Determine fish type
+                        -- Determine fish object type
                         if isModuleScript then
                             fishInfo.type = "Fish Data/Script"
                         elseif isModel then
@@ -128,7 +150,41 @@ local function scanFishData()
                         end
                         
                         table.insert(fishData, fishInfo)
+                        foundFish = true
                         break
+                    end
+                end
+                
+                -- If no exact match, check for general keywords
+                if not foundFish then
+                    for _, keyword in pairs(fishKeywords) do
+                        if string.find(name, keyword) then
+                            local fishInfo = {
+                                name = child.Name,
+                                class = child.ClassName,
+                                path = path .. "." .. child.Name,
+                                fullName = child:GetFullName(),
+                                location = parent.Name,
+                                type = "Unknown",
+                                fishType = "General Fish-Related"
+                            }
+                            
+                            -- Determine fish object type
+                            if isModuleScript then
+                                fishInfo.type = "Fish Data/Script"
+                            elseif isModel then
+                                fishInfo.type = "Fish Model"
+                            elseif isTool then
+                                fishInfo.type = "Fish Tool"
+                            elseif child:IsA("Part") or child:IsA("MeshPart") then
+                                fishInfo.type = "Fish Part/Mesh"
+                            else
+                                fishInfo.type = "Fish Object"
+                            end
+                            
+                            table.insert(fishData, fishInfo)
+                            break
+                        end
                     end
                 end
                 
@@ -146,9 +202,30 @@ local function scanFishData()
     -- Search in Workspace
     searchForFish(Workspace, "Workspace", 3)
     
+    -- Sort fish data by fish type for better display
+    table.sort(fishData, function(a, b)
+        return (a.fishType or "zzz") < (b.fishType or "zzz")
+    end)
+    
     print("🐟 FISH DATA FOUND:")
     for i, fish in pairs(fishData) do
-        print(SafeFormat("  [%d] %s (%s) - %s at %s", i, fish.name, fish.type, fish.class, fish.path))
+        print(SafeFormat("  [%d] %s (%s) - %s | Fish Type: %s at %s", 
+            i, fish.name, fish.type, fish.class, fish.fishType or "Unknown", fish.path))
+    end
+    
+    -- Print summary by fish types
+    print("\n🐟 FISH SUMMARY BY TYPE:")
+    local fishTypes = {}
+    for _, fish in pairs(fishData) do
+        local fishType = fish.fishType or "Unknown"
+        if not fishTypes[fishType] then
+            fishTypes[fishType] = 0
+        end
+        fishTypes[fishType] = fishTypes[fishType] + 1
+    end
+    
+    for fishType, count in pairs(fishTypes) do
+        print(SafeFormat("  - %s: %d items", fishType, count))
     end
     
     return fishData
@@ -628,11 +705,26 @@ safeLength(wsData.boats), safeLength(wsData.npcs), safeLength(wsData.areas), saf
     
     exportText = exportText .. "\n=== TOP FISH TYPES ===\n"
     if fishData and type(fishData) == "table" then
-        for i = 1, math.min(safeLength(fishData), 10) do
-            local fish = fishData[i]
-            if fish and fish.name and fish.type then
-                exportText = exportText .. SafeFormat("[%d] %s (%s)\n", i, fish.name, fish.type)
+        -- Show unique fish names
+        local uniqueFishNames = {}
+        for _, fish in pairs(fishData) do
+            if fish and fish.name then
+                local cleanName = fish.name:gsub("!!!", ""):gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1")
+                if not uniqueFishNames[cleanName] then
+                    uniqueFishNames[cleanName] = fish
+                end
             end
+        end
+        
+        local count = 0
+        for fishName, fish in pairs(uniqueFishNames) do
+            if count >= 15 then break end -- Limit for clipboard
+            count = count + 1
+            exportText = exportText .. SafeFormat("[%d] %s (%s)\n", count, fishName, fish.fishType or fish.type)
+        end
+        
+        if count == 0 then
+            exportText = exportText .. "No fish found\n"
         end
     end
     
@@ -740,12 +832,41 @@ inventoryCount, netCount)
         end
     end
     
-    -- Add fish data
+    -- Add fish data with detailed fish names
     fileData = fileData .. "\n=== COMPLETE FISH DATA ===\n"
     if data.fishData and type(data.fishData) == "table" then
-        for i, fish in pairs(data.fishData) do
-            if fish and fish.name and fish.type and fish.class and fish.path then
-                fileData = fileData .. SafeFormat("[%d] %s (%s) - %s at %s\n", i, fish.name, fish.type, fish.class, fish.path)
+        -- Group fish by type for better organization
+        local fishByType = {}
+        for _, fish in pairs(data.fishData) do
+            if fish and fish.fishType then
+                if not fishByType[fish.fishType] then
+                    fishByType[fish.fishType] = {}
+                end
+                table.insert(fishByType[fish.fishType], fish)
+            end
+        end
+        
+        -- Display fish grouped by type
+        for fishType, fishes in pairs(fishByType) do
+            fileData = fileData .. SafeFormat("\n--- %s (%d items) ---\n", string.upper(fishType), #fishes)
+            for i, fish in pairs(fishes) do
+                if fish.name and fish.type and fish.class and fish.path then
+                    fileData = fileData .. SafeFormat("[%d] %s (%s) - %s at %s\n", i, fish.name, fish.type, fish.class, fish.path)
+                end
+            end
+        end
+        
+        -- Also show all fish in simple list
+        fileData = fileData .. "\n--- ALL FISH NAMES (Simple List) ---\n"
+        local fishNames = {}
+        for _, fish in pairs(data.fishData) do
+            if fish and fish.name then
+                -- Extract just the fish name without prefixes
+                local cleanName = fish.name:gsub("!!!", ""):gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1")
+                if not fishNames[cleanName] then
+                    fishNames[cleanName] = true
+                    fileData = fileData .. "- " .. cleanName .. "\n"
+                end
             end
         end
     else
@@ -914,8 +1035,25 @@ local function CreateEnhancedUI()
             {text = "🐟 Scan Fish Data", color = Color3.fromRGB(100, 200, 150), func = function()
                 statusLabel.Text = "Scanning fish data..."
                 task.spawn(function()
-                    scanFishData()
-                    statusLabel.Text = "Fish scan complete!"
+                    local fishData = scanFishData()
+                    if fishData and #fishData > 0 then
+                        statusLabel.Text = SafeFormat("Found %d fish items!", #fishData)
+                        
+                        -- Print unique fish names to console
+                        print("\n🐟 === UNIQUE FISH NAMES FOUND ===")
+                        local uniqueNames = {}
+                        for _, fish in pairs(fishData) do
+                            if fish and fish.name then
+                                local cleanName = fish.name:gsub("!!!", ""):gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1")
+                                if not uniqueNames[cleanName] then
+                                    uniqueNames[cleanName] = true
+                                    print("- " .. cleanName .. (fish.fishType and (" (" .. fish.fishType .. ")") or ""))
+                                end
+                            end
+                        end
+                    else
+                        statusLabel.Text = "No fish data found!"
+                    end
                 end)
             end},
             {text = "🪱 Scan Bait Data", color = Color3.fromRGB(200, 150, 100), func = function()
@@ -951,6 +1089,51 @@ local function CreateEnhancedUI()
                 task.spawn(function()
                     scanForNetRemotes()
                     statusLabel.Text = "Net framework scan complete!"
+                end)
+            end},
+            {text = "🎯 Show Fish Names", color = Color3.fromRGB(255, 180, 100), func = function()
+                statusLabel.Text = "Extracting fish names..."
+                task.spawn(function()
+                    local fishData = scanFishData()
+                    if fishData and #fishData > 0 then
+                        print("\n🐟 === ALL FISH NAMES IN FISH IT ===")
+                        
+                        -- Extract and display unique fish names
+                        local uniqueNames = {}
+                        local namesList = {}
+                        
+                        for _, fish in pairs(fishData) do
+                            if fish and fish.name then
+                                local cleanName = fish.name:gsub("!!!", ""):gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1")
+                                if not uniqueNames[cleanName] and not cleanName:find("Rod") and not cleanName:find("Bait") then
+                                    uniqueNames[cleanName] = true
+                                    table.insert(namesList, cleanName)
+                                end
+                            end
+                        end
+                        
+                        -- Sort alphabetically
+                        table.sort(namesList)
+                        
+                        -- Display in columns for better readability
+                        for i, name in pairs(namesList) do
+                            print(SafeFormat("%d. %s", i, name))
+                        end
+                        
+                        statusLabel.Text = SafeFormat("Found %d unique fish names!", #namesList)
+                        Notify("Fish Names", SafeFormat("Found %d unique fish! Check console", #namesList))
+                        
+                        -- Also try to copy fish names to clipboard
+                        local fishNamesText = "Fish It - Fish Names:\n" .. table.concat(namesList, ", ")
+                        pcall(function()
+                            if setclipboard then
+                                setclipboard(fishNamesText)
+                                print("✅ Fish names copied to clipboard!")
+                            end
+                        end)
+                    else
+                        statusLabel.Text = "No fish names found!"
+                    end
                 end)
             end},
             {text = "🔍 Complete Exploration", color = Color3.fromRGB(180, 120, 220), func = function()
