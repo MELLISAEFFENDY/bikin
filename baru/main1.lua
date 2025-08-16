@@ -704,7 +704,7 @@ end
 
 local function EnhancementRunner(mySessionId)
     Notify("Enhancement", "🔮 Auto Enhancement started")
-    while Enhancement.enabled and Enhancement.sessionId == mySessionId do
+    while Enhancement.enabled and Enhancement.sessionId == mySessionId do        
         local ok, err = pcall(function()
             if Enhancement.autoActivateAltar and not Enhancement.isEnchanting then
                 ActivateEnchantingAltar()
@@ -1378,6 +1378,7 @@ local function BuildUI()
         ["🌋 CRATER"] = CFrame.new(990.45, 21.06, 5059.85),
         ["🌴 TROPICAL"] = CFrame.new(-2093.80, 6.26, 3654.30),
         ["🗿 STONE"] = CFrame.new(-2636.19, 124.87, -27.49),
+        ["🎲 ENCHANT STONE"] = CFrame.new(3237.61, -1302.33, 1398.04),
         ["⚙️ MACHINE"] = CFrame.new(-1551.25, 2.87, 1920.26)
     }
 
