@@ -1020,11 +1020,11 @@ local function BuildUI()
 
     -- Create stat cards
     local fishCountLabel = createStatCard(statsGrid, UDim2.new(0, 0, 0, 0), "🐟", "Fish Caught", "0", Color3.fromRGB(120,200,255))
-    local timeLabel = createStatCard(statsGrid, UDim2.new(0.34, 0, 0, 0), "⏱️", "Session Time", "0s", Color3.fromRGB(150,255,150))
-    local statusLabel = createStatCard(statsGrid, UDim2.new(0.68, 0, 0, 0), "🎣", "Status", "Ready", Color3.fromRGB(255,215,0))
+    local rareFishLabel = createStatCard(statsGrid, UDim2.new(0.34, 0, 0, 0), "⭐", "Rare Fish", "0", Color3.fromRGB(255,215,0))
+    local timeLabel = createStatCard(statsGrid, UDim2.new(0.68, 0, 0, 0), "⏱️", "Session Time", "0s", Color3.fromRGB(150,255,150))
     
-    local modeLabel = createStatCard(statsGrid, UDim2.new(0, 0, 0.55, 0), "⚡", "Mode", "Secure", Color3.fromRGB(255,150,255))
-    local delayLabel = createStatCard(statsGrid, UDim2.new(0.34, 0, 0.55, 0), "⏰", "Delay", "0.60s", Color3.fromRGB(150,220,255))
+    local statusLabel = createStatCard(statsGrid, UDim2.new(0, 0, 0.55, 0), "🎣", "Status", "Ready", Color3.fromRGB(255,150,255))
+    local modeLabel = createStatCard(statsGrid, UDim2.new(0.34, 0, 0.55, 0), "⚡", "Mode", "Secure", Color3.fromRGB(150,220,255))
     local antiafkLabel = createStatCard(statsGrid, UDim2.new(0.68, 0, 0.55, 0), "🛡️", "AntiAFK", "Disabled", Color3.fromRGB(255,120,120))
 
     -- Control section
@@ -1047,35 +1047,97 @@ local function BuildUI()
 
     -- Quick action buttons
     local refreshBtn = Instance.new("TextButton", controlSection)
-    refreshBtn.Size = UDim2.new(0, 100, 0, 28)
+    refreshBtn.Size = UDim2.new(0, 80, 0, 28)
     refreshBtn.Position = UDim2.new(0, 15, 0, 27)
     refreshBtn.Text = "🔄 Refresh"
     refreshBtn.Font = Enum.Font.GothamSemibold
-    refreshBtn.TextSize = 11
+    refreshBtn.TextSize = 10
     refreshBtn.BackgroundColor3 = Color3.fromRGB(60,120,180)
     refreshBtn.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", refreshBtn)
 
+    local resetBtn = Instance.new("TextButton", controlSection)
+    resetBtn.Size = UDim2.new(0, 80, 0, 28)
+    resetBtn.Position = UDim2.new(0, 105, 0, 27)
+    resetBtn.Text = "🔄 Reset"
+    resetBtn.Font = Enum.Font.GothamSemibold
+    resetBtn.TextSize = 10
+    resetBtn.BackgroundColor3 = Color3.fromRGB(180,60,60)
+    resetBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", resetBtn)
+
     local exportBtn = Instance.new("TextButton", controlSection)
-    exportBtn.Size = UDim2.new(0, 100, 0, 28)
-    exportBtn.Position = UDim2.new(0, 125, 0, 27)
+    exportBtn.Size = UDim2.new(0, 80, 0, 28)
+    exportBtn.Position = UDim2.new(0, 195, 0, 27)
     exportBtn.Text = "📋 Export"
     exportBtn.Font = Enum.Font.GothamSemibold
-    exportBtn.TextSize = 11
+    exportBtn.TextSize = 10
     exportBtn.BackgroundColor3 = Color3.fromRGB(180,120,60)
     exportBtn.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", exportBtn)
 
     -- Simple update function for dashboard
     local sessionStartTime = tick()
+    local totalFishCaught = 0
+    local rareFishCaught = 0
+    
+    -- Fish detection system
+    local function initializeFishTracking()
+        -- Try to find Fish It remotes for tracking
+        pcall(function()
+            local fishCaughtRemote = net and net:FindFirstChild("RE") and net.RE:FindFirstChild("FishCaught")
+            local newFishRemote = net and net:FindFirstChild("RE") and net.RE:FindFirstChild("ObtainedNewFishNotification")
+            
+            if fishCaughtRemote then
+                fishCaughtRemote.OnClientEvent:Connect(function(fishData)
+                    totalFishCaught = totalFishCaught + 1
+                    
+                    -- Simple rare fish detection based on common patterns
+                    if fishData and type(fishData) == "table" then
+                        local fishName = fishData.Name or fishData.FishName or ""
+                        local rarity = fishData.Rarity or fishData.RarityLevel or ""
+                        
+                        -- Check for rare indicators
+                        if string.find(string.lower(fishName), "rare") or 
+                           string.find(string.lower(fishName), "legendary") or
+                           string.find(string.lower(fishName), "epic") or
+                           string.find(string.lower(rarity), "rare") or
+                           string.find(string.lower(rarity), "legendary") or
+                           string.find(string.lower(rarity), "epic") then
+                            rareFishCaught = rareFishCaught + 1
+                        end
+                    end
+                    
+                    if dashboardFrame.Visible then
+                        updateDashboard()
+                    end
+                end)
+            end
+            
+            if newFishRemote then
+                newFishRemote.OnClientEvent:Connect(function(fishData)
+                    -- New fish notifications usually indicate rare catches
+                    rareFishCaught = rareFishCaught + 1
+                    if dashboardFrame.Visible then
+                        updateDashboard()
+                    end
+                end)
+            end
+        end)
+    end
+    
+    -- Initialize fish tracking
+    initializeFishTracking()
+    
     local function updateDashboard()
         local elapsed = tick() - sessionStartTime
         local minutes = math.floor(elapsed / 60)
         local seconds = math.floor(elapsed % 60)
         timeLabel.Text = string.format("%dm %ds", minutes, seconds)
         
+        fishCountLabel.Text = tostring(totalFishCaught)
+        rareFishLabel.Text = tostring(rareFishCaught)
         modeLabel.Text = Config.mode:upper()
-        delayLabel.Text = string.format("%.2fs", Config.autoRecastDelay)
         statusLabel.Text = Config.enabled and "Running" or "Stopped"
         statusLabel.TextColor3 = Config.enabled and Color3.fromRGB(100,255,100) or Color3.fromRGB(255,100,100)
         antiafkLabel.Text = AntiAFK.enabled and "Enabled" or "Disabled"
@@ -1088,21 +1150,32 @@ local function BuildUI()
         Notify("Dashboard", "Stats refreshed!")
     end)
 
+    resetBtn.MouseButton1Click:Connect(function()
+        totalFishCaught = 0
+        rareFishCaught = 0
+        sessionStartTime = tick()
+        updateDashboard()
+        Notify("Dashboard", "Stats reset successfully!")
+    end)
+
     exportBtn.MouseButton1Click:Connect(function()
         local elapsed = tick() - sessionStartTime
+        local rarePercentage = totalFishCaught > 0 and (rareFishCaught / totalFishCaught * 100) or 0
         local report = string.format(
             "📊 AutoFish Dashboard Report\n" ..
             "═══════════════════════════\n" ..
+            "🐟 Total Fish: %d\n" ..
+            "⭐ Rare Fish: %d (%.1f%%)\n" ..
             "⏱️ Session Time: %dm %ds\n" ..
             "⚡ Mode: %s\n" ..
-            "⏰ Delay: %.2fs\n" ..
             "🎣 Status: %s\n" ..
             "🛡️ AntiAFK: %s\n" ..
             "═══════════════════════════\n" ..
             "Generated: %s",
+            totalFishCaught,
+            rareFishCaught, rarePercentage,
             math.floor(elapsed / 60), math.floor(elapsed % 60),
             Config.mode:upper(),
-            Config.autoRecastDelay,
             Config.enabled and "Running" or "Stopped",
             AntiAFK.enabled and "Enabled" or "Disabled",
             os.date("%Y-%m-%d %H:%M:%S")
