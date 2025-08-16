@@ -191,6 +191,74 @@ local function LogFishCatch(fishName, location)
     end
 end
 
+-- Location detection based on player position
+local function DetectCurrentLocation()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return "Unknown"
+    end
+    
+    local pos = LocalPlayer.Character.HumanoidRootPart.Position
+    
+    -- Location detection based on position ranges (from logdebug.txt analysis)
+    if pos.Z > 4500 then
+        return "Crater Island"
+    elseif pos.Z > 2500 then
+        return "Stingray Shores"
+    elseif pos.Z > 1500 then
+        return "Esoteric Depths"
+    elseif pos.Z > 700 then
+        return "Kohana"
+    elseif pos.Z > 3000 and pos.X < -2000 then
+        return "Tropical Grove"
+    elseif pos.Z > 1800 and pos.X < -3000 then
+        return "Coral Reefs"
+    elseif pos.X < -3500 then
+        return "Lost Isle"
+    elseif pos.X < -1400 and pos.Z > 1500 then
+        return "Weather Machine"
+    elseif pos.Z < 500 and pos.X < -500 then
+        return "Kohana Volcano"
+    else
+        return "Unknown Area"
+    end
+end
+
+-- Update current location every few seconds
+local function LocationTracker()
+    while true do
+        local newLocation = DetectCurrentLocation()
+        if newLocation ~= Dashboard.sessionStats.currentLocation then
+            Dashboard.sessionStats.currentLocation = newLocation
+            print("[Dashboard] Location changed to:", newLocation)
+        end
+        task.wait(3) -- Check every 3 seconds
+    end
+end
+
+-- Start location tracker
+task.spawn(LocationTracker)
+
+local function GetLocationEfficiency(location)
+    local stats = Dashboard.locationStats[location]
+    if not stats or stats.total == 0 then return 0 end
+    return math.floor((stats.rare / stats.total) * 100)
+end
+
+local function GetBestFishingTime()
+    local bestHour = 0
+    local bestRatio = 0
+    for hour, data in pairs(Dashboard.optimalTimes) do
+        if data.total > 0 then
+            local ratio = data.rare / data.total
+            if ratio > bestRatio then
+                bestRatio = ratio
+                bestHour = hour
+            end
+        end
+    end
+    return bestHour, math.floor(bestRatio * 100)
+end
+
 local function GetLocationEfficiency(location)
     local stats = Dashboard.locationStats[location]
     if not stats or stats.total == 0 then return 0 end
