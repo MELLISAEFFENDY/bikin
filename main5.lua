@@ -1505,7 +1505,7 @@ local function BuildUI()
 
     -- Smart Enchant Targeting Section
     local smartTargetSection = Instance.new("Frame", enchantSection)
-    smartTargetSection.Size = UDim2.new(1, -20, 0, 80)
+    smartTargetSection.Size = UDim2.new(1, -20, 0, 120)
     smartTargetSection.Position = UDim2.new(0, 10, 0, 130)
     smartTargetSection.BackgroundColor3 = Color3.fromRGB(40,40,46)
     local smartTargetCorner = Instance.new("UICorner", smartTargetSection)
@@ -1525,11 +1525,11 @@ local function BuildUI()
     local targetEnchantSelector = Instance.new("TextButton", smartTargetSection)
     targetEnchantSelector.Size = UDim2.new(0.6, -5, 0, 25)
     targetEnchantSelector.Position = UDim2.new(0, 5, 0, 25)
-    targetEnchantSelector.Text = "Select Target Enchant ▼"
+    targetEnchantSelector.Text = "📋 Open Enchant List"
     targetEnchantSelector.Font = Enum.Font.Gotham
     targetEnchantSelector.TextSize = 10
-    targetEnchantSelector.BackgroundColor3 = Color3.fromRGB(55,55,62)
-    targetEnchantSelector.TextColor3 = Color3.fromRGB(200,200,200)
+    targetEnchantSelector.BackgroundColor3 = Color3.fromRGB(70,130,180)
+    targetEnchantSelector.TextColor3 = Color3.fromRGB(255,255,255)
     local targetEnchantCorner = Instance.new("UICorner", targetEnchantSelector)
     targetEnchantCorner.CornerRadius = UDim.new(0, 4)
 
@@ -1555,6 +1555,43 @@ local function BuildUI()
     targetStatusLabel.TextColor3 = Color3.fromRGB(150,150,150)
     targetStatusLabel.BackgroundTransparency = 1
     targetStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Quick target buttons for popular enchants
+    local quickTargetFrame = Instance.new("Frame", smartTargetSection)
+    quickTargetFrame.Size = UDim2.new(1, -10, 0, 35)
+    quickTargetFrame.Position = UDim2.new(0, 5, 0, 75)
+    quickTargetFrame.BackgroundTransparency = 1
+
+    local quickTargetLabel = Instance.new("TextLabel", quickTargetFrame)
+    quickTargetLabel.Size = UDim2.new(1, 0, 0, 12)
+    quickTargetLabel.Text = "Quick Select:"
+    quickTargetLabel.Font = Enum.Font.Gotham
+    quickTargetLabel.TextSize = 8
+    quickTargetLabel.TextColor3 = Color3.fromRGB(180,180,180)
+    quickTargetLabel.BackgroundTransparency = 1
+    quickTargetLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Quick buttons for popular enchants
+    local quickEnchants = {"Stargazer I", "Gold Digger I", "Mutation Hunter II", "Cursed I"}
+    for i, enchantName in ipairs(quickEnchants) do
+        local quickBtn = Instance.new("TextButton", quickTargetFrame)
+        quickBtn.Size = UDim2.new(0.23, 0, 0, 20)
+        quickBtn.Position = UDim2.new((i-1) * 0.25, 2, 0, 15)
+        quickBtn.Text = enchantName:gsub(" I+", ""):sub(1,8) -- Shorten name
+        quickBtn.Font = Enum.Font.Gotham
+        quickBtn.TextSize = 7
+        quickBtn.BackgroundColor3 = Color3.fromRGB(60,90,120)
+        quickBtn.TextColor3 = Color3.fromRGB(255,255,255)
+        local quickBtnCorner = Instance.new("UICorner", quickBtn)
+        quickBtnCorner.CornerRadius = UDim.new(0, 3)
+        
+        quickBtn.MouseButton1Click:Connect(function()
+            SmartEnchant.targetEnchant = enchantName
+            targetEnchantSelector.Text = "Selected: " .. enchantName:sub(1,12) .. "..."
+            targetStatusLabel.Text = "Target: " .. enchantName
+            Notify("🎯 Smart Target", "Quick selected: " .. enchantName)
+        end)
+    end
 
     -- Trading Section
     local tradeSection = Instance.new("Frame", advancedScroll)
@@ -2027,63 +2064,172 @@ local function BuildUI()
     rollEnchantBtn.MouseButton1Click:Connect(ManualRollEnchant)
 
     -- Smart Target Enchant Event Handlers
-    local enchantDropdown = nil -- Reference to dropdown frame
+    local enchantListWindow = nil -- Reference to enchant list window
     
     targetEnchantSelector.MouseButton1Click:Connect(function()
-        -- Create dropdown if it doesn't exist
-        if not enchantDropdown then
-            enchantDropdown = Instance.new("Frame", smartTargetSection)
-            enchantDropdown.Size = UDim2.new(0.6, -5, 0, 200)
-            enchantDropdown.Position = UDim2.new(0, 5, 0, 50)
-            enchantDropdown.BackgroundColor3 = Color3.fromRGB(45,45,52)
-            enchantDropdown.BorderSizePixel = 0
-            enchantDropdown.ZIndex = 10
-            local dropdownCorner = Instance.new("UICorner", enchantDropdown)
-            dropdownCorner.CornerRadius = UDim.new(0, 4)
+        -- Create enchant list window if it doesn't exist
+        if not enchantListWindow then
+            -- Create main window
+            enchantListWindow = Instance.new("Frame", screenGui)
+            enchantListWindow.Size = UDim2.new(0, 350, 0, 400)
+            enchantListWindow.Position = UDim2.new(0.5, -175, 0.5, -200)
+            enchantListWindow.BackgroundColor3 = Color3.fromRGB(30,30,36)
+            enchantListWindow.BorderSizePixel = 1
+            enchantListWindow.BorderColor3 = Color3.fromRGB(100,100,100)
+            enchantListWindow.ZIndex = 200
+            enchantListWindow.Visible = false
+            local windowCorner = Instance.new("UICorner", enchantListWindow)
+            windowCorner.CornerRadius = UDim.new(0, 8)
             
-            -- Create scrolling frame for enchant list
-            local scrollFrame = Instance.new("ScrollingFrame", enchantDropdown)
-            scrollFrame.Size = UDim2.new(1, 0, 1, 0)
+            -- Window header
+            local header = Instance.new("Frame", enchantListWindow)
+            header.Size = UDim2.new(1, 0, 0, 35)
+            header.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            header.BorderSizePixel = 0
+            header.ZIndex = 201
+            local headerCorner = Instance.new("UICorner", header)
+            headerCorner.CornerRadius = UDim.new(0, 8)
+            
+            local headerTitle = Instance.new("TextLabel", header)
+            headerTitle.Size = UDim2.new(1, -40, 1, 0)
+            headerTitle.Position = UDim2.new(0, 10, 0, 0)
+            headerTitle.Text = "🎯 Select Target Enchantment"
+            headerTitle.Font = Enum.Font.GothamBold
+            headerTitle.TextSize = 14
+            headerTitle.TextColor3 = Color3.fromRGB(255,215,0)
+            headerTitle.BackgroundTransparency = 1
+            headerTitle.TextXAlignment = Enum.TextXAlignment.Left
+            headerTitle.TextYAlignment = Enum.TextYAlignment.Center
+            headerTitle.ZIndex = 201
+            
+            -- Close button
+            local closeBtn = Instance.new("TextButton", header)
+            closeBtn.Size = UDim2.new(0, 25, 0, 25)
+            closeBtn.Position = UDim2.new(1, -30, 0, 5)
+            closeBtn.Text = "✕"
+            closeBtn.Font = Enum.Font.GothamBold
+            closeBtn.TextSize = 14
+            closeBtn.BackgroundColor3 = Color3.fromRGB(220,53,69)
+            closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+            closeBtn.ZIndex = 202
+            local closeBtnCorner = Instance.new("UICorner", closeBtn)
+            closeBtnCorner.CornerRadius = UDim.new(0, 4)
+            
+            -- Scrolling frame for enchants
+            local scrollFrame = Instance.new("ScrollingFrame", enchantListWindow)
+            scrollFrame.Size = UDim2.new(1, -20, 1, -50)
+            scrollFrame.Position = UDim2.new(0, 10, 0, 40)
             scrollFrame.BackgroundTransparency = 1
-            scrollFrame.ScrollBarThickness = 4
-            scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100,100,100)
+            scrollFrame.ScrollBarThickness = 8
+            scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(120,120,120)
+            scrollFrame.ZIndex = 201
             
             local yPos = 0
             for enchantName, data in pairs(SmartEnchant.enchantDatabase) do
-                local enchantBtn = Instance.new("TextButton", scrollFrame)
-                enchantBtn.Size = UDim2.new(1, -5, 0, 25)
-                enchantBtn.Position = UDim2.new(0, 2, 0, yPos)
-                enchantBtn.Text = enchantName .. " (" .. data.rarity .. ")"
-                enchantBtn.Font = Enum.Font.Gotham
-                enchantBtn.TextSize = 9
-                enchantBtn.BackgroundColor3 = Color3.fromRGB(55,55,62)
-                enchantBtn.TextColor3 = data.rarity == "cursed" and Color3.fromRGB(255,100,100) or 
-                                      data.rarity == "rare" and Color3.fromRGB(100,200,255) or 
-                                      Color3.fromRGB(200,200,200)
-                enchantBtn.TextXAlignment = Enum.TextXAlignment.Left
-                local btnCorner = Instance.new("UICorner", enchantBtn)
-                btnCorner.CornerRadius = UDim.new(0, 3)
+                local enchantFrame = Instance.new("Frame", scrollFrame)
+                enchantFrame.Size = UDim2.new(1, -10, 0, 45)
+                enchantFrame.Position = UDim2.new(0, 5, 0, yPos)
+                enchantFrame.BackgroundColor3 = Color3.fromRGB(40,40,46)
+                enchantFrame.ZIndex = 201
+                local frameCorner = Instance.new("UICorner", enchantFrame)
+                frameCorner.CornerRadius = UDim.new(0, 6)
                 
-                -- Add padding
-                local btnPadding = Instance.new("UIPadding", enchantBtn)
-                btnPadding.PaddingLeft = UDim.new(0, 5)
+                -- Enchant name
+                local nameLabel = Instance.new("TextLabel", enchantFrame)
+                nameLabel.Size = UDim2.new(1, -80, 0, 20)
+                nameLabel.Position = UDim2.new(0, 10, 0, 5)
+                nameLabel.Text = enchantName
+                nameLabel.Font = Enum.Font.GothamBold
+                nameLabel.TextSize = 12
+                nameLabel.TextColor3 = data.rarity == "cursed" and Color3.fromRGB(255,100,100) or 
+                                     data.rarity == "rare" and Color3.fromRGB(100,200,255) or 
+                                     data.rarity == "uncommon" and Color3.fromRGB(150,255,150) or
+                                     Color3.fromRGB(200,200,200)
+                nameLabel.BackgroundTransparency = 1
+                nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+                nameLabel.ZIndex = 202
                 
-                enchantBtn.MouseButton1Click:Connect(function()
+                -- Description
+                local descLabel = Instance.new("TextLabel", enchantFrame)
+                descLabel.Size = UDim2.new(1, -80, 0, 15)
+                descLabel.Position = UDim2.new(0, 10, 0, 25)
+                descLabel.Text = data.description
+                descLabel.Font = Enum.Font.Gotham
+                descLabel.TextSize = 9
+                descLabel.TextColor3 = Color3.fromRGB(150,150,150)
+                descLabel.BackgroundTransparency = 1
+                descLabel.TextXAlignment = Enum.TextXAlignment.Left
+                descLabel.ZIndex = 202
+                
+                -- Select button
+                local selectBtn = Instance.new("TextButton", enchantFrame)
+                selectBtn.Size = UDim2.new(0, 60, 0, 30)
+                selectBtn.Position = UDim2.new(1, -70, 0, 7)
+                selectBtn.Text = "SELECT"
+                selectBtn.Font = Enum.Font.GothamSemibold
+                selectBtn.TextSize = 10
+                selectBtn.BackgroundColor3 = Color3.fromRGB(40,167,69)
+                selectBtn.TextColor3 = Color3.fromRGB(255,255,255)
+                selectBtn.ZIndex = 202
+                local selectBtnCorner = Instance.new("UICorner", selectBtn)
+                selectBtnCorner.CornerRadius = UDim.new(0, 4)
+                
+                selectBtn.MouseButton1Click:Connect(function()
                     SmartEnchant.targetEnchant = enchantName
-                    targetEnchantSelector.Text = enchantName .. " ▼"
+                    targetEnchantSelector.Text = "Selected: " .. enchantName:sub(1,12) .. "..."
                     targetStatusLabel.Text = "Target: " .. enchantName .. " (" .. data.rarity .. ")"
-                    enchantDropdown.Visible = false
+                    enchantListWindow.Visible = false
                     Notify("🎯 Smart Target", "Target set to: " .. enchantName)
+                    print("[SMART-TARGET] Target selected: " .. enchantName)
                 end)
                 
-                yPos = yPos + 27
+                yPos = yPos + 50
             end
             
             scrollFrame.CanvasSize = UDim2.new(0, 0, 0, yPos)
+            
+            -- Event handlers
+            closeBtn.MouseButton1Click:Connect(function()
+                enchantListWindow.Visible = false
+            end)
+            
+            -- Make window draggable
+            local dragging = false
+            local dragStart = nil
+            local startPos = nil
+            
+            header.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    dragging = true
+                    dragStart = input.Position
+                    startPos = enchantListWindow.Position
+                end
+            end)
+            
+            header.InputChanged:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+                    local delta = input.Position - dragStart
+                    enchantListWindow.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                end
+            end)
+            
+            header.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    dragging = false
+                end
+            end)
         end
         
-        -- Toggle dropdown visibility
-        enchantDropdown.Visible = not enchantDropdown.Visible
+        -- Toggle window visibility
+        enchantListWindow.Visible = not enchantListWindow.Visible
+        if enchantListWindow.Visible then
+            local enchantCount = 0
+            for _ in pairs(SmartEnchant.enchantDatabase) do
+                enchantCount = enchantCount + 1
+            end
+            print("[SMART-TARGET] Enchant list opened with " .. enchantCount .. " enchants")
+            Notify("🎯 Smart Target", "Enchant list opened - " .. enchantCount .. " available")
+        end
     end)
     
     smartTargetToggle.MouseButton1Click:Connect(function()
