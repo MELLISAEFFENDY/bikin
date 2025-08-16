@@ -53,16 +53,6 @@ local miniGameRemote = ResolveRemote("RF/RequestFishingMinigameStarted")
 local finishRemote = ResolveRemote("RE/FishingCompleted")
 local equipRemote = ResolveRemote("RE/EquipToolFromHotbar")
 
--- Additional remotes from logdebug.txt analysis
-local sellAllRemote = ResolveRemote("RF/SellAllItems")
-local consumePotionRemote = ResolveRemote("RF/ConsumePotion")
-local claimDailyRemote = ResolveRemote("RF/ClaimDailyLogin")
-local rollEnchantRemote = ResolveRemote("RE/RollEnchant")
-local purchaseBaitRemote = ResolveRemote("RF/PurchaseBait")
-local purchaseRodRemote = ResolveRemote("RF/PurchaseFishingRod")
-local spawnBoatRemote = ResolveRemote("RF/SpawnBoat")
-local equipBaitRemote = ResolveRemote("RE/EquipBait")
-
 local function safeInvoke(remote, ...)
     if not remote then return false, "nil_remote" end
     if remote:IsA("RemoteFunction") then
@@ -80,21 +70,7 @@ local Config = {
     secure_max_actions_per_minute = 120,
     secure_detection_cooldown = 5,
     enabled = false,
-    antiAfkEnabled = false,
-    -- New features from logdebug analysis
-    autoSellEnabled = false,
-    autoPotionEnabled = false,
-    autoDailyEnabled = false,
-    autoEnchantEnabled = false,
-    autoBoatEnabled = false,
-    sellInterval = 300, -- 5 minutes
-    potionInterval = 600, -- 10 minutes
-    dailyCheckInterval = 3600, -- 1 hour
-    enchantInterval = 120, -- 2 minutes
-    lastSellTime = 0,
-    lastPotionTime = 0,
-    lastDailyTime = 0,
-    lastEnchantTime = 0
+    antiAfkEnabled = false
 }
 
 -- AntiAFK System
@@ -120,113 +96,6 @@ local function performAntiAfkJump()
         local nextJumpMinutes = math.floor((AntiAFK.nextJumpTime - currentTime) / 60)
         local nextJumpSeconds = math.floor((AntiAFK.nextJumpTime - currentTime) % 60)
         Notify("AntiAFK", string.format("Jump performed! Next jump in %dm %ds", nextJumpMinutes, nextJumpSeconds))
-    end
-end
-
--- New automation functions based on logdebug.txt
-local function AutoSellItems()
-    if not Config.autoSellEnabled then return end
-    local currentTime = tick()
-    if currentTime - Config.lastSellTime >= Config.sellInterval then
-        Config.lastSellTime = currentTime
-        local success, result = secureInvoke(sellAllRemote)
-        if success then
-            Notify("Auto Sell", "All items sold successfully!")
-        else
-            Notify("Auto Sell", "Failed to sell items: " .. tostring(result))
-        end
-    end
-end
-
-local function AutoConsumePotion()
-    if not Config.autoPotionEnabled then return end
-    local currentTime = tick()
-    if currentTime - Config.lastPotionTime >= Config.potionInterval then
-        Config.lastPotionTime = currentTime
-        -- Try to consume luck potion (most common type)
-        local success, result = secureInvoke(consumePotionRemote, "Luck")
-        if success then
-            Notify("Auto Potion", "Luck potion consumed!")
-        end
-    end
-end
-
-local function AutoClaimDaily()
-    if not Config.autoDailyEnabled then return end
-    local currentTime = tick()
-    if currentTime - Config.lastDailyTime >= Config.dailyCheckInterval then
-        Config.lastDailyTime = currentTime
-        local success, result = secureInvoke(claimDailyRemote)
-        if success then
-            Notify("Auto Daily", "Daily rewards claimed!")
-        end
-    end
-end
-
-local function AutoEnchant()
-    if not Config.autoEnchantEnabled then return end
-    local currentTime = tick()
-    if currentTime - Config.lastEnchantTime >= Config.enchantInterval then
-        Config.lastEnchantTime = currentTime
-        local success, result = safeInvoke(rollEnchantRemote)
-        if success then
-            Notify("Auto Enchant", "Enchant rolled!")
-        end
-    end
-end
-
-local function AutoBoatSpawn()
-    if not Config.autoBoatEnabled then return end
-    -- Check if player doesn't have a boat spawned, then spawn one
-    local success, result = secureInvoke(spawnBoatRemote, "BasicBoat")
-    if success then
-        Notify("Auto Boat", "Boat spawned!")
-    end
-end
-
--- Fish statistics tracking
-local FishStats = {
-    totalCaught = 0,
-    rareFish = 0,
-    sessionStartTime = tick(),
-    fishPerHour = 0
-}
-
-local function UpdateFishStats()
-    local currentTime = tick()
-    local sessionTime = currentTime - FishStats.sessionStartTime
-    if sessionTime > 0 then
-        FishStats.fishPerHour = math.floor((FishStats.totalCaught / sessionTime) * 3600)
-    end
-end
-
--- Enhanced fishing cycle with automation features
-local function DoEnhancedSecureCycle()
-    if inCooldown() then task.wait(1); return end
-    
-    -- Auto features before fishing
-    AutoSellItems()
-    AutoConsumePotion() 
-    AutoClaimDaily()
-    AutoEnchant()
-    
-    -- Original fishing cycle
-    if equipRemote then secureInvoke(equipRemote, 1) end
-    local usePerfect = math.random(1,100) <= Config.safeModeChance
-    local ts = GetServerTime()
-    local timestamp = usePerfect and ts or ts + (math.random()*0.8 - 0.4)
-    secureInvoke(rodRemote, timestamp)
-    task.wait(0.08 + math.random()*0.12)
-    local x = usePerfect and -1.2379989 or (math.random(-1000,1000)/1000)
-    local y = usePerfect and 0.9800224 or (math.random(0,1000)/1000)
-    secureInvoke(miniGameRemote, x, y)
-    task.wait(0.6 + math.random()*1.2)
-    if finishRemote then 
-        local success = secureInvoke(finishRemote)
-        if success then
-            FishStats.totalCaught = FishStats.totalCaught + 1
-            UpdateFishStats()
-        end
     end
 end
 
@@ -321,11 +190,7 @@ local function AutofishRunner(mySession)
     Notify("modern_autofish", "AutoFishing started (mode: " .. Config.mode .. ")")
     while Config.enabled and sessionId == mySession do
         local ok, err = pcall(function()
-            if Config.mode == "fast" then 
-                DoFastCycle() 
-            else 
-                DoEnhancedSecureCycle() -- Use enhanced version for secure mode
-            end
+            if Config.mode == "fast" then DoFastCycle() else DoSecureCycle() end
         end)
         if not ok then
             warn("modern_autofish: cycle error:", err)
@@ -601,48 +466,12 @@ local function BuildUI()
     local sellBtn = Instance.new("TextButton", content)
     sellBtn.Size = UDim2.new(1, 0, 0, 32)
     sellBtn.Position = UDim2.new(0, 0, 1, -67)
-    sellBtn.Text = "💰 Sell All Items"
+    sellBtn.Text = "Sell All Items"
     sellBtn.Font = Enum.Font.GothamSemibold
     sellBtn.TextSize = 14
     sellBtn.BackgroundColor3 = Color3.fromRGB(180,120,60)
     sellBtn.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", sellBtn)
-    
-    -- Add manual sell function
-    sellBtn.MouseButton1Click:Connect(function()
-        local success, result = secureInvoke(sellAllRemote)
-        if success then
-            Notify("Sell All", "All items sold successfully!")
-        else
-            Notify("Sell All", "Failed to sell items")
-        end
-    end)
-
-    -- Fish Statistics Display
-    local statsLabel = Instance.new("TextLabel", content)
-    statsLabel.Size = UDim2.new(1, 0, 0, 60)
-    statsLabel.Position = UDim2.new(0, 0, 1, -130)
-    statsLabel.Text = "🐟 Fish Statistics\nTotal Caught: 0 | Fish/Hour: 0\nSession Time: 0m"
-    statsLabel.Font = Enum.Font.GothamSemibold
-    statsLabel.TextSize = 11
-    statsLabel.BackgroundColor3 = Color3.fromRGB(25,25,30)
-    statsLabel.TextColor3 = Color3.fromRGB(150,200,255)
-    statsLabel.TextYAlignment = Enum.TextYAlignment.Top
-    Instance.new("UICorner", statsLabel)
-    local statsPadding = Instance.new("UIPadding", statsLabel)
-    statsPadding.PaddingTop = UDim.new(0, 5)
-    statsPadding.PaddingLeft = UDim.new(0, 8)
-    
-    -- Update stats display every few seconds
-    task.spawn(function()
-        while true do
-            task.wait(3)
-            local sessionTime = math.floor((tick() - FishStats.sessionStartTime) / 60)
-            UpdateFishStats()
-            statsLabel.Text = string.format("🐟 Fish Statistics\nTotal Caught: %d | Fish/Hour: %d\nSession Time: %dm", 
-                FishStats.totalCaught, FishStats.fishPerHour, sessionTime)
-        end
-    end)
 
     -- AntiAFK Section
     local antiAfkSection = Instance.new("Frame", content)
@@ -886,153 +715,68 @@ local function BuildUI()
 
     local featureTitle = Instance.new("TextLabel", featureFrame)
     featureTitle.Size = UDim2.new(1, 0, 0, 24)
-    featureTitle.Text = "🤖 Automation Features"
+    featureTitle.Text = "Character Features"
     featureTitle.Font = Enum.Font.GothamBold
     featureTitle.TextSize = 16
     featureTitle.TextColor3 = Color3.fromRGB(235,235,235)
     featureTitle.BackgroundTransparency = 1
     featureTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Create automation toggles
-    local function createFeatureToggle(parent, yPos, title, desc, configKey)
-        local toggleFrame = Instance.new("Frame", parent)
-        toggleFrame.Size = UDim2.new(1, 0, 0, 50)
-        toggleFrame.Position = UDim2.new(0, 0, 0, yPos)
-        toggleFrame.BackgroundColor3 = Color3.fromRGB(35,35,42)
-        toggleFrame.BorderSizePixel = 0
-        Instance.new("UICorner", toggleFrame)
+    -- Speed Control Section
+    local speedSection = Instance.new("Frame", featureFrame)
+    speedSection.Size = UDim2.new(1, 0, 0, 80)
+    speedSection.Position = UDim2.new(0, 0, 0, 35)
+    speedSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    speedSection.BorderSizePixel = 0
+    Instance.new("UICorner", speedSection)
 
-        local toggleLabel = Instance.new("TextLabel", toggleFrame)
-        toggleLabel.Size = UDim2.new(0.7, -10, 0, 20)
-        toggleLabel.Position = UDim2.new(0, 10, 0, 5)
-        toggleLabel.Text = title
-        toggleLabel.Font = Enum.Font.GothamBold
-        toggleLabel.TextSize = 13
-        toggleLabel.TextColor3 = Color3.fromRGB(235,235,235)
-        toggleLabel.BackgroundTransparency = 1
-        toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    local speedLabel = Instance.new("TextLabel", speedSection)
+    speedLabel.Size = UDim2.new(1, -20, 0, 20)
+    speedLabel.Position = UDim2.new(0, 10, 0, 8)
+    speedLabel.Text = "Walk Speed: 16"
+    speedLabel.Font = Enum.Font.GothamSemibold
+    speedLabel.TextSize = 14
+    speedLabel.TextColor3 = Color3.fromRGB(235,235,235)
+    speedLabel.BackgroundTransparency = 1
+    speedLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-        local toggleDesc = Instance.new("TextLabel", toggleFrame)
-        toggleDesc.Size = UDim2.new(0.7, -10, 0, 15)
-        toggleDesc.Position = UDim2.new(0, 10, 0, 25)
-        toggleDesc.Text = desc
-        toggleDesc.Font = Enum.Font.Gotham
-        toggleDesc.TextSize = 10
-        toggleDesc.TextColor3 = Color3.fromRGB(180,180,180)
-        toggleDesc.BackgroundTransparency = 1
-        toggleDesc.TextXAlignment = Enum.TextXAlignment.Left
+    local speedSlider = Instance.new("Frame", speedSection)
+    speedSlider.Size = UDim2.new(1, -20, 0, 20)
+    speedSlider.Position = UDim2.new(0, 10, 0, 35)
+    speedSlider.BackgroundColor3 = Color3.fromRGB(50,50,60)
+    speedSlider.BorderSizePixel = 0
+    Instance.new("UICorner", speedSlider)
 
-        local toggle = Instance.new("TextButton", toggleFrame)
-        toggle.Size = UDim2.new(0, 60, 0, 20)
-        toggle.Position = UDim2.new(1, -70, 0.5, -10)
-        toggle.Text = Config[configKey] and "ON" or "OFF"
-        toggle.Font = Enum.Font.GothamBold
-        toggle.TextSize = 10
-        toggle.BackgroundColor3 = Config[configKey] and Color3.fromRGB(70,170,90) or Color3.fromRGB(160,60,60)
-        toggle.TextColor3 = Color3.fromRGB(255,255,255)
-        Instance.new("UICorner", toggle)
+    local speedFill = Instance.new("Frame", speedSlider)
+    speedFill.Size = UDim2.new(0.16, 0, 1, 0) -- 16/100 = 0.16
+    speedFill.Position = UDim2.new(0, 0, 0, 0)
+    speedFill.BackgroundColor3 = Color3.fromRGB(100,150,255)
+    speedFill.BorderSizePixel = 0
+    Instance.new("UICorner", speedFill)
 
-        toggle.MouseButton1Click:Connect(function()
-            Config[configKey] = not Config[configKey]
-            toggle.Text = Config[configKey] and "ON" or "OFF"
-            toggle.BackgroundColor3 = Config[configKey] and Color3.fromRGB(70,170,90) or Color3.fromRGB(160,60,60)
-            Notify("Automation", title .. " " .. (Config[configKey] and "enabled" or "disabled"))
-        end)
+    local speedHandle = Instance.new("TextButton", speedSlider)
+    speedHandle.Size = UDim2.new(0, 20, 1, 0)
+    speedHandle.Position = UDim2.new(0.16, -10, 0, 0)
+    speedHandle.Text = ""
+    speedHandle.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    speedHandle.BorderSizePixel = 0
+    Instance.new("UICorner", speedHandle)
 
-        return toggleFrame
-    end
+    local speedResetBtn = Instance.new("TextButton", speedSection)
+    speedResetBtn.Size = UDim2.new(0, 60, 0, 18)
+    speedResetBtn.Position = UDim2.new(1, -70, 0, 58)
+    speedResetBtn.Text = "Reset"
+    speedResetBtn.Font = Enum.Font.GothamSemibold
+    speedResetBtn.TextSize = 10
+    speedResetBtn.BackgroundColor3 = Color3.fromRGB(160,60,60)
+    speedResetBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", speedResetBtn)
 
-    -- Auto Sell Toggle
-    createFeatureToggle(featureFrame, 35, "💰 Auto Sell Items", "Automatically sell all items every 5 minutes", "autoSellEnabled")
-    
-    -- Auto Potion Toggle  
-    createFeatureToggle(featureFrame, 95, "⚗️ Auto Consume Potions", "Automatically consume luck potions every 10 minutes", "autoPotionEnabled")
-    
-    -- Auto Daily Toggle
-    createFeatureToggle(featureFrame, 155, "🎁 Auto Claim Daily", "Automatically claim daily rewards every hour", "autoDailyEnabled")
-    
-    -- Auto Enchant Toggle
-    createFeatureToggle(featureFrame, 215, "✨ Auto Enchant", "Automatically roll enchants every 2 minutes", "autoEnchantEnabled")
-
-    -- Manual Actions Section
-    local manualSection = Instance.new("Frame", featureFrame)
-    manualSection.Size = UDim2.new(1, 0, 0, 80)
-    manualSection.Position = UDim2.new(0, 0, 1, -90)
-    manualSection.BackgroundColor3 = Color3.fromRGB(25,25,30)
-    manualSection.BorderSizePixel = 0
-    Instance.new("UICorner", manualSection)
-
-    local manualTitle = Instance.new("TextLabel", manualSection)
-    manualTitle.Size = UDim2.new(1, -10, 0, 20)
-    manualTitle.Position = UDim2.new(0, 10, 0, 5)
-    manualTitle.Text = "🎮 Manual Actions"
-    manualTitle.Font = Enum.Font.GothamBold
-    manualTitle.TextSize = 12
-    manualTitle.TextColor3 = Color3.fromRGB(200,200,200)
-    manualTitle.BackgroundTransparency = 1
-    manualTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    -- Manual buttons
-    local dailyBtn = Instance.new("TextButton", manualSection)
-    dailyBtn.Size = UDim2.new(0.48, -5, 0, 25)
-    dailyBtn.Position = UDim2.new(0, 10, 0, 30)
-    dailyBtn.Text = "🎁 Claim Daily"
-    dailyBtn.Font = Enum.Font.GothamSemibold
-    dailyBtn.TextSize = 11
-    dailyBtn.BackgroundColor3 = Color3.fromRGB(80,150,80)
-    dailyBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", dailyBtn)
-
-    local potionBtn = Instance.new("TextButton", manualSection)
-    potionBtn.Size = UDim2.new(0.48, -5, 0, 25)
-    potionBtn.Position = UDim2.new(0.52, 5, 0, 30)
-    potionBtn.Text = "⚗️ Use Potion"
-    potionBtn.Font = Enum.Font.GothamSemibold
-    potionBtn.TextSize = 11
-    potionBtn.BackgroundColor3 = Color3.fromRGB(150,80,150)
-    potionBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", potionBtn)
-
-    local enchantBtn = Instance.new("TextButton", manualSection)
-    enchantBtn.Size = UDim2.new(0.48, -5, 0, 25)
-    enchantBtn.Position = UDim2.new(0, 10, 0, 60)
-    enchantBtn.Text = "✨ Roll Enchant"
-    enchantBtn.Font = Enum.Font.GothamSemibold
-    enchantBtn.TextSize = 11
-    enchantBtn.BackgroundColor3 = Color3.fromRGB(150,150,80)
-    enchantBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", enchantBtn)
-
-    local boatBtn = Instance.new("TextButton", manualSection)
-    boatBtn.Size = UDim2.new(0.48, -5, 0, 25)
-    boatBtn.Position = UDim2.new(0.52, 5, 0, 60)
-    boatBtn.Text = "🚤 Spawn Boat"
-    boatBtn.Font = Enum.Font.GothamSemibold
-    boatBtn.TextSize = 11
-    boatBtn.BackgroundColor3 = Color3.fromRGB(80,80,150)
-    boatBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", boatBtn)
-
-    -- Manual button actions
-    dailyBtn.MouseButton1Click:Connect(function()
-        local success = secureInvoke(claimDailyRemote)
-        Notify("Daily Rewards", success and "Claimed successfully!" or "Failed to claim")
-    end)
-
-    potionBtn.MouseButton1Click:Connect(function()
-        local success = secureInvoke(consumePotionRemote, "Luck")
-        Notify("Potion", success and "Luck potion consumed!" or "Failed to consume potion")
-    end)
-
-    enchantBtn.MouseButton1Click:Connect(function()
-        local success = safeInvoke(rollEnchantRemote)
-        Notify("Enchant", success and "Enchant rolled!" or "Failed to roll enchant")
-    end)
-
-    boatBtn.MouseButton1Click:Connect(function()
-        local success = secureInvoke(spawnBoatRemote, "BasicBoat")
-        Notify("Boat", success and "Boat spawned!" or "Failed to spawn boat")
-    end)
+    -- Jump Control Section
+    local jumpSection = Instance.new("Frame", featureFrame)
+    jumpSection.Size = UDim2.new(1, 0, 0, 80)
+    jumpSection.Position = UDim2.new(0, 0, 0, 125)
+    jumpSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
     jumpSection.BorderSizePixel = 0
     Instance.new("UICorner", jumpSection)
 
@@ -1284,7 +1028,7 @@ local function BuildUI()
             teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             playerTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            contentTitle.Text = "🤖 Automation Features"
+            contentTitle.Text = "Character Features"
         end
     end
 
@@ -1368,7 +1112,7 @@ end
 -- Build UI and ready
 BuildUI()
 
--- Expose enhanced API on _G for convenience
+-- Expose quick API on _G for convenience
 _G.ModernAutoFish = {
     Start = function() if not Config.enabled then Config.enabled = true; sessionId = sessionId + 1; task.spawn(function() AutofishRunner(sessionId) end) end end,
     Stop = function() Config.enabled = false; sessionId = sessionId + 1 end,
@@ -1382,29 +1126,8 @@ _G.ModernAutoFish = {
             AntiAFK.sessionId = AntiAFK.sessionId + 1
         end
     end,
-    -- New automation features
-    ToggleAutoSell = function() Config.autoSellEnabled = not Config.autoSellEnabled; return Config.autoSellEnabled end,
-    ToggleAutoPotion = function() Config.autoPotionEnabled = not Config.autoPotionEnabled; return Config.autoPotionEnabled end,
-    ToggleAutoDaily = function() Config.autoDailyEnabled = not Config.autoDailyEnabled; return Config.autoDailyEnabled end,
-    ToggleAutoEnchant = function() Config.autoEnchantEnabled = not Config.autoEnchantEnabled; return Config.autoEnchantEnabled end,
-    -- Manual actions
-    SellAll = function() return secureInvoke(sellAllRemote) end,
-    UsePotion = function() return secureInvoke(consumePotionRemote, "Luck") end,
-    ClaimDaily = function() return secureInvoke(claimDailyRemote) end,
-    RollEnchant = function() return safeInvoke(rollEnchantRemote) end,
-    SpawnBoat = function() return secureInvoke(spawnBoatRemote, "BasicBoat") end,
-    -- Statistics
-    GetStats = function() return FishStats end,
     Config = Config,
     AntiAFK = AntiAFK
 }
 
-print("🎣 ModernAutoFish Enhanced loaded!")
-print("📊 New features from logdebug.txt analysis:")
-print("   💰 Auto Sell Items")
-print("   ⚗️ Auto Consume Potions") 
-print("   🎁 Auto Claim Daily Rewards")
-print("   ✨ Auto Enchant Rolling")
-print("   🚤 Auto Boat Management")
-print("   📈 Fish Statistics Tracking")
-print("🚀 UI created and enhanced API available via _G.ModernAutoFish")
+print("modern_autofish loaded - UI created and API available via _G.ModernAutoFish")
