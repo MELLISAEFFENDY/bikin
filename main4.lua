@@ -167,8 +167,14 @@ local Stats = {
     coinsPerHour = 0,
     efficiency = 0,
     lastFishTime = 0,
-    averageCatchTime = 0
+    averageCatchTime = 0,
+    elapsedTime = 0,
+    longestStreak = 0
 }
+
+-- Forward declarations
+local UpdateStatsCalculations
+local UpdateStatsDisplay
 
 -- Fish It specific remotes for monitoring (based on debug results)
 local fishCaughtRemote
@@ -265,9 +271,11 @@ local function FormatTime(seconds)
 end
 
 -- Update stats display (will be connected to UI)
-local function UpdateStatsDisplay()
+function UpdateStatsDisplay()
     -- Update stats calculations first
-    Stats.UpdateStatsCalculations()
+    if UpdateStatsCalculations then
+        UpdateStatsCalculations()
+    end
     
     -- Update UI labels if they exist
     pcall(function()
@@ -281,7 +289,7 @@ local function UpdateStatsDisplay()
                 ui.rareCountLabel.Text = "Rare: " .. Stats.rareFishCaught
             end
             if ui.timeLabel then
-                ui.timeLabel.Text = "Time: " .. Stats.FormatTime(Stats.elapsedTime)
+                ui.timeLabel.Text = "Time: " .. FormatTime(Stats.elapsedTime)
             end
             if ui.efficiencyLabel then
                 ui.efficiencyLabel.Text = "Success: " .. string.format("%.1f", Stats.efficiency) .. "%"
@@ -379,7 +387,14 @@ end
 
 -- UI builder
 local function BuildUI()
+    -- Check if UI already exists and remove it
     local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+    local existingUI = playerGui:FindFirstChild("ModernAutoFishUI")
+    if existingUI then
+        existingUI:Destroy()
+        wait(0.1) -- Small delay to ensure cleanup
+    end
+    
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "ModernAutoFishUI"
     screenGui.ResetOnSpawn = false
@@ -1408,21 +1423,44 @@ local function BuildUI()
 end
 
 -- Build UI and ready
-BuildUI()
+print("🔄 [Modern AutoFish] Starting UI creation...")
 
--- Start stats update loop (updates every second)
-spawn(function()
-    while true do
-        wait(1)
-        if Stats and UpdateStatsDisplay then
-            UpdateStatsDisplay()
-        end
-    end
+local success, err = pcall(function()
+    BuildUI()
 end)
 
--- Success message
-print("🎣 [Modern AutoFish] Stats Dashboard loaded successfully!")
-print("📊 Features: Real-time tracking, efficiency metrics, Fish It integration")
+if not success then
+    warn("🚨 [Modern AutoFish] UI Creation Failed: " .. tostring(err))
+    Notify("AutoFish Error", "UI failed to load. Check console for details.")
+    
+    -- Print helpful debugging info
+    print("🔍 [Debug] LocalPlayer:", LocalPlayer)
+    print("🔍 [Debug] PlayerGui exists:", LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") ~= nil)
+    
+else
+    print("✅ [Modern AutoFish] UI created successfully!")
+    
+    -- Initialize stats system
+    print("🔄 [Modern AutoFish] Initializing stats system...")
+    
+    -- Start stats update loop (updates every second)
+    spawn(function()
+        while true do
+            wait(1)
+            if Stats and UpdateStatsDisplay then
+                local ok, updateErr = pcall(UpdateStatsDisplay)
+                if not ok then
+                    warn("⚠️ [Stats] Update failed:", updateErr)
+                end
+            end
+        end
+    end)
+    
+    -- Success message
+    print("🎣 [Modern AutoFish] Stats Dashboard loaded successfully!")
+    print("📊 Features: Real-time tracking, efficiency metrics, Fish It integration")
+    print("🎮 Use the UI to configure and start fishing!")
+end
 
 -- Expose quick API on _G for convenience
 _G.ModernAutoFish = {
