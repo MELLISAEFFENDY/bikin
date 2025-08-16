@@ -1397,6 +1397,18 @@ local function BuildUI()
     local rollEnchantCorner = Instance.new("UICorner", rollEnchantBtn)
     rollEnchantCorner.CornerRadius = UDim.new(0, 6)
 
+    -- Debug button for listing remotes
+    local debugBtn = Instance.new("TextButton", enchantSection)
+    debugBtn.Size = UDim2.new(0, 80, 0, 20)
+    debugBtn.Position = UDim2.new(0, 250, 0, 90)
+    debugBtn.Text = "Debug"
+    debugBtn.Font = Enum.Font.Gotham
+    debugBtn.TextSize = 10
+    debugBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    debugBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    local debugCorner = Instance.new("UICorner", debugBtn)
+    debugCorner.CornerRadius = UDim.new(0, 4)
+
     -- Trading Section
     local tradeSection = Instance.new("Frame", advancedScroll)
     tradeSection.Size = UDim2.new(1, 0, 0, 150)
@@ -1641,25 +1653,51 @@ local function BuildUI()
             local ok, result = safeInvoke(enchantRemote)
             if ok then
                 Notify("Enchanting", "Enchanting altar activated!")
+                print("[DEBUG] Enchanting altar activated successfully")
             else
                 Notify("Error", "Failed to activate enchanting altar")
+                print("[DEBUG] Failed to activate enchanting altar:", result)
             end
         else
-            Notify("Error", "Enchanting altar remote not found")
+            -- Try alternative remote names
+            local altRemote = GetRemote("RF/ActivateEnchantingAltar") or GetRemote("RE/UseEnchantingTable")
+            if altRemote then
+                local ok, result = safeInvoke(altRemote)
+                if ok then
+                    Notify("Enchanting", "Enchanting altar activated! (alt)")
+                    print("[DEBUG] Enchanting altar activated via alternative remote")
+                else
+                    print("[DEBUG] Alternative enchanting remote failed:", result)
+                end
+            else
+                Notify("Error", "Enchanting altar remote not found")
+                print("[DEBUG] Available remotes to check:")
+                print("- RE/ActivateEnchantingAltar")
+                print("- RF/ActivateEnchantingAltar") 
+                print("- RE/UseEnchantingTable")
+            end
         end
     end
 
     local function RollEnchant()
-        local rollRemote = GetRemote("RE/RollEnchant")
+        -- Check multiple possible remote names for rolling enchantments
+        local rollRemote = GetRemote("RE/RollEnchant") or GetRemote("RF/RollEnchant") or GetRemote("RE/EnchantRoll")
         if rollRemote then
             local ok, result = safeInvoke(rollRemote)
             if ok then
                 Notify("Enchanting", "Enchantment rolled!")
+                print("[DEBUG] Enchantment rolled successfully")
             else
                 Notify("Error", "Failed to roll enchantment")
+                print("[DEBUG] Failed to roll enchantment:", result)
             end
         else
             Notify("Error", "Roll enchant remote not found")
+            print("[DEBUG] Enchanting roll remotes not found. Try these:")
+            print("- RE/RollEnchant")
+            print("- RF/RollEnchant")
+            print("- RE/EnchantRoll")
+            print("[DEBUG] Manual enchanting required: Go to enchanting table first!")
         end
     end
 
@@ -1676,6 +1714,31 @@ local function BuildUI()
         else
             Notify("Error", "Trade remote not found")
         end
+    end
+
+    -- Debug function to list all available remotes
+    local function ListAllRemotes()
+        print("=== [DEBUG] LISTING ALL AVAILABLE REMOTES ===")
+        local net = FindNet()
+        if net then
+            print("[DEBUG] Net found, listing children:")
+            for _, child in pairs(net:GetChildren()) do
+                print("Remote:", child.Name, "Type:", child.ClassName)
+                if child:IsA("Folder") then
+                    for _, subChild in pairs(child:GetChildren()) do
+                        print("  └─", subChild.Name, "Type:", subChild.ClassName)
+                    end
+                end
+            end
+        else
+            print("[DEBUG] Net not found! Check ReplicatedStorage structure")
+        end
+        
+        print("\n[DEBUG] Enchanting related remotes to look for:")
+        print("- Enchant, EnchantTable, EnchantingAltar")
+        print("- Roll, RollEnchant, EnchantRoll")
+        print("- Activate, Use, Start")
+        Notify("Debug", "Remote list printed to console (F9)")
     end
 
     -- Event Handlers for Advanced Features
@@ -1696,6 +1759,7 @@ local function BuildUI()
     end)
 
     rollEnchantBtn.MouseButton1Click:Connect(RollEnchant)
+    debugBtn.MouseButton1Click:Connect(ListAllRemotes)
 
     tradeToggle.MouseButton1Click:Connect(function()
         AdvancedFeatures.autoTrade = not AdvancedFeatures.autoTrade
