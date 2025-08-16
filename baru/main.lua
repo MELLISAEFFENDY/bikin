@@ -882,7 +882,7 @@ local function BuildUI()
 
     local panel = Instance.new("Frame")
     panel.Name = "Panel"
-    panel.Size = UDim2.new(0, 480, 0, 320)
+    panel.Size = UDim2.new(0, 480, 0, 380)
     panel.Position = UDim2.new(0, 18, 0, 70)
     panel.BackgroundColor3 = Color3.fromRGB(28,28,34)
     panel.BorderSizePixel = 0
@@ -908,26 +908,26 @@ local function BuildUI()
 
     -- Button container with responsive padding
     local btnContainer = Instance.new("Frame", header)
-    btnContainer.Size = UDim2.new(0, 110, 1, 0)
+    btnContainer.Size = UDim2.new(0, 80, 1, 0)
     -- place container near right edge but keep a small margin so it's not flush
-    btnContainer.Position = UDim2.new(1, -120, 0, 0)
+    btnContainer.Position = UDim2.new(1, -85, 0, 0)
     btnContainer.BackgroundTransparency = 1
 
     -- Minimize: keep a small left padding inside container so it isn't flush
     local minimizeBtn = Instance.new("TextButton", btnContainer)
-    minimizeBtn.Size = UDim2.new(0, 36, 0, 28)
-    minimizeBtn.Position = UDim2.new(0, 8, 0.5, -14)
-    minimizeBtn.Text = "_"
+    minimizeBtn.Size = UDim2.new(0, 32, 0, 26)
+    minimizeBtn.Position = UDim2.new(0, 4, 0.5, -13)
+    minimizeBtn.Text = "−"
     minimizeBtn.Font = Enum.Font.GothamBold
-    minimizeBtn.TextSize = 18
+    minimizeBtn.TextSize = 16
     minimizeBtn.BackgroundColor3 = Color3.fromRGB(60,60,66); minimizeBtn.TextColor3 = Color3.fromRGB(230,230,230)
     Instance.new("UICorner", minimizeBtn)
 
     -- Close: anchored to right of container with right padding
     local closeBtn = Instance.new("TextButton", btnContainer)
-    closeBtn.Size = UDim2.new(0, 36, 0, 28)
+    closeBtn.Size = UDim2.new(0, 32, 0, 26)
     closeBtn.AnchorPoint = Vector2.new(1, 0)
-    closeBtn.Position = UDim2.new(1, -8, 0.5, -14)
+    closeBtn.Position = UDim2.new(1, -4, 0.5, -13)
     closeBtn.Text = "X"
     closeBtn.Font = Enum.Font.GothamBold
     closeBtn.TextSize = 16
