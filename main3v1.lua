@@ -52,6 +52,8 @@ local rodRemote = ResolveRemote("RF/ChargeFishingRod")
 local miniGameRemote = ResolveRemote("RF/RequestFishingMinigameStarted")
 local finishRemote = ResolveRemote("RE/FishingCompleted")
 local equipRemote = ResolveRemote("RE/EquipToolFromHotbar")
+local fishCaughtRemote = ResolveRemote("RE/FishCaught")
+local autoFishStateRemote = ResolveRemote("RF/UpdateAutoFishingState")
 
 local function safeInvoke(remote, ...)
     if not remote then return false, "nil_remote" end
@@ -64,7 +66,7 @@ end
 
 -- Config
 local Config = {
-    mode = "secure",
+    mode = "smart",  -- Default to smart mode
     autoRecastDelay = 0.6,
     safeModeChance = 70,
     secure_max_actions_per_minute = 120,
@@ -259,8 +261,96 @@ local function LocationTracker()
     end
 end
 
--- Start location tracker
-task.spawn(LocationTracker)
+-- Animation-Based Fishing System
+local AnimationMonitor = {
+    isMonitoring = false,
+    currentState = "idle",
+    lastAnimationTime = 0,
+    animationSequence = {},
+    fishingSuccess = false
+}
+
+-- Animation tracking for realistic timing
+local function MonitorCharacterAnimations()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("Humanoid") then
+        return
+    end
+    
+    local humanoid = LocalPlayer.Character.Humanoid
+    local animator = humanoid:FindFirstChild("Animator")
+    if not animator then return end
+    
+    -- Track animation changes for fishing detection
+    humanoid.AnimationPlayed:Connect(function(animationTrack)
+        local animName = animationTrack.Animation.Name
+        local currentTime = tick()
+        
+        -- Log fishing-related animations
+        if string.find(animName, "Fish") or string.find(animName, "Rod") or string.find(animName, "Reel") or string.find(animName, "Caught") then
+            print("[Animation] Detected:", animName, "at", math.floor(currentTime - AnimationMonitor.lastAnimationTime, 2), "seconds")
+            
+            table.insert(AnimationMonitor.animationSequence, {
+                name = animName,
+                timestamp = currentTime,
+                duration = currentTime - AnimationMonitor.lastAnimationTime
+            })
+            
+            -- Update fishing state based on animation
+            if string.find(animName, "StartCharging") then
+                AnimationMonitor.currentState = "charging"
+            elseif string.find(animName, "Cast") then
+                AnimationMonitor.currentState = "casting"
+            elseif string.find(animName, "Reel") then
+                AnimationMonitor.currentState = "reeling"
+            elseif string.find(animName, "CaughtFish") or string.find(animName, "HoldFish") then
+                AnimationMonitor.currentState = "caught"
+                AnimationMonitor.fishingSuccess = true
+                print("[Animation] FISH CAUGHT DETECTED via animation!")
+            elseif string.find(animName, "Failure") then
+                AnimationMonitor.currentState = "failed"
+                AnimationMonitor.fishingSuccess = false
+            end
+            
+            AnimationMonitor.lastAnimationTime = currentTime
+        end
+    end)
+end
+
+-- Smart timing based on animation patterns
+local function GetRealisticTiming(phase)
+    local timings = {
+        charging = {min = 0.8, max = 1.5},    -- Rod charging time
+        casting = {min = 0.2, max = 0.4},     -- Cast animation
+        waiting = {min = 2.0, max = 4.0},     -- Wait for fish
+        reeling = {min = 1.0, max = 2.5},     -- Reel animation
+        holding = {min = 0.5, max = 1.0}      -- Hold fish animation
+    }
+    
+    local timing = timings[phase] or {min = 0.5, max = 1.0}
+    return timing.min + math.random() * (timing.max - timing.min)
+end
+local function SetupFishCaughtListener()
+    if fishCaughtRemote and fishCaughtRemote:IsA("RemoteEvent") then
+        fishCaughtRemote.OnClientEvent:Connect(function(fishData)
+            -- Real fish caught event
+            local fishName = "Unknown Fish"
+            local location = DetectCurrentLocation()
+            
+            -- Extract fish name from various possible data formats
+            if type(fishData) == "string" then
+                fishName = fishData
+            elseif type(fishData) == "table" then
+                fishName = fishData.name or fishData.fishName or fishData.Fish or "Unknown Fish"
+            end
+            
+            print("[Dashboard] Real fish caught via event:", fishName, "at", location)
+            LogFishCatch(fishName, location)
+        end)
+        print("[Dashboard] FishCaught event listener setup successfully")
+    else
+        print("[Dashboard] Warning: FishCaught remote not found - using simulation mode")
+    end
+end
 
 local function GetLocationEfficiency(location)
     local stats = Dashboard.locationStats[location]
@@ -389,32 +479,74 @@ local function GetServerTime()
     return tick()
 end
 
-local function DoFastCycle()
-    if equipRemote then pcall(function() equipRemote:FireServer(1) end) end
+-- Enhanced Smart Fishing Cycle with Animation Awareness
+local function DoSmartCycle()
+    AnimationMonitor.fishingSuccess = false
+    AnimationMonitor.currentState = "starting"
+    
+    -- Phase 1: Equip and prepare
+    if equipRemote then 
+        pcall(function() equipRemote:FireServer(1) end)
+        task.wait(GetRealisticTiming("charging"))
+    end
+    
+    -- Phase 2: Charge rod (with animation-aware timing)
+    AnimationMonitor.currentState = "charging"
     local usePerfect = math.random(1,100) <= Config.safeModeChance
     local timestamp = usePerfect and GetServerTime() or GetServerTime() + math.random()*0.5
-    if rodRemote and rodRemote:IsA("RemoteFunction") then pcall(function() rodRemote:InvokeServer(timestamp) end) end
-    task.wait(0.08 + math.random()*0.06)
+    
+    if rodRemote and rodRemote:IsA("RemoteFunction") then 
+        pcall(function() rodRemote:InvokeServer(timestamp) end)
+    end
+    
+    -- Wait for charging animation to complete
+    task.wait(GetRealisticTiming("charging"))
+    
+    -- Phase 3: Cast (mini-game simulation)
+    AnimationMonitor.currentState = "casting" 
     local x = usePerfect and -1.238 or (math.random(-1000,1000)/1000)
     local y = usePerfect and 0.969 or (math.random(0,1000)/1000)
-    if miniGameRemote and miniGameRemote:IsA("RemoteFunction") then pcall(function() miniGameRemote:InvokeServer(x,y) end) end
-    task.wait(1.0 + math.random()*0.4)
-    if finishRemote then pcall(function() finishRemote:FireServer() end) end
     
-    -- Real fish simulation for dashboard based on location
-    local fishByLocation = {
-        ["Coral Reefs"] = {"Hawks Turtle", "Blue Lobster", "Greenbee Grouper", "Starjam Tang", "Domino Damsel", "Panther Grouper", "Scissortail Dartfish", "White Clownfish", "Maze Angelfish", "Tricolore Butterfly", "Orangy Goby", "Specked Butterfly", "Corazon Damse"},
-        ["Stingray Shores"] = {"Dotted Stingray", "Yellowfin Tuna", "Unicorn Tang", "Dorhey Tang", "Darwin Clownfish", "Korean Angelfish", "Flame Angelfish", "Yello Damselfish", "Copperband Butterfly", "Strawberry Dotty", "Azure Damsel", "Clownfish"},
-        ["Ocean"] = {"Hammerhead Shark", "Manta Ray", "Chrome Tuna", "Moorish Idol", "Cow Clownfish", "Candy Butterfly", "Jewel Tang", "Vintage Damsel", "Tricolore Butterfly", "Skunk Tilefish", "Yellowstate Angelfish", "Vintage Blue Tang"},
-        ["Esoteric Depths"] = {"Abyss Seahorse", "Magic Tang", "Enchanted Angelfish", "Astra Damsel", "Charmed Tang", "Coal Tang", "Ash Basslet"},
-        ["Kohana Volcano"] = {"Blueflame Ray", "Lavafin Tuna", "Firecoal Damsel", "Magma Goby", "Volcanic Basslet"},
-        ["Kohana"] = {"Prismy Seahorse", "Loggerhead Turtle", "Lobster", "Bumblebee Grouper", "Longnose Butterfly", "Sushi Cardinal", "Kau Cardinal", "Fire Goby", "Banded Butterfly", "Shrimp Goby", "Boa Angelfish", "Jennifer Dottyback", "Reef Chromis"}
-    }
+    if miniGameRemote and miniGameRemote:IsA("RemoteFunction") then 
+        pcall(function() miniGameRemote:InvokeServer(x,y) end)
+    end
     
-    local currentLocation = Dashboard.sessionStats.currentLocation
-    local locationFish = fishByLocation[currentLocation] or fishByLocation["Ocean"] -- Default to Ocean fish
-    local randomFish = locationFish[math.random(1, #locationFish)]
-    LogFishCatch(randomFish, currentLocation)
+    -- Wait for cast animation
+    task.wait(GetRealisticTiming("casting"))
+    
+    -- Phase 4: Wait for fish (realistic waiting time)
+    AnimationMonitor.currentState = "waiting"
+    task.wait(GetRealisticTiming("waiting"))
+    
+    -- Phase 5: Complete fishing
+    AnimationMonitor.currentState = "completing"
+    if finishRemote then 
+        pcall(function() finishRemote:FireServer() end)
+    end
+    
+    -- Wait for completion and fish catch animations
+    task.wait(GetRealisticTiming("reeling"))
+    
+    -- Check if fish was caught via animation or simulate
+    if not AnimationMonitor.fishingSuccess and not fishCaughtRemote then
+        -- Fallback: Use location-based simulation
+        local fishByLocation = {
+            ["Coral Reefs"] = {"Hawks Turtle", "Blue Lobster", "Greenbee Grouper", "Starjam Tang", "Domino Damsel", "Panther Grouper", "Scissortail Dartfish", "White Clownfish", "Maze Angelfish", "Tricolore Butterfly", "Orangy Goby", "Specked Butterfly", "Corazon Damse"},
+            ["Stingray Shores"] = {"Dotted Stingray", "Yellowfin Tuna", "Unicorn Tang", "Dorhey Tang", "Darwin Clownfish", "Korean Angelfish", "Flame Angelfish", "Yello Damselfish", "Copperband Butterfly", "Strawberry Dotty", "Azure Damsel", "Clownfish"},
+            ["Ocean"] = {"Hammerhead Shark", "Manta Ray", "Chrome Tuna", "Moorish Idol", "Cow Clownfish", "Candy Butterfly", "Jewel Tang", "Vintage Damsel", "Tricolore Butterfly", "Skunk Tilefish", "Yellowstate Angelfish", "Vintage Blue Tang"},
+            ["Esoteric Depths"] = {"Abyss Seahorse", "Magic Tang", "Enchanted Angelfish", "Astra Damsel", "Charmed Tang", "Coal Tang", "Ash Basslet"},
+            ["Kohana Volcano"] = {"Blueflame Ray", "Lavafin Tuna", "Firecoal Damsel", "Magma Goby", "Volcanic Basslet"},
+            ["Kohana"] = {"Prismy Seahorse", "Loggerhead Turtle", "Lobster", "Bumblebee Grouper", "Longnose Butterfly", "Sushi Cardinal", "Kau Cardinal", "Fire Goby", "Banded Butterfly", "Shrimp Goby", "Boa Angelfish", "Jennifer Dottyback", "Reef Chromis"}
+        }
+        
+        local currentLocation = DetectCurrentLocation()
+        local locationFish = fishByLocation[currentLocation] or fishByLocation["Ocean"]
+        local randomFish = locationFish[math.random(1, #locationFish)]
+        LogFishCatch(randomFish, currentLocation)
+        print("[Smart Cycle] Simulated catch:", randomFish, "at", currentLocation)
+    end
+    
+    AnimationMonitor.currentState = "idle"
 end
 
 local function DoSecureCycle()
@@ -431,18 +563,13 @@ local function DoSecureCycle()
     task.wait(0.6 + math.random()*1.2)
     if finishRemote then secureInvoke(finishRemote) end
     
-    -- Real fish simulation for dashboard based on location
+    -- Real fish simulation for dashboard  
     local fishByLocation = {
-        ["Coral Reefs"] = {"Hawks Turtle", "Blue Lobster", "Greenbee Grouper", "Starjam Tang", "Domino Damsel", "Panther Grouper", "Scissortail Dartfish", "White Clownfish", "Maze Angelfish", "Tricolore Butterfly", "Orangy Goby", "Specked Butterfly", "Corazon Damse"},
-        ["Stingray Shores"] = {"Dotted Stingray", "Yellowfin Tuna", "Unicorn Tang", "Dorhey Tang", "Darwin Clownfish", "Korean Angelfish", "Flame Angelfish", "Yello Damselfish", "Copperband Butterfly", "Strawberry Dotty", "Azure Damsel", "Clownfish"},
-        ["Ocean"] = {"Hammerhead Shark", "Manta Ray", "Chrome Tuna", "Moorish Idol", "Cow Clownfish", "Candy Butterfly", "Jewel Tang", "Vintage Damsel", "Tricolore Butterfly", "Skunk Tilefish", "Yellowstate Angelfish", "Vintage Blue Tang"},
-        ["Esoteric Depths"] = {"Abyss Seahorse", "Magic Tang", "Enchanted Angelfish", "Astra Damsel", "Charmed Tang", "Coal Tang", "Ash Basslet"},
-        ["Kohana Volcano"] = {"Blueflame Ray", "Lavafin Tuna", "Firecoal Damsel", "Magma Goby", "Volcanic Basslet"},
-        ["Kohana"] = {"Prismy Seahorse", "Loggerhead Turtle", "Lobster", "Bumblebee Grouper", "Longnose Butterfly", "Sushi Cardinal", "Kau Cardinal", "Fire Goby", "Banded Butterfly", "Shrimp Goby", "Boa Angelfish", "Jennifer Dottyback", "Reef Chromis"}
+        ["Ocean"] = {"Hammerhead Shark", "Manta Ray", "Chrome Tuna", "Moorish Idol", "Cow Clownfish", "Candy Butterfly", "Jewel Tang", "Vintage Damsel", "Tricolore Butterfly", "Skunk Tilefish", "Yellowstate Angelfish", "Vintage Blue Tang"}
     }
     
     local currentLocation = Dashboard.sessionStats.currentLocation
-    local locationFish = fishByLocation[currentLocation] or fishByLocation["Ocean"] -- Default to Ocean fish
+    local locationFish = fishByLocation[currentLocation] or fishByLocation["Ocean"]
     local randomFish = locationFish[math.random(1, #locationFish)]
     LogFishCatch(randomFish, currentLocation)
 end
@@ -452,18 +579,33 @@ local function AutofishRunner(mySession)
     Dashboard.sessionStats.fishCount = 0
     Dashboard.sessionStats.rareCount = 0
     
-    Notify("modern_autofish", "AutoFishing started (mode: " .. Config.mode .. ")")
+    -- Start animation monitoring
+    AnimationMonitor.isMonitoring = true
+    MonitorCharacterAnimations()
+    
+    Notify("modern_autofish", "Smart AutoFishing started (mode: " .. Config.mode .. ")")
     while Config.enabled and sessionId == mySession do
         local ok, err = pcall(function()
-            if Config.mode == "fast" then DoFastCycle() else DoSecureCycle() end
+            if Config.mode == "fast" then 
+                DoFastCycle() 
+            elseif Config.mode == "secure" then 
+                DoSecureCycle() 
+            else 
+                DoSmartCycle() -- New smart mode
+            end
         end)
         if not ok then
             warn("modern_autofish: cycle error:", err)
             Notify("modern_autofish", "Cycle error: " .. tostring(err))
             task.wait(0.5 + math.random()*0.5)
         end
-        local delay = Config.autoRecastDelay + (math.random()*0.2 - 0.1)
+        
+        -- Smart delay based on animation completion
+        local baseDelay = Config.autoRecastDelay
+        local smartDelay = baseDelay + GetRealisticTiming("waiting") * 0.3
+        local delay = smartDelay + (math.random()*0.2 - 0.1)
         if delay < 0.05 then delay = 0.05 end
+        
         local elapsed = 0
         while elapsed < delay do
             if not Config.enabled or sessionId ~= mySession then break end
@@ -471,7 +613,9 @@ local function AutofishRunner(mySession)
             elapsed = elapsed + 0.05
         end
     end
-    Notify("modern_autofish", "AutoFishing stopped")
+    
+    AnimationMonitor.isMonitoring = false
+    Notify("modern_autofish", "Smart AutoFishing stopped")
 end
 
 -- UI builder
@@ -677,9 +821,11 @@ local function BuildUI()
 
     -- left: mode
     local modeLabel = Instance.new("TextLabel", leftCol); modeLabel.Size = UDim2.new(1,0,0,18); modeLabel.Text = "Mode"; modeLabel.BackgroundTransparency = 1; modeLabel.Font = Enum.Font.GothamSemibold; modeLabel.TextColor3 = Color3.fromRGB(200,200,200)
-        local modeButtons = Instance.new("Frame", leftCol); modeButtons.Size = UDim2.new(1,-12,0,70); modeButtons.Position = UDim2.new(0,6,0,24); modeButtons.BackgroundTransparency = 1
-        local fastButton = Instance.new("TextButton", modeButtons); fastButton.Size = UDim2.new(0.46,-6,0,34); fastButton.Position = UDim2.new(0,6,0,0); fastButton.Text = "Fast"; fastButton.BackgroundColor3 = Color3.fromRGB(75,95,165); local fastCorner = Instance.new("UICorner", fastButton); fastCorner.CornerRadius = UDim.new(0,8)
-        local secureButton = Instance.new("TextButton", modeButtons); secureButton.Size = UDim2.new(0.46,-6,0,34); secureButton.Position = UDim2.new(0.52,6,0,0); secureButton.Text = "Secure"; secureButton.BackgroundColor3 = Color3.fromRGB(74,155,88); local secureCorner = Instance.new("UICorner", secureButton); secureCorner.CornerRadius = UDim.new(0,8)
+        local modeButtons = Instance.new("Frame", leftCol); modeButtons.Size = UDim2.new(1,-12,0,105); modeButtons.Position = UDim2.new(0,6,0,24); modeButtons.BackgroundTransparency = 1
+        local fastButton = Instance.new("TextButton", modeButtons); fastButton.Size = UDim2.new(0.46,-6,0,30); fastButton.Position = UDim2.new(0,6,0,0); fastButton.Text = "Fast"; fastButton.BackgroundColor3 = Color3.fromRGB(75,95,165); local fastCorner = Instance.new("UICorner", fastButton); fastCorner.CornerRadius = UDim.new(0,6)
+        local secureButton = Instance.new("TextButton", modeButtons); secureButton.Size = UDim2.new(0.46,-6,0,30); secureButton.Position = UDim2.new(0.52,6,0,0); secureButton.Text = "Secure"; secureButton.BackgroundColor3 = Color3.fromRGB(74,155,88); local secureCorner = Instance.new("UICorner", secureButton); secureCorner.CornerRadius = UDim.new(0,6)
+        local smartButton = Instance.new("TextButton", modeButtons); smartButton.Size = UDim2.new(1,-12,0,30); smartButton.Position = UDim2.new(0,6,0,35); smartButton.Text = "🧠 Smart AI"; smartButton.BackgroundColor3 = Color3.fromRGB(255,140,0); local smartCorner = Instance.new("UICorner", smartButton); smartCorner.CornerRadius = UDim.new(0,6)
+        local modeStatus = Instance.new("TextLabel", modeButtons); modeStatus.Size = UDim2.new(1,-12,0,25); modeStatus.Position = UDim2.new(0,6,0,70); modeStatus.Text = "Current: Smart AI Mode"; modeStatus.Font = Enum.Font.GothamSemibold; modeStatus.TextSize = 10; modeStatus.TextColor3 = Color3.fromRGB(255,200,100); modeStatus.BackgroundTransparency = 1; modeStatus.TextXAlignment = Enum.TextXAlignment.Center
 
     -- right: numeric controls
     local delayLabel = Instance.new("TextLabel", rightCol)
@@ -1315,13 +1461,13 @@ local function BuildUI()
     rarityTitle.BackgroundTransparency = 1
     rarityTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Rarity bars
+    -- Rarity bars (Updated for real fish data)
     local rarityTypes = {
-        {name = "LEGENDARY", color = Color3.fromRGB(255,100,255), icon = "👑"},
-        {name = "CURSED", color = Color3.fromRGB(150,50,200), icon = "💀"},
-        {name = "GOLDEN", color = Color3.fromRGB(255,215,0), icon = "🥇"},
-        {name = "NEON", color = Color3.fromRGB(0,255,200), icon = "💎"},
+        {name = "MYTHIC", color = Color3.fromRGB(255,50,50), icon = "�"},
+        {name = "LEGENDARY", color = Color3.fromRGB(255,100,255), icon = "�"},
+        {name = "EPIC", color = Color3.fromRGB(150,50,200), icon = "💜"},
         {name = "RARE", color = Color3.fromRGB(100,150,255), icon = "⭐"},
+        {name = "UNCOMMON", color = Color3.fromRGB(0,255,200), icon = "💎"},
         {name = "COMMON", color = Color3.fromRGB(150,150,150), icon = "🐟"}
     }
 
@@ -1593,8 +1739,9 @@ local function BuildUI()
     SwitchTo("Main")
 
     -- callbacks
-    fastButton.MouseButton1Click:Connect(function() Config.mode = "fast"; Notify("modern_autofish", "Mode set to FAST") end)
-    secureButton.MouseButton1Click:Connect(function() Config.mode = "secure"; Notify("modern_autofish", "Mode set to SECURE") end)
+    fastButton.MouseButton1Click:Connect(function() Config.mode = "fast"; modeStatus.Text = "Current: Fast Mode"; Notify("modern_autofish", "Mode set to FAST") end)
+    secureButton.MouseButton1Click:Connect(function() Config.mode = "secure"; modeStatus.Text = "Current: Secure Mode"; Notify("modern_autofish", "Mode set to SECURE") end)
+    smartButton.MouseButton1Click:Connect(function() Config.mode = "smart"; modeStatus.Text = "Current: Smart AI Mode"; Notify("modern_autofish", "Mode set to SMART AI") end)
 
     -- AntiAFK toggle
     antiAfkToggle.MouseButton1Click:Connect(function()
@@ -1796,6 +1943,12 @@ end
 
 -- Build UI and ready
 BuildUI()
+
+-- Setup real fish event listener
+SetupFishCaughtListener()
+
+-- Start location tracker
+task.spawn(LocationTracker)
 
 -- Expose quick API on _G for convenience
 _G.ModernAutoFish = {
