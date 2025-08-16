@@ -659,6 +659,26 @@ local function AntiAfkRunner(mySessionId)
 end
 
 -- Enhancement Functions
+local function TeleportToAltar()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        Notify("Teleport", "❌ Character not found!")
+        return false
+    end
+    
+    local altarPosition = CFrame.new(3237.61, -1302.33, 1398.04)
+    local success = pcall(function()
+        LocalPlayer.Character.HumanoidRootPart.CFrame = altarPosition
+    end)
+    
+    if success then
+        Notify("Teleport", "✅ Teleported to Altar!")
+        return true
+    else
+        Notify("Teleport", "❌ Teleport failed!")
+        return false
+    end
+end
+
 local function ActivateEnchantingAltar()
     if not Enhancement.enabled or not activateEnchantingAltarRemote then return false end
     
@@ -1754,10 +1774,37 @@ local function BuildUI()
     enhancementTitle.BackgroundTransparency = 1
     enhancementTitle.TextXAlignment = Enum.TextXAlignment.Left
 
+    -- Teleport to Altar Section
+    local teleportSection = Instance.new("Frame", enhancementSection)
+    teleportSection.Size = UDim2.new(1, -20, 0, 25)
+    teleportSection.Position = UDim2.new(0, 10, 0, 30)
+    teleportSection.BackgroundTransparency = 1
+
+    local teleportLabel = Instance.new("TextLabel", teleportSection)
+    teleportLabel.Size = UDim2.new(0.7, -10, 1, 0)
+    teleportLabel.Position = UDim2.new(0, 0, 0, 0)
+    teleportLabel.Text = "📍 Teleport to Altar"
+    teleportLabel.Font = Enum.Font.GothamSemibold
+    teleportLabel.TextSize = 12
+    teleportLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    teleportLabel.BackgroundTransparency = 1
+    teleportLabel.TextXAlignment = Enum.TextXAlignment.Left
+    teleportLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+    local teleportBtn = Instance.new("TextButton", teleportSection)
+    teleportBtn.Size = UDim2.new(0, 50, 0, 20)
+    teleportBtn.Position = UDim2.new(1, -55, 0, 2)
+    teleportBtn.Text = "GO"
+    teleportBtn.Font = Enum.Font.GothamBold
+    teleportBtn.TextSize = 10
+    teleportBtn.BackgroundColor3 = Color3.fromRGB(60,160,60)
+    teleportBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", teleportBtn)
+
     -- Auto Activate Altar Toggle
     local autoAltarToggle = Instance.new("Frame", enhancementSection)
     autoAltarToggle.Size = UDim2.new(1, -20, 0, 25)
-    autoAltarToggle.Position = UDim2.new(0, 10, 0, 30)
+    autoAltarToggle.Position = UDim2.new(0, 10, 0, 60)
     autoAltarToggle.BackgroundTransparency = 1
 
     local altarLabel = Instance.new("TextLabel", autoAltarToggle)
@@ -1784,7 +1831,7 @@ local function BuildUI()
     -- Auto Roll Enchant Toggle
     local autoRollToggle = Instance.new("Frame", enhancementSection)
     autoRollToggle.Size = UDim2.new(1, -20, 0, 25)
-    autoRollToggle.Position = UDim2.new(0, 10, 0, 60)
+    autoRollToggle.Position = UDim2.new(0, 10, 0, 90)
     autoRollToggle.BackgroundTransparency = 1
 
     local rollLabel = Instance.new("TextLabel", autoRollToggle)
@@ -1811,7 +1858,7 @@ local function BuildUI()
     -- Enhancement Start/Stop Buttons
     local enhancementStartBtn = Instance.new("TextButton", enhancementSection)
     enhancementStartBtn.Size = UDim2.new(0.48, -5, 0, 25)
-    enhancementStartBtn.Position = UDim2.new(0, 10, 0, 90)
+    enhancementStartBtn.Position = UDim2.new(0, 10, 0, 120)
     enhancementStartBtn.Text = "🔮 Start Enhancement"
     enhancementStartBtn.Font = Enum.Font.GothamBold
     enhancementStartBtn.TextSize = 11
@@ -1821,7 +1868,7 @@ local function BuildUI()
 
     local enhancementStopBtn = Instance.new("TextButton", enhancementSection)
     enhancementStopBtn.Size = UDim2.new(0.48, -5, 0, 25)
-    enhancementStopBtn.Position = UDim2.new(0.52, 5, 0, 90)
+    enhancementStopBtn.Position = UDim2.new(0.52, 5, 0, 120)
     enhancementStopBtn.Text = "🛑 Stop Enhancement"
     enhancementStopBtn.Font = Enum.Font.GothamBold
     enhancementStopBtn.TextSize = 11
@@ -1932,6 +1979,11 @@ local function BuildUI()
         rollToggleBtn.Text = Enhancement.autoRollEnchant and "ON" or "OFF"
         rollToggleBtn.BackgroundColor3 = Enhancement.autoRollEnchant and Color3.fromRGB(100,200,100) or Color3.fromRGB(160,60,60)
         Notify("Enhancement", "🎲 Auto Roll Enchant: " .. (Enhancement.autoRollEnchant and "Enabled" or "Disabled"))
+    end)
+
+    -- Teleport Button Callback
+    teleportBtn.MouseButton1Click:Connect(function()
+        TeleportToAltar()
     end)
 
     enhancementStartBtn.MouseButton1Click:Connect(function()
