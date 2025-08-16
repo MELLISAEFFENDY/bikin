@@ -954,22 +954,6 @@ local function BuildUI()
     modeLabel.TextColor3 = Color3.fromRGB(255,140,0)
     modeLabel.TextSize = 14
     modeLabel.TextXAlignment = Enum.TextXAlignment.Left
-    chanceDisplay.Font = Enum.Font.GothamSemibold
-    chanceDisplay.TextSize = 12
-    chanceDisplay.BackgroundColor3 = Color3.fromRGB(50,50,56)
-    chanceDisplay.TextColor3 = Color3.fromRGB(255,255,255)
-    chanceDisplay.TextXAlignment = Enum.TextXAlignment.Center
-    Instance.new("UICorner", chanceDisplay)
-    
-    local chancePlus = Instance.new("TextButton", chanceControls)
-    chancePlus.Size = UDim2.new(0,35,1,-4)
-    chancePlus.Position = UDim2.new(1,-37,0,2)
-    chancePlus.Text = "+"
-    chancePlus.Font = Enum.Font.GothamSemibold
-    chancePlus.BackgroundColor3 = Color3.fromRGB(60,160,60)
-    chancePlus.TextColor3 = Color3.fromRGB(255,255,255)
-    chancePlus.TextSize = 16
-    Instance.new("UICorner", chancePlus)
 
     -- Sell All button in Main tab
     local sellBtn = Instance.new("TextButton", content)
@@ -1991,6 +1975,7 @@ local function BuildUI()
             end
         end
     end
+end
 end
 
 -- Build UI and ready
