@@ -1127,10 +1127,10 @@ local function BuildUI()
     local modeStatus = Instance.new("TextLabel", modeButtons)
     modeStatus.Size = UDim2.new(1,-6,0,25)
     modeStatus.Position = UDim2.new(0,3,0,35)
-    modeStatus.Text = "🧠 Current: Smart AI Mode (Go to Fishing AI tab)"
+    modeStatus.Text = "✅ Current: Fast & Secure Mode Available"
     modeStatus.Font = Enum.Font.GothamSemibold
     modeStatus.TextSize = 11
-    modeStatus.TextColor3 = Color3.fromRGB(255,200,100)
+    modeStatus.TextColor3 = Color3.fromRGB(100,255,150)
     modeStatus.BackgroundTransparency = 1
     modeStatus.TextXAlignment = Enum.TextXAlignment.Center
 
@@ -1450,11 +1450,21 @@ local function BuildUI()
     featureTitle.BackgroundTransparency = 1
     featureTitle.TextXAlignment = Enum.TextXAlignment.Left
 
+    -- Create scrollable frame for features
+    local featureScrollFrame = Instance.new("ScrollingFrame", featureFrame)
+    featureScrollFrame.Size = UDim2.new(1, 0, 1, -30)
+    featureScrollFrame.Position = UDim2.new(0, 0, 0, 30)
+    featureScrollFrame.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    featureScrollFrame.BorderSizePixel = 0
+    featureScrollFrame.ScrollBarThickness = 6
+    featureScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80,80,80)
+    Instance.new("UICorner", featureScrollFrame)
+
     -- Speed Control Section
-    local speedSection = Instance.new("Frame", featureFrame)
-    speedSection.Size = UDim2.new(1, 0, 0, 80)
-    speedSection.Position = UDim2.new(0, 0, 0, 35)
-    speedSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    local speedSection = Instance.new("Frame", featureScrollFrame)
+    speedSection.Size = UDim2.new(1, -10, 0, 80)
+    speedSection.Position = UDim2.new(0, 5, 0, 5)
+    speedSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
     speedSection.BorderSizePixel = 0
     Instance.new("UICorner", speedSection)
 
@@ -1501,10 +1511,10 @@ local function BuildUI()
     Instance.new("UICorner", speedResetBtn)
 
     -- Jump Control Section
-    local jumpSection = Instance.new("Frame", featureFrame)
-    jumpSection.Size = UDim2.new(1, 0, 0, 80)
-    jumpSection.Position = UDim2.new(0, 0, 0, 125)
-    jumpSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    local jumpSection = Instance.new("Frame", featureScrollFrame)
+    jumpSection.Size = UDim2.new(1, -10, 0, 80)
+    jumpSection.Position = UDim2.new(0, 5, 0, 95)
+    jumpSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
     jumpSection.BorderSizePixel = 0
     Instance.new("UICorner", jumpSection)
 
@@ -1551,10 +1561,10 @@ local function BuildUI()
     Instance.new("UICorner", jumpResetBtn)
 
     -- Rod Orientation Fix Section
-    local rodFixSection = Instance.new("Frame", featureFrame)
-    rodFixSection.Size = UDim2.new(1, 0, 0, 60)
-    rodFixSection.Position = UDim2.new(0, 0, 0, 215)
-    rodFixSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    local rodFixSection = Instance.new("Frame", featureScrollFrame)
+    rodFixSection.Size = UDim2.new(1, -10, 0, 60)
+    rodFixSection.Position = UDim2.new(0, 5, 0, 185)
+    rodFixSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
     rodFixSection.BorderSizePixel = 0
     Instance.new("UICorner", rodFixSection)
 
@@ -1593,10 +1603,10 @@ local function BuildUI()
     end)
 
     -- Sell All Items Section
-    local sellAllSection = Instance.new("Frame", featureFrame)
-    sellAllSection.Size = UDim2.new(1, 0, 0, 60)
-    sellAllSection.Position = UDim2.new(0, 0, 0, 285)
-    sellAllSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    local sellAllSection = Instance.new("Frame", featureScrollFrame)
+    sellAllSection.Size = UDim2.new(1, -10, 0, 60)
+    sellAllSection.Position = UDim2.new(0, 5, 0, 255)
+    sellAllSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
     sellAllSection.BorderSizePixel = 0
     Instance.new("UICorner", sellAllSection)
 
@@ -1620,6 +1630,9 @@ local function BuildUI()
     sellBtn.BackgroundColor3 = Color3.fromRGB(255,140,0)
     sellBtn.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", sellBtn)
+
+    -- Set canvas size for feature scroll frame
+    featureScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 330)
 
     -- Feature variables
     local currentSpeed = 16
@@ -2244,12 +2257,6 @@ local function BuildUI()
         modeStatus.TextColor3 = Color3.fromRGB(100,255,150)
         Notify("modern_autofish", "🔒 Mode set to SECURE - Safe fishing") 
     end)
-    smartButton.MouseButton1Click:Connect(function() 
-        Config.mode = "smart"
-        modeStatus.Text = "🧠 Current: Smart AI Mode"
-        modeStatus.TextColor3 = Color3.fromRGB(255,200,100)
-        Notify("modern_autofish", "🧠 Mode set to SMART AI - Intelligent fishing") 
-    end)
 
     -- AntiAFK toggle
     antiAfkToggle.MouseButton1Click:Connect(function()
@@ -2272,6 +2279,14 @@ local function BuildUI()
             
             AntiAFK.sessionId = AntiAFK.sessionId + 1
         end
+    end)
+
+    -- Smart AI button callback
+    smartButtonAI.MouseButton1Click:Connect(function()
+        Config.mode = "smart"
+        aiStatusLabel.Text = "✅ Current Mode: Smart AI Active"
+        aiStatusLabel.TextColor3 = Color3.fromRGB(100,255,150)
+        Notify("modern_autofish", "🧠 Mode set to SMART AI - Intelligent fishing")
     end)
 
     local origPanelSize = panel.Size; local minimized = false
