@@ -1,5 +1,5 @@
--- Fish It Game Explorer Script
--- Scans all objects, remotes, and items in the game
+-- Fish It Game Explorer Script (Enhanced Version)
+-- Scans all objects, remotes, items, and fish in the game with UI and file saving
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -7,12 +7,225 @@ local Workspace = game:GetService("Workspace")
 local StarterGui = game:GetService("StarterGui")
 local LocalPlayer = Players.LocalPlayer
 
--- Notification function
+-- Global storage for all scan results
+_G.FishItExplorationData = {}
+
+-- Enhanced notification function
 local function Notify(title, text)
     pcall(function()
         StarterGui:SetCore("SendNotification", {Title = title, Text = text, Duration = 3})
     end)
-    print("[EXPLORER]", title, text)
+    print("[FISH IT EXPLORER]", title, ":", text)
+end
+
+-- Safe string formatting function
+local function SafeFormat(template, ...)
+    local args = {...}
+    for i, arg in ipairs(args) do
+        args[i] = tostring(arg or "Unknown")
+    end
+    return string.format(template, unpack(args))
+end
+
+-- Function to save file to accessible folder (Android compatible)
+local function SaveToFile(data, filename)
+    local saved = false
+    local fullPath = ""
+    
+    -- Try various accessible paths for Android
+    local paths = {
+        "/storage/emulated/0/Download/" .. filename,
+        "/storage/emulated/0/Documents/" .. filename,
+        "/sdcard/Download/" .. filename,
+        "/sdcard/Documents/" .. filename,
+        filename -- Fallback to working directory
+    }
+    
+    for _, path in pairs(paths) do
+        pcall(function()
+            if writefile then
+                writefile(path, data)
+                fullPath = path
+                saved = true
+            elseif syn and syn.write_file then
+                syn.write_file(path, data)
+                fullPath = path
+                saved = true
+            end
+        end)
+        if saved then break end
+    end
+    
+    return saved, fullPath
+end
+
+-- Enhanced fish scanning function
+local function scanFishData()
+    print("\n=== SCANNING FISH DATA ===")
+    local fishData = {}
+    local fishKeywords = {"fish", "clown", "angel", "shark", "ray", "tuna", "bass", "cod", "salmon", "trout", "carp", "pike", "eel", "squid", "octopus", "crab", "lobster", "shrimp", "jellyfish", "starfish", "seahorse", "dolphin", "whale", "manta", "barracuda", "grouper", "snapper", "mackerel", "flounder", "sole", "halibut", "swordfish", "marlin", "sailfish", "mahi", "dorado", "yellowtail", "bluefin", "albacore", "skipjack", "bonito", "wahoo", "kingfish", "amberjack", "pompano", "permit", "tarpon", "bonefish", "redfish", "snook", "striper", "bluefish", "weakfish", "fluke", "porgy", "scup", "blackfish", "sea bass", "rockfish", "lingcod", "cabezon", "sculpin", "greenling", "perch", "croaker", "drum", "sheepshead", "triggerfish", "filefish", "boxfish", "cowfish", "puffer", "balloonfish", "fugu", "tetraodontidae", "chromis", "damsel", "wrasse", "parrot", "surgeon", "tang", "unicorn", "moorish", "butterfly", "bannerfish", "coral", "reef", "tropical", "exotic", "rare", "legendary", "mythical", "golden", "silver", "rainbow", "neon", "glow", "electric", "fire", "ice", "shadow", "ghost", "spirit", "cursed", "blessed", "ancient", "fossil", "prehistoric", "deep", "abyss", "trench", "surface", "shallow", "pond", "lake", "river", "stream", "ocean", "sea", "bay", "gulf", "strait", "channel", "inlet", "lagoon", "estuary", "delta", "marsh", "swamp", "mangrove"}
+    
+    local function searchForFish(parent, path, depth)
+        if depth <= 0 then return end
+        
+        pcall(function()
+            for _, child in pairs(parent:GetChildren()) do
+                local name = string.lower(child.Name or "")
+                local isModuleScript = child:IsA("ModuleScript")
+                local isModel = child:IsA("Model")
+                local isTool = child:IsA("Tool")
+                
+                -- Check if object relates to fish
+                for _, keyword in pairs(fishKeywords) do
+                    if string.find(name, keyword) then
+                        local fishInfo = {
+                            name = child.Name,
+                            class = child.ClassName,
+                            path = path .. "." .. child.Name,
+                            fullName = child:GetFullName(),
+                            location = parent.Name,
+                            type = "Unknown"
+                        }
+                        
+                        -- Determine fish type
+                        if isModuleScript then
+                            fishInfo.type = "Fish Data/Script"
+                        elseif isModel then
+                            fishInfo.type = "Fish Model"
+                        elseif isTool then
+                            fishInfo.type = "Fish Tool"
+                        elseif child:IsA("Part") or child:IsA("MeshPart") then
+                            fishInfo.type = "Fish Part/Mesh"
+                        else
+                            fishInfo.type = "Fish Object"
+                        end
+                        
+                        table.insert(fishData, fishInfo)
+                        break
+                    end
+                end
+                
+                -- Recursively search in folders and models
+                if (child:IsA("Folder") or child:IsA("Model")) and not name:find("workspace") then
+                    searchForFish(child, path .. "." .. child.Name, depth - 1)
+                end
+            end
+        end)
+    end
+    
+    -- Search in ReplicatedStorage
+    searchForFish(ReplicatedStorage, "ReplicatedStorage", 4)
+    
+    -- Search in Workspace
+    searchForFish(Workspace, "Workspace", 3)
+    
+    print("🐟 FISH DATA FOUND:")
+    for i, fish in pairs(fishData) do
+        print(SafeFormat("  [%d] %s (%s) - %s at %s", i, fish.name, fish.type, fish.class, fish.path))
+    end
+    
+    return fishData
+end
+
+-- Enhanced bait scanning function
+local function scanBaitData()
+    print("\n=== SCANNING BAIT DATA ===")
+    local baitData = {}
+    local baitKeywords = {"bait", "lure", "hook", "worm", "minnow", "shrimp", "crab", "squid", "fly", "spinner", "spoon", "jig", "plug", "popper", "buzzbait", "crankbait", "swimbait", "softbait", "hardbait", "topwater", "subsurface", "deepwater", "shallow", "live", "dead", "artificial", "natural", "fresh", "salt", "marine", "freshwater"}
+    
+    local function searchForBait(parent, path, depth)
+        if depth <= 0 then return end
+        
+        pcall(function()
+            for _, child in pairs(parent:GetChildren()) do
+                local name = string.lower(child.Name or "")
+                
+                for _, keyword in pairs(baitKeywords) do
+                    if string.find(name, keyword) then
+                        table.insert(baitData, {
+                            name = child.Name,
+                            class = child.ClassName,
+                            path = path .. "." .. child.Name,
+                            fullName = child:GetFullName(),
+                            location = parent.Name
+                        })
+                        break
+                    end
+                end
+                
+                if (child:IsA("Folder") or child:IsA("Model")) and not name:find("workspace") then
+                    searchForBait(child, path .. "." .. child.Name, depth - 1)
+                end
+            end
+        end)
+    end
+    
+    searchForBait(ReplicatedStorage, "ReplicatedStorage", 4)
+    searchForBait(Workspace, "Workspace", 3)
+    
+    print("🪱 BAIT DATA FOUND:")
+    for i, bait in pairs(baitData) do
+        print(SafeFormat("  [%d] %s (%s) at %s", i, bait.name, bait.class, bait.path))
+    end
+    
+    return baitData
+end
+
+-- Enhanced rod scanning function
+local function scanRodData()
+    print("\n=== SCANNING FISHING ROD DATA ===")
+    local rodData = {}
+    local rodKeywords = {"rod", "pole", "stick", "reel", "line", "string", "fishing", "angler", "cast", "tackle", "gear"}
+    
+    local function searchForRods(parent, path, depth)
+        if depth <= 0 then return end
+        
+        pcall(function()
+            for _, child in pairs(parent:GetChildren()) do
+                local name = string.lower(child.Name or "")
+                
+                for _, keyword in pairs(rodKeywords) do
+                    if string.find(name, keyword) then
+                        local rodInfo = {
+                            name = child.Name,
+                            class = child.ClassName,
+                            path = path .. "." .. child.Name,
+                            fullName = child:GetFullName(),
+                            location = parent.Name,
+                            type = "Unknown"
+                        }
+                        
+                        if child:IsA("Tool") then
+                            rodInfo.type = "Fishing Rod Tool"
+                        elseif child:IsA("ModuleScript") then
+                            rodInfo.type = "Rod Data/Script"
+                        elseif child:IsA("Model") then
+                            rodInfo.type = "Rod Model"
+                        elseif child:IsA("Part") or child:IsA("MeshPart") then
+                            rodInfo.type = "Rod Part/Mesh"
+                        end
+                        
+                        table.insert(rodData, rodInfo)
+                        break
+                    end
+                end
+                
+                if (child:IsA("Folder") or child:IsA("Model")) and not name:find("workspace") then
+                    searchForRods(child, path .. "." .. child.Name, depth - 1)
+                end
+            end
+        end)
+    end
+    
+    searchForRods(ReplicatedStorage, "ReplicatedStorage", 4)
+    searchForRods(Workspace, "Workspace", 3)
+    
+    print("🎣 FISHING ROD DATA FOUND:")
+    for i, rod in pairs(rodData) do
+        print(SafeFormat("  [%d] %s (%s) - %s at %s", i, rod.name, rod.type, rod.class, rod.path))
+    end
+    
+    return rodData
 end
 
 -- Safe scanning function
@@ -45,7 +258,67 @@ local function safeScan(obj, path, maxDepth)
     return results
 end
 
--- Scan ReplicatedStorage for remotes and data
+-- Enhanced remote finder with better categorization
+local function FindAllRemotes()
+    print("\n=== SCANNING ALL REMOTES ===")
+    local remotes = {}
+    
+    pcall(function()
+        for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+            if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+                local remoteInfo = {
+                    Name = obj.Name,
+                    Type = obj:IsA("RemoteEvent") and "Event" or "Function",
+                    Path = obj:GetFullName(),
+                    Category = "Unknown"
+                }
+                
+                -- Categorize remotes based on name
+                local name = string.lower(obj.Name)
+                if name:find("fish") or name:find("bait") or name:find("rod") or name:find("cast") or name:find("catch") or name:find("reel") then
+                    remoteInfo.Category = "Fishing"
+                elseif name:find("purchase") or name:find("buy") or name:find("sell") or name:find("coin") or name:find("money") then
+                    remoteInfo.Category = "Economy"
+                elseif name:find("boat") or name:find("spawn") or name:find("despawn") then
+                    remoteInfo.Category = "Vehicles"
+                elseif name:find("equip") or name:find("item") or name:find("tool") then
+                    remoteInfo.Category = "Equipment"
+                elseif name:find("trade") or name:find("gift") then
+                    remoteInfo.Category = "Trading"
+                elseif name:find("enchant") or name:find("upgrade") then
+                    remoteInfo.Category = "Enhancement"
+                else
+                    remoteInfo.Category = "Other"
+                end
+                
+                table.insert(remotes, remoteInfo)
+            end
+        end
+    end)
+    
+    print("📡 REMOTES FOUND BY CATEGORY:")
+    local categories = {}
+    for _, remote in pairs(remotes) do
+        if not categories[remote.Category] then
+            categories[remote.Category] = {}
+        end
+        table.insert(categories[remote.Category], remote)
+    end
+    
+    for category, categoryRemotes in pairs(categories) do
+        print(SafeFormat("  📂 %s (%d remotes):", category, #categoryRemotes))
+        for i, remote in pairs(categoryRemotes) do
+            if i <= 5 then -- Show first 5 per category
+                print(SafeFormat("    [%d] %s (%s)", i, remote.Name, remote.Type))
+            end
+        end
+        if #categoryRemotes > 5 then
+            print(SafeFormat("    ... and %d more", #categoryRemotes - 5))
+        end
+    end
+    
+    return remotes
+end
 local function scanReplicatedStorage()
     print("\n=== SCANNING REPLICATED STORAGE ===")
     local results = safeScan(ReplicatedStorage, "ReplicatedStorage", 4)
@@ -248,55 +521,495 @@ local function scanForBoatData()
     return boatData
 end
 
--- Main explorer function
-local function exploreGame()
-    print("🔍 STARTING FISH IT GAME EXPLORATION...")
-    print("=" .. string.rep("=", 50))
+-- Export all data to clipboard and file
+local function ExportAllData()
+    Notify("Export", "Starting data export...")
     
-    Notify("Explorer", "Starting game exploration...")
-    
-    -- Scan all areas
+    local remotes = FindAllRemotes()
     local rsData = scanReplicatedStorage()
     local wsData = scanWorkspace()
     local invData = scanPlayerInventory()
     local netData = scanForNetRemotes()
     local boatData = scanForBoatData()
+    local fishData = scanFishData()
+    local baitData = scanBaitData()
+    local rodData = scanRodData()
     
-    -- Summary
-    print("\n" .. "=" .. string.rep("=", 50))
-    print("📊 EXPLORATION SUMMARY:")
-    print("  Remotes found: " .. #rsData.remotes)
-    print("  Boats found: " .. #wsData.boats)
-    print("  NPCs found: " .. #wsData.npcs)
-    print("  Areas found: " .. #wsData.areas)
-    print("  Tools found: " .. #invData)
-    print("  Net packages: " .. #netData)
-    print("  Boat data: " .. #boatData)
-    
-    Notify("Explorer", "Exploration complete! Check console for details.")
-    
-    -- Return all data for potential use
-    return {
+    -- Store in global for access
+    _G.FishItExplorationData = {
+        remotes = remotes,
         replicatedStorage = rsData,
         workspace = wsData,
         inventory = invData,
         netFramework = netData,
-        boatData = boatData
+        boatData = boatData,
+        fishData = fishData,
+        baitData = baitData,
+        rodData = rodData,
+        timestamp = os.date("%Y-%m-%d %H:%M:%S"),
+        placeId = game.PlaceId
+    }
+    
+    -- Create export text for clipboard (limited)
+    local exportText = SafeFormat([[
+=== FISH IT COMPLETE EXPLORATION EXPORT ===
+Game PlaceId: %s
+Export Time: %s
+Total Items Found: %d
+
+=== SUMMARY ===
+Remotes: %d
+Fish Types: %d
+Bait Types: %d
+Fishing Rods: %d
+Boats: %d
+NPCs: %d
+Areas: %d
+Inventory Tools: %d
+
+=== TOP FISHING REMOTES ===
+]], game.PlaceId, os.date("%Y-%m-%d %H:%M:%S"), 
+#remotes + #fishData + #baitData + #rodData + #wsData.boats + #wsData.npcs,
+#remotes, #fishData, #baitData, #rodData, #wsData.boats, #wsData.npcs, #wsData.areas, #invData)
+    
+    -- Add fishing-related remotes
+    local fishingRemotes = {}
+    for _, remote in pairs(remotes) do
+        if remote.Category == "Fishing" then
+            table.insert(fishingRemotes, remote)
+        end
+    end
+    
+    for i = 1, math.min(#fishingRemotes, 10) do
+        local remote = fishingRemotes[i]
+        exportText = exportText .. SafeFormat("[%d] %s (%s)\n", i, remote.Name, remote.Type)
+    end
+    
+    exportText = exportText .. "\n=== TOP FISH TYPES ===\n"
+    for i = 1, math.min(#fishData, 10) do
+        local fish = fishData[i]
+        exportText = exportText .. SafeFormat("[%d] %s (%s)\n", i, fish.name, fish.type)
+    end
+    
+    exportText = exportText .. "\n=== STATUS ===\n"
+    exportText = exportText .. "✅ Complete scan finished\n"
+    exportText = exportText .. "📱 Check console for full details\n"
+    exportText = exportText .. "💾 File saved to Downloads folder\n"
+    
+    -- Copy to clipboard
+    local copied = false
+    pcall(function()
+        if setclipboard then
+            setclipboard(exportText)
+            copied = true
+        elseif syn and syn.write_clipboard then
+            syn.write_clipboard(exportText)
+            copied = true
+        end
+    end)
+    
+    if copied then
+        Notify("Clipboard", "✅ Summary copied to clipboard!")
+    else
+        Notify("Clipboard", "❌ Failed to copy. Check console.")
+        print("\n" .. exportText)
+    end
+    
+    return _G.FishItExplorationData
+end
+
+-- Save complete data to file
+local function SaveCompleteDataToFile()
+    if not _G.FishItExplorationData then
+        Notify("Error", "No data to save. Run exploration first!")
+        return false
+    end
+    
+    local data = _G.FishItExplorationData
+    local timestamp = os.date("%Y%m%d_%H%M%S")
+    local filename = "FishIt_Complete_Explorer_" .. timestamp .. ".txt"
+    
+    -- Create complete file data
+    local fileData = SafeFormat([[
+=== FISH IT COMPLETE GAME EXPLORATION DATA ===
+Game PlaceId: %s
+Game Name: Fish It
+Export Time: %s
+Total Analysis Items: %d
+
+=== EXPLORATION STATISTICS ===
+Total Remotes Found: %d
+Total Fish Types Found: %d
+Total Bait Types Found: %d
+Total Fishing Rods Found: %d
+Total Boats Found: %d
+Total NPCs Found: %d
+Total Areas Found: %d
+Total Inventory Tools: %d
+Net Framework Items: %d
+
+=== COMPLETE REMOTES LIST (by Category) ===
+]], game.PlaceId, data.timestamp, 
+#data.remotes + #data.fishData + #data.baitData + #data.rodData,
+#data.remotes, #data.fishData, #data.baitData, #data.rodData, 
+#data.workspace.boats, #data.workspace.npcs, #data.workspace.areas, 
+#data.inventory, #data.netFramework)
+    
+    -- Group remotes by category
+    local categories = {}
+    for _, remote in pairs(data.remotes) do
+        if not categories[remote.Category] then
+            categories[remote.Category] = {}
+        end
+        table.insert(categories[remote.Category], remote)
+    end
+    
+    for category, remotes in pairs(categories) do
+        fileData = fileData .. SafeFormat("\n--- %s REMOTES (%d) ---\n", string.upper(category), #remotes)
+        for i, remote in pairs(remotes) do
+            fileData = fileData .. SafeFormat("[%d] %s (%s): %s\n", i, remote.Name, remote.Type, remote.Path)
+        end
+    end
+    
+    -- Add fish data
+    fileData = fileData .. "\n=== COMPLETE FISH DATA ===\n"
+    for i, fish in pairs(data.fishData) do
+        fileData = fileData .. SafeFormat("[%d] %s (%s) - %s at %s\n", i, fish.name, fish.type, fish.class, fish.path)
+    end
+    
+    -- Add bait data
+    fileData = fileData .. "\n=== COMPLETE BAIT DATA ===\n"
+    for i, bait in pairs(data.baitData) do
+        fileData = fileData .. SafeFormat("[%d] %s (%s) at %s\n", i, bait.name, bait.class, bait.path)
+    end
+    
+    -- Add rod data
+    fileData = fileData .. "\n=== COMPLETE FISHING ROD DATA ===\n"
+    for i, rod in pairs(data.rodData) do
+        fileData = fileData .. SafeFormat("[%d] %s (%s) - %s at %s\n", i, rod.name, rod.type, rod.class, rod.path)
+    end
+    
+    -- Add boat data
+    fileData = fileData .. "\n=== COMPLETE BOAT DATA ===\n"
+    for i, boat in pairs(data.workspace.boats) do
+        fileData = fileData .. SafeFormat("[%d] %s (%s) at %s\n", i, boat.name, boat.class, boat.path)
+    end
+    
+    -- Add NPC data
+    fileData = fileData .. "\n=== COMPLETE NPC DATA ===\n"
+    for i, npc in pairs(data.workspace.npcs) do
+        fileData = fileData .. SafeFormat("[%d] %s (%s) at %s\n", i, npc.name, npc.class, npc.path)
+    end
+    
+    -- Add analysis notes
+    fileData = fileData .. "\n=== ANALYSIS NOTES ===\n"
+    fileData = fileData .. "Key Findings:\n"
+    fileData = fileData .. "- Main networking uses sleitnick_net framework\n"
+    fileData = fileData .. "- Fishing system has dedicated remotes for casting, catching, reeling\n"
+    fileData = fileData .. "- Economy system handles purchases and sales\n"
+    fileData = fileData .. "- Boat system supports spawning/despawning\n"
+    fileData = fileData .. "- Trading system available\n"
+    fileData = fileData .. "- Enhancement/enchantment system present\n"
+    fileData = fileData .. "\nRecommended AutoFish Integration Points:\n"
+    fileData = fileData .. "1. Use fishing-category remotes for automation\n"
+    fileData = fileData .. "2. Monitor FishCaught and FishingCompleted events\n"
+    fileData = fileData .. "3. Use ChargeFishingRod and CancelFishingInputs functions\n"
+    fileData = fileData .. "4. Integrate with SellItem/SellAllItems for auto-selling\n"
+    fileData = fileData .. "5. Monitor BaitSpawned and EquipBait for bait management\n"
+    fileData = fileData .. SafeFormat("\nFile Generated: %s\n", filename)
+    fileData = fileData .. "Generated by: Fish It Enhanced Game Explorer\n"
+    fileData = fileData .. "Purpose: Complete game analysis for AutoFish development\n"
+    
+    -- Save to file
+    local saved, filePath = SaveToFile(fileData, filename)
+    
+    if saved then
+        Notify("File Saved", "💾 Complete data saved to: " .. filePath)
+        Notify("Success", "📱 Check Downloads/Documents folder!")
+        print("✅ File saved successfully: " .. filePath)
+        return true
+    else
+        Notify("Error", "❌ Failed to save file. Check permissions.")
+        print("❌ File save failed. Full data printed to console:")
+        print(fileData)
+        return false
+    end
+end
+
+-- Create enhanced UI
+local function CreateEnhancedUI()
+    pcall(function()
+        -- Remove existing UI
+        local existing = LocalPlayer.PlayerGui:FindFirstChild("FishItExplorer")
+        if existing then existing:Destroy() end
+        
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "FishItExplorer"
+        screenGui.Parent = LocalPlayer.PlayerGui
+        
+        -- Main frame
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(0, 350, 0, 480)
+        frame.Position = UDim2.new(0, 20, 0, 20)
+        frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        frame.BorderSizePixel = 0
+        frame.Parent = screenGui
+        
+        -- Add corner rounding
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 8)
+        corner.Parent = frame
+        
+        -- Title bar
+        local titleBar = Instance.new("Frame")
+        titleBar.Size = UDim2.new(1, 0, 0, 35)
+        titleBar.BackgroundColor3 = Color3.fromRGB(65, 65, 65)
+        titleBar.BorderSizePixel = 0
+        titleBar.Parent = frame
+        
+        local titleCorner = Instance.new("UICorner")
+        titleCorner.CornerRadius = UDim.new(0, 8)
+        titleCorner.Parent = titleBar
+        
+        local title = Instance.new("TextLabel")
+        title.Size = UDim2.new(1, -10, 1, 0)
+        title.Position = UDim2.new(0, 5, 0, 0)
+        title.Text = "🐟 Fish It Explorer Enhanced"
+        title.TextColor3 = Color3.fromRGB(255, 255, 255)
+        title.BackgroundTransparency = 1
+        title.Font = Enum.Font.GothamBold
+        title.TextSize = 14
+        title.TextXAlignment = Enum.TextXAlignment.Left
+        title.Parent = titleBar
+        
+        -- Status label
+        local statusLabel = Instance.new("TextLabel")
+        statusLabel.Size = UDim2.new(1, -10, 0, 25)
+        statusLabel.Position = UDim2.new(0, 5, 0, 40)
+        statusLabel.Text = "Ready to explore Fish It game data"
+        statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        statusLabel.BackgroundTransparency = 1
+        statusLabel.Font = Enum.Font.Gotham
+        statusLabel.TextSize = 11
+        statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+        statusLabel.Parent = frame
+        
+        -- Scroll frame for buttons
+        local scrollFrame = Instance.new("ScrollingFrame")
+        scrollFrame.Size = UDim2.new(1, -10, 1, -110)
+        scrollFrame.Position = UDim2.new(0, 5, 0, 70)
+        scrollFrame.BackgroundTransparency = 1
+        scrollFrame.BorderSizePixel = 0
+        scrollFrame.ScrollBarThickness = 8
+        scrollFrame.Parent = frame
+        
+        -- Button configuration
+        local buttons = {
+            {text = "🔍 Scan All Remotes", color = Color3.fromRGB(100, 150, 200), func = function()
+                statusLabel.Text = "Scanning remotes..."
+                task.spawn(function()
+                    FindAllRemotes()
+                    statusLabel.Text = "Remotes scan complete!"
+                end)
+            end},
+            {text = "🐟 Scan Fish Data", color = Color3.fromRGB(100, 200, 150), func = function()
+                statusLabel.Text = "Scanning fish data..."
+                task.spawn(function()
+                    scanFishData()
+                    statusLabel.Text = "Fish scan complete!"
+                end)
+            end},
+            {text = "🪱 Scan Bait Data", color = Color3.fromRGB(200, 150, 100), func = function()
+                statusLabel.Text = "Scanning bait data..."
+                task.spawn(function()
+                    scanBaitData()
+                    statusLabel.Text = "Bait scan complete!"
+                end)
+            end},
+            {text = "🎣 Scan Fishing Rods", color = Color3.fromRGB(150, 100, 200), func = function()
+                statusLabel.Text = "Scanning fishing rods..."
+                task.spawn(function()
+                    scanRodData()
+                    statusLabel.Text = "Rod scan complete!"
+                end)
+            end},
+            {text = "🚤 Scan Boats & NPCs", color = Color3.fromRGB(200, 100, 150), func = function()
+                statusLabel.Text = "Scanning boats & NPCs..."
+                task.spawn(function()
+                    scanWorkspace()
+                    statusLabel.Text = "Boat & NPC scan complete!"
+                end)
+            end},
+            {text = "🎒 Scan Inventory", color = Color3.fromRGB(150, 200, 100), func = function()
+                statusLabel.Text = "Scanning inventory..."
+                task.spawn(function()
+                    scanPlayerInventory()
+                    statusLabel.Text = "Inventory scan complete!"
+                end)
+            end},
+            {text = "📡 Scan Net Framework", color = Color3.fromRGB(120, 180, 220), func = function()
+                statusLabel.Text = "Scanning net framework..."
+                task.spawn(function()
+                    scanForNetRemotes()
+                    statusLabel.Text = "Net framework scan complete!"
+                end)
+            end},
+            {text = "🔍 Complete Exploration", color = Color3.fromRGB(180, 120, 220), func = function()
+                statusLabel.Text = "Running complete exploration..."
+                task.spawn(function()
+                    ExportAllData()
+                    statusLabel.Text = "Complete exploration finished!"
+                end)
+            end},
+            {text = "📋 Export to Clipboard", color = Color3.fromRGB(220, 180, 120), func = function()
+                statusLabel.Text = "Exporting to clipboard..."
+                task.spawn(function()
+                    ExportAllData()
+                    statusLabel.Text = "Data exported to clipboard!"
+                end)
+            end},
+            {text = "💾 Save to File", color = Color3.fromRGB(120, 220, 180), func = function()
+                statusLabel.Text = "Saving to file..."
+                task.spawn(function()
+                    if SaveCompleteDataToFile() then
+                        statusLabel.Text = "File saved successfully!"
+                    else
+                        statusLabel.Text = "File save failed!"
+                    end
+                end)
+            end},
+            {text = "ℹ️ Game Info", color = Color3.fromRGB(180, 220, 120), func = function()
+                local success, gameName = pcall(function()
+                    return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+                end)
+                statusLabel.Text = "Game: " .. (success and gameName or "Fish It") .. " (ID: " .. game.PlaceId .. ")"
+                Notify("Game Info", "PlaceId: " .. game.PlaceId)
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    print("Player Position: " .. tostring(LocalPlayer.Character.HumanoidRootPart.Position))
+                end
+            end},
+            {text = "❌ Close Explorer", color = Color3.fromRGB(200, 100, 100), func = function()
+                screenGui:Destroy()
+            end}
+        }
+        
+        -- Create buttons
+        for i, buttonData in pairs(buttons) do
+            local button = Instance.new("TextButton")
+            button.Size = UDim2.new(1, -10, 0, 35)
+            button.Position = UDim2.new(0, 5, 0, (i-1) * 40)
+            button.Text = buttonData.text
+            button.BackgroundColor3 = buttonData.color
+            button.TextColor3 = Color3.fromRGB(255, 255, 255)
+            button.BorderSizePixel = 0
+            button.Font = Enum.Font.GothamSemibold
+            button.TextSize = 12
+            button.Parent = scrollFrame
+            
+            local buttonCorner = Instance.new("UICorner")
+            buttonCorner.CornerRadius = UDim.new(0, 6)
+            buttonCorner.Parent = button
+            
+            -- Button animation
+            button.MouseButton1Click:Connect(buttonData.func)
+            
+            button.MouseEnter:Connect(function()
+                button.BackgroundColor3 = Color3.new(
+                    math.min(buttonData.color.R * 1.2, 1),
+                    math.min(buttonData.color.G * 1.2, 1),
+                    math.min(buttonData.color.B * 1.2, 1)
+                )
+            end)
+            
+            button.MouseLeave:Connect(function()
+                button.BackgroundColor3 = buttonData.color
+            end)
+        end
+        
+        -- Set scroll canvas size
+        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #buttons * 40)
+        
+        Notify("UI Ready", "🚀 Enhanced Fish It Explorer loaded!")
+        statusLabel.Text = "Explorer ready! Click buttons to scan game data"
+    end)
+end
+-- Main explorer function (updated)
+local function exploreGame()
+    print("🔍 STARTING FISH IT COMPLETE EXPLORATION...")
+    print("=" .. string.rep("=", 60))
+    
+    Notify("Explorer", "Starting complete game exploration...")
+    
+    -- Scan all areas with enhanced data
+    local remotes = FindAllRemotes()
+    local rsData = scanReplicatedStorage()
+    local wsData = scanWorkspace()
+    local invData = scanPlayerInventory()
+    local netData = scanForNetRemotes()
+    local boatData = scanForBoatData()
+    local fishData = scanFishData()
+    local baitData = scanBaitData()
+    local rodData = scanRodData()
+    
+    -- Enhanced summary
+    print("\n" .. "=" .. string.rep("=", 60))
+    print("📊 COMPLETE EXPLORATION SUMMARY:")
+    print("  🔗 Remotes found: " .. #remotes)
+    print("  🐟 Fish types found: " .. #fishData)
+    print("  🪱 Bait types found: " .. #baitData)
+    print("  🎣 Fishing rods found: " .. #rodData)
+    print("  🚤 Boats found: " .. #wsData.boats)
+    print("  👥 NPCs found: " .. #wsData.npcs)
+    print("  🏝️ Areas found: " .. #wsData.areas)
+    print("  🎒 Tools found: " .. #invData)
+    print("  📡 Net packages: " .. #netData)
+    print("  🛥️ Boat data: " .. #boatData)
+    print("  📈 Total items analyzed: " .. (#remotes + #fishData + #baitData + #rodData + #wsData.boats + #wsData.npcs + #invData))
+    
+    Notify("Explorer", "Complete exploration finished! Check UI for export options.")
+    
+    -- Return enhanced data structure
+    return {
+        remotes = remotes,
+        replicatedStorage = rsData,
+        workspace = wsData,
+        inventory = invData,
+        netFramework = netData,
+        boatData = boatData,
+        fishData = fishData,
+        baitData = baitData,
+        rodData = rodData,
+        timestamp = os.date("%Y-%m-%d %H:%M:%S"),
+        placeId = game.PlaceId
     }
 end
 
--- Start exploration
-local explorationData = exploreGame()
+-- Start enhanced explorer
+print("🚀 Loading Fish It Enhanced Game Explorer...")
 
--- Expose data globally for other scripts
-_G.FishItExploration = explorationData
+-- Create the enhanced UI
+CreateEnhancedUI()
 
--- Auto-save data to files if data saver is available
-if _G.SaveFishItData then
-    print("\n💾 Auto-saving exploration data...")
-    _G.SaveFishItData()
-else
-    print("\n💡 Tip: Run data_saver.lua after this to save results to files!")
+-- Store functions globally for UI access
+_G.FishItExplorer = {
+    exploreGame = exploreGame,
+    exportData = ExportAllData,
+    saveToFile = SaveCompleteDataToFile,
+    scanFish = scanFishData,
+    scanBait = scanBaitData,
+    scanRods = scanRodData,
+    scanRemotes = FindAllRemotes
+}
+
+print("✅ Enhanced Fish It Explorer ready!")
+print("💡 Use the UI to explore game data or call _G.FishItExplorer functions")
+print("📱 All data can be saved to your device's Downloads folder!")
+
+-- Auto-run basic exploration if requested
+if _G.AutoExplore then
+    print("🔄 Auto-exploration enabled...")
+    task.spawn(function()
+        wait(2)
+        exploreGame()
+    end)
 end
-
-print("\n✅ Exploration complete! Data available in _G.FishItExploration")
