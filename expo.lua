@@ -291,4 +291,12 @@ local explorationData = exploreGame()
 -- Expose data globally for other scripts
 _G.FishItExploration = explorationData
 
+-- Auto-save data to files if data saver is available
+if _G.SaveFishItData then
+    print("\n💾 Auto-saving exploration data...")
+    _G.SaveFishItData()
+else
+    print("\n💡 Tip: Run data_saver.lua after this to save results to files!")
+end
+
 print("\n✅ Exploration complete! Data available in _G.FishItExploration")
