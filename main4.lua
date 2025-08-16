@@ -48,6 +48,14 @@ local function ResolveRemote(name)
     return ok and rem or nil
 end
 
+-- Helper function for Advanced features
+local function GetRemote(name)
+    local net = FindNet()
+    if not net then return nil end
+    local ok, rem = pcall(function() return net:FindFirstChild(name) end)
+    return ok and rem or nil
+end
+
 local rodRemote = ResolveRemote("RF/ChargeFishingRod")
 local miniGameRemote = ResolveRemote("RF/RequestFishingMinigameStarted")
 local finishRemote = ResolveRemote("RE/FishingCompleted")
@@ -574,6 +582,7 @@ local function BuildUI()
         ["🌋 CRATER"] = CFrame.new(990.45, 21.06, 5059.85),
         ["🌴 TROPICAL"] = CFrame.new(-2093.80, 6.26, 3654.30),
         ["🗿 STONE"] = CFrame.new(-2636.19, 124.87, -27.49),
+        ["🗿ENCHANT STONE"] = CFrame.new(3237.61, -1302.33, 1398.04),
         ["⚙️ MACHINE"] = CFrame.new(-1551.25, 2.87, 1920.26)
     }
 
@@ -1585,8 +1594,12 @@ local function BuildUI()
     local function PurchaseWeatherEvent()
         local weatherRemote = GetRemote("RF/PurchaseWeatherEvent")
         if weatherRemote then
-            pcall(function() weatherRemote:FireServer() end)
-            Notify("Weather", "Weather event purchased!")
+            local ok, result = safeInvoke(weatherRemote)
+            if ok then
+                Notify("Weather", "Weather event purchased!")
+            else
+                Notify("Error", "Failed to purchase weather event")
+            end
         else
             Notify("Error", "Weather remote not found")
         end
@@ -1596,8 +1609,12 @@ local function BuildUI()
     local function SpawnBoat()
         local spawnRemote = GetRemote("RF/SpawnBoat")
         if spawnRemote then
-            pcall(function() spawnRemote:FireServer() end)
-            Notify("Boat", "Boat spawned successfully!")
+            local ok, result = safeInvoke(spawnRemote)
+            if ok then
+                Notify("Boat", "Boat spawned successfully!")
+            else
+                Notify("Error", "Failed to spawn boat")
+            end
         else
             Notify("Error", "Spawn boat remote not found")
         end
@@ -1606,8 +1623,12 @@ local function BuildUI()
     local function DespawnBoat()
         local despawnRemote = GetRemote("RF/DespawnBoat")
         if despawnRemote then
-            pcall(function() despawnRemote:FireServer() end)
-            Notify("Boat", "Boat despawned!")
+            local ok, result = safeInvoke(despawnRemote)
+            if ok then
+                Notify("Boat", "Boat despawned!")
+            else
+                Notify("Error", "Failed to despawn boat")
+            end
         else
             Notify("Error", "Despawn boat remote not found")
         end
@@ -1617,8 +1638,12 @@ local function BuildUI()
     local function ActivateEnchantingAltar()
         local enchantRemote = GetRemote("RE/ActivateEnchantingAltar")
         if enchantRemote then
-            pcall(function() enchantRemote:FireServer() end)
-            Notify("Enchanting", "Enchanting altar activated!")
+            local ok, result = safeInvoke(enchantRemote)
+            if ok then
+                Notify("Enchanting", "Enchanting altar activated!")
+            else
+                Notify("Error", "Failed to activate enchanting altar")
+            end
         else
             Notify("Error", "Enchanting altar remote not found")
         end
@@ -1627,8 +1652,12 @@ local function BuildUI()
     local function RollEnchant()
         local rollRemote = GetRemote("RE/RollEnchant")
         if rollRemote then
-            pcall(function() rollRemote:FireServer() end)
-            Notify("Enchanting", "Enchantment rolled!")
+            local ok, result = safeInvoke(rollRemote)
+            if ok then
+                Notify("Enchanting", "Enchantment rolled!")
+            else
+                Notify("Error", "Failed to roll enchantment")
+            end
         else
             Notify("Error", "Roll enchant remote not found")
         end
@@ -1638,8 +1667,12 @@ local function BuildUI()
     local function InitiateTrade()
         local tradeRemote = GetRemote("RF/InitiateTrade")
         if tradeRemote then
-            pcall(function() tradeRemote:FireServer() end)
-            Notify("Trading", "Trade initiated!")
+            local ok, result = safeInvoke(tradeRemote)
+            if ok then
+                Notify("Trading", "Trade initiated!")
+            else
+                Notify("Error", "Failed to initiate trade")
+            end
         else
             Notify("Error", "Trade remote not found")
         end
@@ -1677,7 +1710,7 @@ local function BuildUI()
         while true do
             wait(30) -- Check every 30 seconds
             if AdvancedFeatures.autoWeather and Config.enabled then
-                PurchaseWeatherEvent()
+                pcall(PurchaseWeatherEvent)
             end
         end
     end)
@@ -1687,9 +1720,9 @@ local function BuildUI()
         while true do
             wait(60) -- Check every minute
             if AdvancedFeatures.autoEnchant and Config.enabled then
-                ActivateEnchantingAltar()
+                pcall(ActivateEnchantingAltar)
                 wait(2)
-                RollEnchant()
+                pcall(RollEnchant)
             end
         end
     end)
@@ -1699,7 +1732,7 @@ local function BuildUI()
         while true do
             wait(120) -- Check every 2 minutes
             if AdvancedFeatures.autoTrade and Config.enabled then
-                InitiateTrade()
+                pcall(InitiateTrade)
             end
         end
     end)
