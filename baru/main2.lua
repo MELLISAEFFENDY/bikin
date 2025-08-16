@@ -1814,7 +1814,7 @@ local function BuildUI()
 
     -- Enhancement Section
     local enhancementSection = Instance.new("Frame", featureScrollFrame)
-    enhancementSection.Size = UDim2.new(1, -10, 0, 120)
+    enhancementSection.Size = UDim2.new(1, -10, 0, 150)
     enhancementSection.Position = UDim2.new(0, 5, 0, 325)
     enhancementSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
     enhancementSection.BorderSizePixel = 0
@@ -1935,7 +1935,7 @@ local function BuildUI()
     -- Weather Section
     local weatherSection = Instance.new("Frame", featureScrollFrame)
     weatherSection.Size = UDim2.new(1, -10, 0, 120)
-    weatherSection.Position = UDim2.new(0, 5, 0, 455)
+    weatherSection.Position = UDim2.new(0, 5, 0, 485)
     weatherSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
     weatherSection.BorderSizePixel = 0
     Instance.new("UICorner", weatherSection)
@@ -1988,7 +1988,7 @@ local function BuildUI()
     purchaseLabel.Position = UDim2.new(0, 0, 0, 0)
     purchaseLabel.Text = "💰 Auto Purchase Weather"
     purchaseLabel.Font = Enum.Font.GothamSemibold
-    purchaseLabel.TextSize = 12
+    purchaseLabel.TextSize = 11
     purchaseLabel.TextColor3 = Color3.fromRGB(255,255,255)
     purchaseLabel.BackgroundTransparency = 1
     purchaseLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -2026,7 +2026,7 @@ local function BuildUI()
     Instance.new("UICorner", weatherStopBtn)
 
     -- Set canvas size for feature scroll frame
-    featureScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 590)
+    featureScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 620)
 
     -- Feature variables
     local currentSpeed = 16
@@ -2153,53 +2153,18 @@ local function BuildUI()
     end)
 
     -- Weather Callbacks
-    -- Weather dropdown functionality
-    local dropdownOpen = false
+    -- Weather dropdown functionality (simplified)
+    local currentWeatherIndex = 1
     weatherDropdown.MouseButton1Click:Connect(function()
-        if dropdownOpen then return end
-        dropdownOpen = true
-        
-        -- Create dropdown menu
-        local dropdownMenu = Instance.new("Frame", weatherDropdown.Parent)
-        dropdownMenu.Size = UDim2.new(0.6, -10, 0, #Weather.weatherTypes * 25)
-        dropdownMenu.Position = UDim2.new(0.4, 5, 0, 25)
-        dropdownMenu.BackgroundColor3 = Color3.fromRGB(50,50,56)
-        dropdownMenu.BorderSizePixel = 0
-        dropdownMenu.ZIndex = 10
-        Instance.new("UICorner", dropdownMenu)
-        
-        for i, weatherType in ipairs(Weather.weatherTypes) do
-            local option = Instance.new("TextButton", dropdownMenu)
-            option.Size = UDim2.new(1, 0, 0, 23)
-            option.Position = UDim2.new(0, 0, 0, (i-1) * 25)
-            option.Text = weatherType
-            option.Font = Enum.Font.GothamSemibold
-            option.TextSize = 10
-            option.BackgroundColor3 = Color3.fromRGB(55,55,61)
-            option.TextColor3 = Color3.fromRGB(255,255,255)
-            option.BorderSizePixel = 0
-            
-            option.MouseButton1Click:Connect(function()
-                Weather.selectedWeather = weatherType
-                weatherDropdown.Text = weatherType .. " ▼"
-                dropdownMenu:Destroy()
-                dropdownOpen = false
-                Notify("Weather", "Selected weather: " .. weatherType)
-            end)
+        -- Cycle through weather types
+        currentWeatherIndex = currentWeatherIndex + 1
+        if currentWeatherIndex > #Weather.weatherTypes then
+            currentWeatherIndex = 1
         end
         
-        -- Close dropdown when clicking elsewhere
-        task.wait(0.1)
-        local connection
-        connection = UserInputService.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                if dropdownMenu.Parent then
-                    dropdownMenu:Destroy()
-                end
-                dropdownOpen = false
-                connection:Disconnect()
-            end
-        end)
+        Weather.selectedWeather = Weather.weatherTypes[currentWeatherIndex]
+        weatherDropdown.Text = Weather.selectedWeather .. " ▼"
+        Notify("Weather", "Selected weather: " .. Weather.selectedWeather)
     end)
 
     -- Auto Purchase toggle
