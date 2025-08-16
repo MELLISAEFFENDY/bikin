@@ -327,6 +327,38 @@ local function CopyToClipboard(text)
     return success
 end
 
+-- Function untuk save file ke folder yang bisa diakses
+local function SaveToFile(data, filename)
+    local saved = false
+    local fullPath = ""
+    
+    -- Coba berbagai path yang umum bisa diakses di Android
+    local paths = {
+        "/storage/emulated/0/Download/" .. filename,
+        "/storage/emulated/0/Documents/" .. filename,
+        "/sdcard/Download/" .. filename,
+        "/sdcard/Documents/" .. filename,
+        filename -- Fallback ke working directory
+    }
+    
+    for _, path in pairs(paths) do
+        pcall(function()
+            if writefile then
+                writefile(path, data)
+                fullPath = path
+                saved = true
+            elseif syn and syn.write_file then
+                syn.write_file(path, data)
+                fullPath = path
+                saved = true
+            end
+        end)
+        if saved then break end
+    end
+    
+    return saved, fullPath
+end
+
 -- Create export menu
 local function CreateExportMenu(parentFrame)
     local exportMenu = Instance.new("Frame", parentFrame)
@@ -529,8 +561,65 @@ Analysis Ready: YES]],
         exportMenu.Visible = false
     end)
     
+    -- Save to File
+    createExportButton("Save to File", 4, function()
+        local data = ExportDebugData()
+        local timestamp = os.date("%Y%m%d_%H%M%S")
+        local filename = "FishIt_Advanced_Debug_" .. timestamp .. ".txt"
+        
+        -- Buat data lengkap untuk file
+        local fullData = string.format([[
+=== FISH IT ADVANCED DEBUG EXPORT ===
+Game PlaceId: %s
+Game Name: %s
+Export Time: %s
+Total Remotes Found: %d
+Total Fishing Objects Found: %d
+Remote Calls Monitored: %d
+
+=== COMPLETE REMOTES LIST ===
+]], data.GamePlaceId, data.GameName, data.Timestamp, #data.Remotes, #data.FishingObjects, #data.RemoteCalls)
+        
+        -- Tambahkan semua remotes
+        for i, remote in ipairs(data.Remotes) do
+            fullData = fullData .. string.format("[%d] %s (%s): %s\n", i, remote.Name, remote.Type, remote.FullName)
+        end
+        
+        fullData = fullData .. "\n=== COMPLETE FISHING OBJECTS LIST ===\n"
+        
+        -- Tambahkan semua fishing objects
+        for i, obj in ipairs(data.FishingObjects) do
+            fullData = fullData .. string.format("[%d] %s (%s) in %s\n", i, obj.Object.Name, obj.ClassName, obj.Location)
+        end
+        
+        fullData = fullData .. "\n=== REMOTE CALL LOGS ===\n"
+        
+        -- Tambahkan remote call logs
+        for i, call in ipairs(data.RemoteCalls) do
+            fullData = fullData .. string.format("[%s] %s: %s\n", call.Time, call.RemoteName, call.Arguments)
+        end
+        
+        fullData = fullData .. "\n=== DETAILED ANALYSIS ===\n"
+        fullData = fullData .. "Key Remotes for AutoFish: Look for 'Cast', 'Reel', 'Sell' patterns\n"
+        fullData = fullData .. "Important Objects: Check ReclassFishProjectile, Baits, Starter Bait\n"
+        fullData = fullData .. "Next Steps: Test remote calls with identified fishing functions\n"
+        fullData = fullData .. string.format("Report Generated: %s\n", filename)
+        
+        -- Save ke file
+        local saved, filePath = SaveToFile(fullData, filename)
+        
+        if saved then
+            Log("EXPORT", "Complete data saved to: " .. filePath)
+            Notify("Export", "Full report saved to file!")
+        else
+            Log("ERROR", "Failed to save file")
+            Notify("Error", "File save failed. Check permissions.")
+        end
+        exportMenu.Visible = false
+    end)
+    
     -- Close button
-    createExportButton("Close", 3, function()
+    createExportButton("Close", 5, function()
         exportMenu.Visible = false
     end)
     
