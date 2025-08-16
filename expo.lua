@@ -91,26 +91,52 @@ local function scanFishData()
     print("\n=== SCANNING FISH DATA ===")
     local fishData = {}
     
-    -- Fish It specific fish names based on the debug data
+    -- Fish It specific fish names based on the debug data and Fish Index (110 fish total)
     local fishItFishNames = {
-        -- From the debug data we can see these fish names
-        "angelfish", "clownfish", "chromis", "dartfish", "tilefish", "damselfish",
-        "boa angelfish", "cow clownfish", "darwin clownfish", "enchanted angelfish",
-        "flame angelfish", "korean angelfish", "maze angelfish", "bandit angelfish",
-        "scissortail dartfish", "skunk tilefish", "white clownfish", "yello damselfish",
-        "yellowstate angelfish", "slurpfish chromis", "gingerbread clownfish",
-        "festive pufferfish", "blumato clownfish", "conspi angelfish", "lined cardinal",
-        "masked angelfish", "watanabei angelfish", "ballina angelfish", "pilot fish",
-        "pufferfish", "racoon butterfly fish", "worm fish", "viperfish",
-        "spotted lantern fish", "monk fish", "jellyfish", "boar fish", "blob fish",
-        "angler fish", "dead fish", "skeleton fish", "swordfish", "ghost worm fish",
-        -- Common fishing game fish
+        -- Visible from Fish Index screenshots
+        "strawberry dotty", "dotty", "strawberry",
+        "yello damselfish", "damselfish", "yello", "yellow damselfish",
+        "bandit angelfish", "angelfish", "bandit",
+        "copperband butterfly", "butterfly", "copperband", "butterfly fish",
+        "patriot tang", "tang", "patriot",
+        
+        -- From debug data and common Fish It fish
+        "clownfish", "cow clownfish", "darwin clownfish", "enchanted angelfish",
+        "flame angelfish", "korean angelfish", "maze angelfish", "yellowstate angelfish",
+        "scissortail dartfish", "dartfish", "skunk tilefish", "tilefish",
+        "white clownfish", "slurpfish chromis", "chromis", "gingerbread clownfish",
+        "festive pufferfish", "pufferfish", "blumato clownfish", "conspi angelfish",
+        "lined cardinal", "cardinal", "masked angelfish", "watanabei angelfish",
+        "ballina angelfish", "pilot fish", "racoon butterfly fish",
+        "worm fish", "viperfish", "spotted lantern fish", "lantern fish",
+        "monk fish", "jellyfish", "boar fish", "blob fish", "angler fish",
+        "dead fish", "skeleton fish", "swordfish", "ghost worm fish",
+        
+        -- Common fish types that might be in Fish It
         "bass", "cod", "salmon", "trout", "tuna", "shark", "ray", "eel", "crab",
-        "lobster", "shrimp", "starfish", "seahorse", "octopus", "squid"
+        "lobster", "shrimp", "starfish", "seahorse", "octopus", "squid",
+        "grouper", "snapper", "mackerel", "flounder", "sole", "halibut",
+        "marlin", "sailfish", "mahi", "dorado", "yellowtail", "bluefin",
+        "barracuda", "manta", "triggerfish", "filefish", "boxfish", "cowfish",
+        "balloonfish", "wrasse", "parrot", "surgeon", "unicorn", "moorish",
+        "bannerfish", "coral", "reef", "tropical", "exotic", "rare", "legendary",
+        "mythical", "golden", "silver", "rainbow", "neon", "glow", "electric",
+        "fire", "ice", "shadow", "ghost", "spirit", "cursed", "blessed",
+        "ancient", "fossil", "prehistoric", "deep", "abyss", "trench"
     }
     
-    -- Also scan for general fish keywords but be more specific
-    local fishKeywords = {"fish", "clown", "angel", "shark", "ray", "crab", "lobster", "shrimp", "jellyfish", "starfish", "seahorse", "octopus", "squid", "eel", "bass", "cod", "salmon", "trout", "tuna", "puffer", "chromis", "damsel", "dart"}
+    -- Also scan for any object that contains fish-related words
+    local fishKeywords = {
+        "fish", "clown", "angel", "shark", "ray", "crab", "lobster", "shrimp", 
+        "jellyfish", "starfish", "seahorse", "octopus", "squid", "eel", "bass", 
+        "cod", "salmon", "trout", "tuna", "puffer", "chromis", "damsel", "dart",
+        "butterfly", "tang", "dotty", "cardinal", "lantern", "worm", "viper",
+        "monk", "boar", "blob", "angler", "skeleton", "sword", "ghost",
+        "patriot", "strawberry", "yello", "bandit", "copperband", "flame",
+        "korean", "maze", "yellowstate", "scissortail", "skunk", "white",
+        "slurpfish", "gingerbread", "festive", "blumato", "conspi", "lined",
+        "masked", "watanabei", "ballina", "pilot", "racoon", "spotted"
+    }
     
     local function searchForFish(parent, path, depth)
         if depth <= 0 then return end
@@ -118,18 +144,25 @@ local function scanFishData()
         pcall(function()
             for _, child in pairs(parent:GetChildren()) do
                 local name = string.lower(child.Name or "")
+                local originalName = child.Name or ""
                 local isModuleScript = child:IsA("ModuleScript")
                 local isModel = child:IsA("Model")
                 local isTool = child:IsA("Tool")
                 local foundFish = false
                 
+                -- Skip rod and bait related items
+                if name:find("rod") or name:find("reel") or name:find("line") or 
+                   name:find("bait") or name:find("lure") or name:find("hook") then
+                    return
+                end
+                
                 -- First check for exact fish names from Fish It
                 for _, fishName in pairs(fishItFishNames) do
                     if string.find(name, string.lower(fishName)) then
                         local fishInfo = {
-                            name = child.Name,
+                            name = originalName,
                             class = child.ClassName,
-                            path = path .. "." .. child.Name,
+                            path = path .. "." .. originalName,
                             fullName = child:GetFullName(),
                             location = parent.Name,
                             type = "Unknown",
@@ -159,48 +192,61 @@ local function scanFishData()
                 if not foundFish then
                     for _, keyword in pairs(fishKeywords) do
                         if string.find(name, keyword) then
-                            local fishInfo = {
-                                name = child.Name,
-                                class = child.ClassName,
-                                path = path .. "." .. child.Name,
-                                fullName = child:GetFullName(),
-                                location = parent.Name,
-                                type = "Unknown",
-                                fishType = "General Fish-Related"
-                            }
-                            
-                            -- Determine fish object type
-                            if isModuleScript then
-                                fishInfo.type = "Fish Data/Script"
-                            elseif isModel then
-                                fishInfo.type = "Fish Model"
-                            elseif isTool then
-                                fishInfo.type = "Fish Tool"
-                            elseif child:IsA("Part") or child:IsA("MeshPart") then
-                                fishInfo.type = "Fish Part/Mesh"
-                            else
-                                fishInfo.type = "Fish Object"
+                            -- Additional filtering to avoid false positives
+                            if not name:find("fishing") and not name:find("cast") and 
+                               not name:find("tackle") and not name:find("gear") then
+                                
+                                local fishInfo = {
+                                    name = originalName,
+                                    class = child.ClassName,
+                                    path = path .. "." .. originalName,
+                                    fullName = child:GetFullName(),
+                                    location = parent.Name,
+                                    type = "Unknown",
+                                    fishType = "General Fish-Related (" .. keyword .. ")"
+                                }
+                                
+                                -- Determine fish object type
+                                if isModuleScript then
+                                    fishInfo.type = "Fish Data/Script"
+                                elseif isModel then
+                                    fishInfo.type = "Fish Model"
+                                elseif isTool then
+                                    fishInfo.type = "Fish Tool"
+                                elseif child:IsA("Part") or child:IsA("MeshPart") then
+                                    fishInfo.type = "Fish Part/Mesh"
+                                else
+                                    fishInfo.type = "Fish Object"
+                                end
+                                
+                                table.insert(fishData, fishInfo)
+                                break
                             end
-                            
-                            table.insert(fishData, fishInfo)
-                            break
                         end
                     end
                 end
                 
                 -- Recursively search in folders and models
                 if (child:IsA("Folder") or child:IsA("Model")) and not name:find("workspace") then
-                    searchForFish(child, path .. "." .. child.Name, depth - 1)
+                    searchForFish(child, path .. "." .. originalName, depth - 1)
                 end
             end
         end)
     end
     
-    -- Search in ReplicatedStorage
-    searchForFish(ReplicatedStorage, "ReplicatedStorage", 4)
+    -- Search in ReplicatedStorage with deeper scan
+    searchForFish(ReplicatedStorage, "ReplicatedStorage", 5)
     
     -- Search in Workspace
-    searchForFish(Workspace, "Workspace", 3)
+    searchForFish(Workspace, "Workspace", 4)
+    
+    -- Also search in StarterPack and StarterPlayer if they exist
+    if game:GetService("StarterPack") then
+        searchForFish(game:GetService("StarterPack"), "StarterPack", 3)
+    end
+    if game:GetService("StarterPlayer") then
+        searchForFish(game:GetService("StarterPlayer"), "StarterPlayer", 3)
+    end
     
     -- Sort fish data by fish type for better display
     table.sort(fishData, function(a, b)
@@ -228,7 +274,311 @@ local function scanFishData()
         print(SafeFormat("  - %s: %d items", fishType, count))
     end
     
+    -- Print unique fish names count
+    local uniqueNames = {}
+    for _, fish in pairs(fishData) do
+        if fish and fish.name then
+            local cleanName = fish.name:gsub("!!!", ""):gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1")
+            if not cleanName:find("Rod") and not cleanName:find("Bait") and not cleanName:find("Tool") then
+                uniqueNames[cleanName] = true
+            end
+        end
+    end
+    
+    local uniqueCount = 0
+    for _ in pairs(uniqueNames) do uniqueCount = uniqueCount + 1 end
+    print(SafeFormat("\n🐟 UNIQUE FISH NAMES FOUND: %d out of 110 total", uniqueCount))
+    
+-- Enhanced fish scanning function - focused on Fish It game fish names
+local function scanFishData()
+    print("\n=== SCANNING FISH DATA ===")
+    local fishData = {}
+    
+    -- Fish It specific fish names based on the debug data and Fish Index (110 fish total)
+    local fishItFishNames = {
+        -- Visible from Fish Index screenshots
+        "strawberry dotty", "dotty", "strawberry",
+        "yello damselfish", "damselfish", "yello", "yellow damselfish",
+        "bandit angelfish", "angelfish", "bandit",
+        "copperband butterfly", "butterfly", "copperband", "butterfly fish",
+        "patriot tang", "tang", "patriot",
+        
+        -- From debug data and common Fish It fish
+        "clownfish", "cow clownfish", "darwin clownfish", "enchanted angelfish",
+        "flame angelfish", "korean angelfish", "maze angelfish", "yellowstate angelfish",
+        "scissortail dartfish", "dartfish", "skunk tilefish", "tilefish",
+        "white clownfish", "slurpfish chromis", "chromis", "gingerbread clownfish",
+        "festive pufferfish", "pufferfish", "blumato clownfish", "conspi angelfish",
+        "lined cardinal", "cardinal", "masked angelfish", "watanabei angelfish",
+        "ballina angelfish", "pilot fish", "racoon butterfly fish",
+        "worm fish", "viperfish", "spotted lantern fish", "lantern fish",
+        "monk fish", "jellyfish", "boar fish", "blob fish", "angler fish",
+        "dead fish", "skeleton fish", "swordfish", "ghost worm fish",
+        
+        -- Common fish types that might be in Fish It
+        "bass", "cod", "salmon", "trout", "tuna", "shark", "ray", "eel", "crab",
+        "lobster", "shrimp", "starfish", "seahorse", "octopus", "squid",
+        "grouper", "snapper", "mackerel", "flounder", "sole", "halibut",
+        "marlin", "sailfish", "mahi", "dorado", "yellowtail", "bluefin",
+        "barracuda", "manta", "triggerfish", "filefish", "boxfish", "cowfish",
+        "balloonfish", "wrasse", "parrot", "surgeon", "unicorn", "moorish",
+        "bannerfish", "coral", "reef", "tropical", "exotic", "rare", "legendary",
+        "mythical", "golden", "silver", "rainbow", "neon", "glow", "electric",
+        "fire", "ice", "shadow", "ghost", "spirit", "cursed", "blessed",
+        "ancient", "fossil", "prehistoric", "deep", "abyss", "trench"
+    }
+    
+    -- Also scan for any object that contains fish-related words
+    local fishKeywords = {
+        "fish", "clown", "angel", "shark", "ray", "crab", "lobster", "shrimp", 
+        "jellyfish", "starfish", "seahorse", "octopus", "squid", "eel", "bass", 
+        "cod", "salmon", "trout", "tuna", "puffer", "chromis", "damsel", "dart",
+        "butterfly", "tang", "dotty", "cardinal", "lantern", "worm", "viper",
+        "monk", "boar", "blob", "angler", "skeleton", "sword", "ghost",
+        "patriot", "strawberry", "yello", "bandit", "copperband", "flame",
+        "korean", "maze", "yellowstate", "scissortail", "skunk", "white",
+        "slurpfish", "gingerbread", "festive", "blumato", "conspi", "lined",
+        "masked", "watanabei", "ballina", "pilot", "racoon", "spotted"
+    }
+    
+    local function searchForFish(parent, path, depth)
+        if depth <= 0 then return end
+        
+        pcall(function()
+            for _, child in pairs(parent:GetChildren()) do
+                local name = string.lower(child.Name or "")
+                local originalName = child.Name or ""
+                local isModuleScript = child:IsA("ModuleScript")
+                local isModel = child:IsA("Model")
+                local isTool = child:IsA("Tool")
+                local foundFish = false
+                
+                -- Skip rod and bait related items
+                if name:find("rod") or name:find("reel") or name:find("line") or 
+                   name:find("bait") or name:find("lure") or name:find("hook") then
+                    return
+                end
+                
+                -- First check for exact fish names from Fish It
+                for _, fishName in pairs(fishItFishNames) do
+                    if string.find(name, string.lower(fishName)) then
+                        local fishInfo = {
+                            name = originalName,
+                            class = child.ClassName,
+                            path = path .. "." .. originalName,
+                            fullName = child:GetFullName(),
+                            location = parent.Name,
+                            type = "Unknown",
+                            fishType = fishName -- Store the actual fish type found
+                        }
+                        
+                        -- Determine fish object type
+                        if isModuleScript then
+                            fishInfo.type = "Fish Data/Script"
+                        elseif isModel then
+                            fishInfo.type = "Fish Model"
+                        elseif isTool then
+                            fishInfo.type = "Fish Tool"
+                        elseif child:IsA("Part") or child:IsA("MeshPart") then
+                            fishInfo.type = "Fish Part/Mesh"
+                        else
+                            fishInfo.type = "Fish Object"
+                        end
+                        
+                        table.insert(fishData, fishInfo)
+                        foundFish = true
+                        break
+                    end
+                end
+                
+                -- If no exact match, check for general keywords
+                if not foundFish then
+                    for _, keyword in pairs(fishKeywords) do
+                        if string.find(name, keyword) then
+                            -- Additional filtering to avoid false positives
+                            if not name:find("fishing") and not name:find("cast") and 
+                               not name:find("tackle") and not name:find("gear") then
+                                
+                                local fishInfo = {
+                                    name = originalName,
+                                    class = child.ClassName,
+                                    path = path .. "." .. originalName,
+                                    fullName = child:GetFullName(),
+                                    location = parent.Name,
+                                    type = "Unknown",
+                                    fishType = "General Fish-Related (" .. keyword .. ")"
+                                }
+                                
+                                -- Determine fish object type
+                                if isModuleScript then
+                                    fishInfo.type = "Fish Data/Script"
+                                elseif isModel then
+                                    fishInfo.type = "Fish Model"
+                                elseif isTool then
+                                    fishInfo.type = "Fish Tool"
+                                elseif child:IsA("Part") or child:IsA("MeshPart") then
+                                    fishInfo.type = "Fish Part/Mesh"
+                                else
+                                    fishInfo.type = "Fish Object"
+                                end
+                                
+                                table.insert(fishData, fishInfo)
+                                break
+                            end
+                        end
+                    end
+                end
+                
+                -- Recursively search in folders and models
+                if (child:IsA("Folder") or child:IsA("Model")) and not name:find("workspace") then
+                    searchForFish(child, path .. "." .. originalName, depth - 1)
+                end
+            end
+        end)
+    end
+    
+    -- Search in ReplicatedStorage with deeper scan
+    searchForFish(ReplicatedStorage, "ReplicatedStorage", 5)
+    
+    -- Search in Workspace
+    searchForFish(Workspace, "Workspace", 4)
+    
+    -- Also search in StarterPack and StarterPlayer if they exist
+    if game:GetService("StarterPack") then
+        searchForFish(game:GetService("StarterPack"), "StarterPack", 3)
+    end
+    if game:GetService("StarterPlayer") then
+        searchForFish(game:GetService("StarterPlayer"), "StarterPlayer", 3)
+    end
+    
+    -- Sort fish data by fish type for better display
+    table.sort(fishData, function(a, b)
+        return (a.fishType or "zzz") < (b.fishType or "zzz")
+    end)
+    
+    print("🐟 FISH DATA FOUND:")
+    for i, fish in pairs(fishData) do
+        print(SafeFormat("  [%d] %s (%s) - %s | Fish Type: %s at %s", 
+            i, fish.name, fish.type, fish.class, fish.fishType or "Unknown", fish.path))
+    end
+    
+    -- Print summary by fish types
+    print("\n🐟 FISH SUMMARY BY TYPE:")
+    local fishTypes = {}
+    for _, fish in pairs(fishData) do
+        local fishType = fish.fishType or "Unknown"
+        if not fishTypes[fishType] then
+            fishTypes[fishType] = 0
+        end
+        fishTypes[fishType] = fishTypes[fishType] + 1
+    end
+    
+    for fishType, count in pairs(fishTypes) do
+        print(SafeFormat("  - %s: %d items", fishType, count))
+    end
+    
+    -- Print unique fish names count
+    local uniqueNames = {}
+    for _, fish in pairs(fishData) do
+        if fish and fish.name then
+            local cleanName = fish.name:gsub("!!!", ""):gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1")
+            if not cleanName:find("Rod") and not cleanName:find("Bait") and not cleanName:find("Tool") then
+                uniqueNames[cleanName] = true
+            end
+        end
+    end
+    
+    local uniqueCount = 0
+    for _ in pairs(uniqueNames) do uniqueCount = uniqueCount + 1 end
+    print(SafeFormat("\n🐟 UNIQUE FISH NAMES FOUND: %d out of 110 total", uniqueCount))
+    
     return fishData
+end
+
+-- New function to scan for Fish Index data specifically
+local function scanFishIndexData()
+    print("\n=== SCANNING FISH INDEX DATA ===")
+    local fishIndexData = {}
+    
+    -- Try to find Fish Index GUI or data structures
+    local function searchFishIndex(parent, path, depth)
+        if depth <= 0 then return end
+        
+        pcall(function()
+            for _, child in pairs(parent:GetChildren()) do
+                local name = string.lower(child.Name or "")
+                local originalName = child.Name or ""
+                
+                -- Look for Fish Index related objects
+                if name:find("fishindex") or name:find("fish_index") or name:find("index") or
+                   name:find("collection") or name:find("discovered") or name:find("caught") then
+                    
+                    table.insert(fishIndexData, {
+                        name = originalName,
+                        class = child.ClassName,
+                        path = path .. "." .. originalName,
+                        fullName = child:GetFullName(),
+                        location = parent.Name,
+                        type = "Fish Index Object"
+                    })
+                    
+                    print("🎯 Found Fish Index object: " .. originalName .. " (" .. child.ClassName .. ")")
+                    
+                    -- If it's a folder or GUI, scan inside for fish data
+                    if child:IsA("Folder") or child:IsA("ScreenGui") or child:IsA("Frame") then
+                        print("  📂 Scanning inside " .. originalName .. "...")
+                        for _, subChild in pairs(child:GetChildren()) do
+                            if subChild.Name and subChild.Name ~= "" then
+                                print("    - " .. subChild.Name .. " (" .. subChild.ClassName .. ")")
+                                
+                                -- If it's a module script, try to analyze it
+                                if subChild:IsA("ModuleScript") then
+                                    pcall(function()
+                                        local success, module = pcall(require, subChild)
+                                        if success and type(module) == "table" then
+                                            print("      📄 Module data preview:")
+                                            local count = 0
+                                            for key, value in pairs(module) do
+                                                if count < 5 then -- Show first 5 entries
+                                                    print("        " .. tostring(key) .. " = " .. tostring(value))
+                                                    count = count + 1
+                                                end
+                                            end
+                                            if count == 5 then
+                                                print("        ... (more data available)")
+                                            end
+                                        end
+                                    end)
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                -- Recursively search
+                if (child:IsA("Folder") or child:IsA("ScreenGui") or child:IsA("Frame")) and depth > 1 then
+                    searchFishIndex(child, path .. "." .. originalName, depth - 1)
+                end
+            end
+        end)
+    end
+    
+    -- Search in LocalPlayer's PlayerGui for Fish Index UI
+    if LocalPlayer.PlayerGui then
+        searchFishIndex(LocalPlayer.PlayerGui, "PlayerGui", 4)
+    end
+    
+    -- Search in ReplicatedStorage for Fish Index data
+    searchFishIndex(ReplicatedStorage, "ReplicatedStorage", 4)
+    
+    -- Search in StarterGui
+    if game:GetService("StarterGui") then
+        searchFishIndex(game:GetService("StarterGui"), "StarterGui", 3)
+    end
+    
+    print(SafeFormat("\n🎯 FISH INDEX OBJECTS FOUND: %d", #fishIndexData))
+    
+    return fishIndexData
 end
 
 -- Enhanced bait scanning function
@@ -1133,6 +1483,83 @@ local function CreateEnhancedUI()
                         end)
                     else
                         statusLabel.Text = "No fish names found!"
+                    end
+                end)
+            end},
+            {text = "🔍 Fish Index Scanner", color = Color3.fromRGB(100, 255, 150), func = function()
+                statusLabel.Text = "Scanning Fish Index data..."
+                task.spawn(function()
+                    local success, result = pcall(function()
+                        print("=== FISH INDEX SCANNER ===")
+                        
+                        -- First scan for Fish Index data
+                        local fishIndexData = scanFishIndexData()
+                        
+                        -- Then scan regular fish data for comparison
+                        local fishData = scanFishData()
+                        
+                        -- Create comprehensive report
+                        local allData = {}
+                        local currentTime = os.date("%Y-%m-%d %H:%M:%S")
+                        
+                        table.insert(allData, "=== FISH INDEX ANALYSIS REPORT ===")
+                        table.insert(allData, "Generated: " .. currentTime)
+                        table.insert(allData, "")
+                        
+                        table.insert(allData, "🎯 FISH INDEX OBJECTS FOUND: " .. #fishIndexData)
+                        for i, obj in pairs(fishIndexData) do
+                            table.insert(allData, SafeFormat("  [%d] %s (%s) at %s", i, obj.name, obj.class, obj.path))
+                        end
+                        
+                        table.insert(allData, "")
+                        table.insert(allData, "🐟 FISH DATA OBJECTS FOUND: " .. #fishData)
+                        local typeCount = {}
+                        for _, fish in pairs(fishData) do
+                            local fishType = fish.fishType or "Unknown"
+                            typeCount[fishType] = (typeCount[fishType] or 0) + 1
+                        end
+                        
+                        for fishType, count in pairs(typeCount) do
+                            table.insert(allData, SafeFormat("  - %s: %d items", fishType, count))
+                        end
+                        
+                        -- Extract unique fish names with count
+                        local uniqueNames = {}
+                        for _, fish in pairs(fishData) do
+                            if fish and fish.name then
+                                local cleanName = fish.name:gsub("!!!", ""):gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1")
+                                if not cleanName:find("Rod") and not cleanName:find("Bait") and not cleanName:find("Tool") then
+                                    uniqueNames[cleanName] = true
+                                end
+                            end
+                        end
+                        
+                        local uniqueCount = 0
+                        for _ in pairs(uniqueNames) do uniqueCount = uniqueCount + 1 end
+                        
+                        table.insert(allData, "")
+                        table.insert(allData, SafeFormat("🐟 UNIQUE FISH NAMES FOUND: %d out of 110 total", uniqueCount))
+                        table.insert(allData, SafeFormat("Fish Index Completion: %d%%", math.floor((uniqueCount / 110) * 100)))
+                        
+                        table.insert(allData, "")
+                        table.insert(allData, "📊 DETAILED FISH DATA:")
+                        for i, fish in pairs(fishData) do
+                            table.insert(allData, SafeFormat("  [%d] %s (%s) - %s | Fish Type: %s", 
+                                i, fish.name, fish.type, fish.class, fish.fishType or "Unknown"))
+                        end
+                        
+                        SaveToFile("fish_index_analysis_" .. os.time() .. ".txt", table.concat(allData, "\n"))
+                        print("✅ Fish Index analysis saved to file!")
+                        
+                        statusLabel.Text = SafeFormat("Fish Index: %d/110 fish found (%d%%)", uniqueCount, math.floor((uniqueCount / 110) * 100))
+                        Notify("Fish Index", SafeFormat("Found %d out of 110 fish (%d%%)", uniqueCount, math.floor((uniqueCount / 110) * 100)))
+                        
+                        return true
+                    end)
+                    
+                    if not success then
+                        statusLabel.Text = "Fish Index scan error!"
+                        print("❌ Error during Fish Index scan: " .. tostring(result))
                     end
                 end)
             end},
