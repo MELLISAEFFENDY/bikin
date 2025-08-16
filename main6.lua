@@ -1760,6 +1760,17 @@ local function BuildUI()
     local scanGameCorner = Instance.new("UICorner", scanGameBtn)
     scanGameCorner.CornerRadius = UDim.new(0, 6)
 
+    local saveFileBtn = Instance.new("TextButton", dataSection)
+    saveFileBtn.Size = UDim2.new(0, 120, 0, 30)
+    saveFileBtn.Position = UDim2.new(0, 270, 0, 80)
+    saveFileBtn.Text = "💾 Save to File"
+    saveFileBtn.Font = Enum.Font.GothamSemibold
+    saveFileBtn.TextSize = 12
+    saveFileBtn.BackgroundColor3 = Color3.fromRGB(230,126,34)
+    saveFileBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    local saveFileCorner = Instance.new("UICorner", saveFileBtn)
+    saveFileCorner.CornerRadius = UDim.new(0, 6)
+
     -- Update scroll frame size to accommodate new section
     advancedScroll.CanvasSize = UDim2.new(0, 0, 0, 1030)
 
@@ -2832,6 +2843,24 @@ local function BuildUI()
     
     scanGameBtn.MouseButton1Click:Connect(function()
         ScanGameForData()
+    end)
+    
+    saveFileBtn.MouseButton1Click:Connect(function()
+        -- Load data saver if not already loaded
+        if not _G.SaveFishItDataToFile then
+            Notify("Loading Saver", "Loading data saver module...")
+            pcall(function()
+                loadstring(game:HttpGet("https://mellisaeffendy.github.io/data_saver.lua"))()
+            end)
+            wait(1) -- Give time for data saver to load
+        end
+        
+        -- Call the save to file function
+        if _G.SaveFishItDataToFile then
+            _G.SaveFishItDataToFile()
+        else
+            Notify("Save Failed", "❌ Data saver not available. Check your connection.")
+        end
     end)
 
     enchantToggle.MouseButton1Click:Connect(function()
