@@ -1503,6 +1503,42 @@ local function BuildUI()
     local rollEnchantCorner = Instance.new("UICorner", rollEnchantBtn)
     rollEnchantCorner.CornerRadius = UDim.new(0, 6)
 
+    -- Auto Equip toggle
+    local autoEquipToggle = Instance.new("TextButton", enchantSection)
+    autoEquipToggle.Size = UDim2.new(0, 100, 0, 30)
+    autoEquipToggle.Position = UDim2.new(0, 250, 0, 90)
+    autoEquipToggle.Text = "Auto Equip: ON"
+    autoEquipToggle.Font = Enum.Font.GothamSemibold
+    autoEquipToggle.TextSize = 11
+    autoEquipToggle.BackgroundColor3 = Color3.fromRGB(40,167,69)
+    autoEquipToggle.TextColor3 = Color3.fromRGB(255,255,255)
+    local autoEquipCorner = Instance.new("UICorner", autoEquipToggle)
+    autoEquipCorner.CornerRadius = UDim.new(0, 6)
+
+    -- Auto Teleport to Altar toggle
+    local autoTeleportToggle = Instance.new("TextButton", enchantSection)
+    autoTeleportToggle.Size = UDim2.new(0, 100, 0, 30)
+    autoTeleportToggle.Position = UDim2.new(0, 360, 0, 90)
+    autoTeleportToggle.Text = "Auto Teleport: ON"
+    autoTeleportToggle.Font = Enum.Font.GothamSemibold
+    autoTeleportToggle.TextSize = 9
+    autoTeleportToggle.BackgroundColor3 = Color3.fromRGB(40,167,69)
+    autoTeleportToggle.TextColor3 = Color3.fromRGB(255,255,255)
+    local autoTeleportCorner = Instance.new("UICorner", autoTeleportToggle)
+    autoTeleportCorner.CornerRadius = UDim.new(0, 6)
+
+    -- Manual Teleport to Altar button
+    local manualTeleportBtn = Instance.new("TextButton", enchantSection)
+    manualTeleportBtn.Size = UDim2.new(0, 100, 0, 25)
+    manualTeleportBtn.Position = UDim2.new(0, 470, 0, 90)
+    manualTeleportBtn.Text = "📍 Go to Altar"
+    manualTeleportBtn.Font = Enum.Font.GothamSemibold
+    manualTeleportBtn.TextSize = 10
+    manualTeleportBtn.BackgroundColor3 = Color3.fromRGB(75,0,130)
+    manualTeleportBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    local manualTeleportCorner = Instance.new("UICorner", manualTeleportBtn)
+    manualTeleportCorner.CornerRadius = UDim.new(0, 6)
+
     -- Smart Enchant Targeting Section
     local smartTargetSection = Instance.new("Frame", enchantSection)
     smartTargetSection.Size = UDim2.new(1, -20, 0, 120)
@@ -1783,7 +1819,9 @@ local function BuildUI()
     local AdvancedFeatures = {
         autoWeather = false,
         autoEnchant = false,
-        autoTrade = false
+        autoTrade = false,
+        autoEquipStone = true, -- Default ON untuk auto equip enchant stone
+        autoTeleportAltar = true -- Default ON untuk auto teleport ke altar
     }
 
     -- Weather Event Functions
@@ -1873,6 +1911,149 @@ local function BuildUI()
         end
     end
 
+    -- Auto Teleport to Enchanting Altar Function
+    local ENCHANT_ALTAR_POSITION = CFrame.new(3237.61, -1302.33, 1398.04)
+    local ALTAR_DISTANCE_THRESHOLD = 50 -- Maximum distance from altar to enchant
+    
+    local function CheckDistanceToAltar()
+        if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            return false, "Character not found"
+        end
+        
+        local playerPosition = LocalPlayer.Character.HumanoidRootPart.Position
+        local altarPosition = ENCHANT_ALTAR_POSITION.Position
+        local distance = (playerPosition - altarPosition).Magnitude
+        
+        return distance <= ALTAR_DISTANCE_THRESHOLD, distance
+    end
+    
+    local function AutoTeleportToAltar()
+        if not AdvancedFeatures.autoTeleportAltar then
+            print("[AUTO-TELEPORT] Auto teleport to altar disabled")
+            return false
+        end
+        
+        local isNearAltar, distance = CheckDistanceToAltar()
+        
+        if isNearAltar then
+            print("[AUTO-TELEPORT] Already near altar (distance: " .. math.floor(distance) .. ")")
+            return true
+        end
+        
+        print("[AUTO-TELEPORT] Too far from altar (distance: " .. math.floor(distance) .. "), teleporting...")
+        Notify("Auto Teleport", "Teleporting to enchanting altar...")
+        
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = ENCHANT_ALTAR_POSITION
+            wait(0.5) -- Wait for teleport to complete
+            
+            -- Verify teleport success
+            local newIsNear, newDistance = CheckDistanceToAltar()
+            if newIsNear then
+                print("[AUTO-TELEPORT] ✅ Successfully teleported to altar")
+                Notify("Auto Teleport", "✅ Arrived at enchanting altar")
+                return true
+            else
+                print("[AUTO-TELEPORT] ❌ Teleport failed, distance still: " .. math.floor(newDistance))
+                Notify("Auto Teleport", "❌ Teleport failed - please go to altar manually")
+                return false
+            end
+        else
+            print("[AUTO-TELEPORT] ❌ Character not found for teleport")
+            Notify("Auto Teleport", "❌ Character not found")
+            return false
+        end
+    end
+
+    -- Auto Equip Enchant Stone Function
+    local function AutoEquipEnchantStone()
+        -- Check if auto equip is enabled
+        if not AdvancedFeatures.autoEquipStone then
+            print("[AUTO-EQUIP] Auto equip disabled - skipping")
+            return false
+        end
+        
+        print("[AUTO-EQUIP] Searching for enchant stone...")
+        Notify("Auto Equip", "Searching for enchant stone...")
+        
+        -- Look for enchant stone in different possible locations
+        local enchantStoneNames = {"Enchant Stone", "EnchantStone", "Enchanting Stone", "Stone"}
+        local foundStone = nil
+        
+        -- Check player's inventory/backpack
+        local player = LocalPlayer
+        if player and player.Character then
+            -- Try different methods to find enchant stone
+            
+            -- Method 1: Look in PlayerGui for inventory
+            if player.PlayerGui then
+                local function scanForEnchantStone(parent)
+                    for _, child in pairs(parent:GetChildren()) do
+                        if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("ImageLabel") then
+                            for _, stoneName in pairs(enchantStoneNames) do
+                                if child.Name:find(stoneName) or (child.Text and child.Text:find(stoneName)) then
+                                    print("[AUTO-EQUIP] Found potential enchant stone: " .. child.Name)
+                                    return child
+                                end
+                            end
+                        end
+                        local found = scanForEnchantStone(child)
+                        if found then return found end
+                    end
+                    return nil
+                end
+                
+                foundStone = scanForEnchantStone(player.PlayerGui)
+            end
+            
+            -- Method 2: Try direct remote calls for equipping
+            local equipRemotes = {"RE/EquipItem", "RF/EquipItem", "RE/Equip", "RF/Equip"}
+            for _, remoteName in pairs(equipRemotes) do
+                local equipRemote = GetRemote(remoteName)
+                if equipRemote then
+                    for _, stoneName in pairs(enchantStoneNames) do
+                        local success = pcall(function()
+                            if equipRemote:IsA("RemoteFunction") then
+                                equipRemote:InvokeServer(stoneName)
+                            else
+                                equipRemote:FireServer(stoneName)
+                            end
+                        end)
+                        if success then
+                            print("[AUTO-EQUIP] ✅ Successfully equipped: " .. stoneName)
+                            Notify("Auto Equip", "✅ Equipped: " .. stoneName)
+                            return true
+                        end
+                    end
+                end
+            end
+            
+            -- Method 3: Try item IDs or common enchant stone IDs
+            local stoneIds = {1, "enchant_stone", "EnchantStone", "stone"}
+            local equipRemote = GetRemote("RE/EquipItem") or GetRemote("RF/EquipItem")
+            if equipRemote then
+                for _, stoneId in pairs(stoneIds) do
+                    local success = pcall(function()
+                        if equipRemote:IsA("RemoteFunction") then
+                            equipRemote:InvokeServer(stoneId)
+                        else
+                            equipRemote:FireServer(stoneId)
+                        end
+                    end)
+                    if success then
+                        print("[AUTO-EQUIP] ✅ Successfully equipped stone ID: " .. tostring(stoneId))
+                        Notify("Auto Equip", "✅ Equipped enchant stone")
+                        return true
+                    end
+                end
+            end
+        end
+        
+        print("[AUTO-EQUIP] ❌ Could not find or equip enchant stone")
+        Notify("Auto Equip", "❌ Enchant stone not found - please equip manually")
+        return false
+    end
+
     local function RollEnchant()
         -- Check for roll enchant remote after altar activation
         local rollRemote = GetRemote("RE/RollEnchant") or GetRemote("RF/RollEnchant") or GetRemote("RE/EnchantRoll")
@@ -1912,18 +2093,31 @@ local function BuildUI()
         print("[AUTO-ENCHANT] Starting enchanting sequence...")
         Notify("Auto Enchant", "Starting enchant sequence...")
         
-        -- Step 1: Activate altar (assumes player is at altar with enchant stone equipped)
-        print("[AUTO-ENCHANT] Step 1: Activating enchanting altar...")
+        -- Step 0: Auto teleport to altar if needed
+        print("[AUTO-ENCHANT] Step 0: Checking altar proximity...")
+        local atAltar = AutoTeleportToAltar()
+        if not atAltar then
+            print("[AUTO-ENCHANT] ❌ Could not reach altar, aborting sequence")
+            Notify("Auto Enchant", "❌ Could not reach altar")
+            return false
+        end
+        
+        -- Step 1: Try to auto-equip enchant stone
+        print("[AUTO-ENCHANT] Step 1: Auto-equipping enchant stone...")
+        local stoneEquipped = AutoEquipEnchantStone()
+        
+        -- Step 2: Activate altar
+        print("[AUTO-ENCHANT] Step 2: Activating enchanting altar...")
         ActivateEnchantingAltar()
         
-        -- Step 2: Wait a bit then roll
-        print("[AUTO-ENCHANT] Step 2: Waiting 2 seconds...")
+        -- Step 3: Wait a bit then roll
+        print("[AUTO-ENCHANT] Step 3: Waiting 2 seconds...")
         wait(2)
         
-        print("[AUTO-ENCHANT] Step 3: Rolling enchantment...")
+        print("[AUTO-ENCHANT] Step 4: Rolling enchantment...")
         RollEnchant()
         
-        -- Step 4: If Smart Target is enabled, check the result
+        -- Step 5: If Smart Target is enabled, check the result
         if SmartEnchant.enabled and SmartEnchant.targetEnchant then
             wait(1) -- Wait for UI to update
             local currentEnchant = DetectCurrentEnchant()
@@ -1948,7 +2142,10 @@ local function BuildUI()
         end
         
         print("[AUTO-ENCHANT] Enchanting sequence completed")
-        Notify("Auto Enchant", "Enchant sequence completed!")
+        local statusMsg = "Enchant sequence completed!"
+        if atAltar then statusMsg = statusMsg .. " (Auto-teleported)"
+        if stoneEquipped then statusMsg = statusMsg .. " (Auto-equipped)"
+        Notify("Auto Enchant", statusMsg)
     end
 
     -- Smart Target Enchanting - keeps rolling until target is found
@@ -1958,14 +2155,35 @@ local function BuildUI()
             return
         end
         
+        -- Initial teleport to altar
+        print("[SMART-TARGET] Ensuring we're at the altar...")
+        local atAltar = AutoTeleportToAltar()
+        if not atAltar then
+            Notify("🎯 Smart Target", "❌ Could not reach altar - aborting")
+            SmartEnchant.enabled = false
+            return
+        end
+        
         SmartEnchant.rollCount = 0
         SmartEnchant.targetFound = false
         
         Notify("🎯 Smart Target", "Targeting: " .. SmartEnchant.targetEnchant .. " (Max: " .. SmartEnchant.maxRolls .. " rolls)")
         
         while SmartEnchant.enabled and not SmartEnchant.targetFound and SmartEnchant.rollCount < SmartEnchant.maxRolls do
-            -- Check if player has enchant stone
-            print("[SMART-TARGET] Roll #" .. (SmartEnchant.rollCount + 1) .. " - Checking for enchant stone...")
+            -- Check if we're still near altar (in case player moved)
+            local stillNearAltar = CheckDistanceToAltar()
+            if not stillNearAltar then
+                print("[SMART-TARGET] Moved away from altar, re-teleporting...")
+                AutoTeleportToAltar()
+            end
+            
+            -- Auto-equip enchant stone
+            print("[SMART-TARGET] Roll #" .. (SmartEnchant.rollCount + 1) .. " - Auto-equipping enchant stone...")
+            local stoneEquipped = AutoEquipEnchantStone()
+            
+            if not stoneEquipped then
+                print("[SMART-TARGET] ⚠️ Stone not auto-equipped, trying anyway...")
+            end
             
             -- Activate altar and roll
             ActivateEnchantingAltar()
@@ -1987,9 +2205,9 @@ local function BuildUI()
                 Notify("🎯 Smart Target", "Roll " .. SmartEnchant.rollCount .. "/" .. SmartEnchant.maxRolls .. " - Got: " .. (currentEnchant or "Unknown"))
                 
                 if SmartEnchant.rollCount < SmartEnchant.maxRolls then
-                    -- Need new enchant stone for next roll
-                    print("[SMART-TARGET] Need new enchant stone for next roll...")
-                    wait(3) -- Give time to get new stone
+                    -- Brief pause before next roll
+                    print("[SMART-TARGET] Preparing for next roll...")
+                    wait(2) -- Give time for UI updates
                 end
             end
         end
@@ -2006,10 +2224,27 @@ local function BuildUI()
         print("[MANUAL-ENCHANT] Manual enchant requested...")
         Notify("Manual Enchant", "Starting manual enchant...")
         
-        -- For manual enchant, just do the activation and roll
+        -- Check if near altar and auto-teleport if needed
+        print("[MANUAL-ENCHANT] Checking altar proximity...")
+        local atAltar = AutoTeleportToAltar()
+        if not atAltar then
+            Notify("Manual Enchant", "❌ Could not reach altar")
+            return
+        end
+        
+        -- Try to auto-equip enchant stone first
+        print("[MANUAL-ENCHANT] Auto-equipping enchant stone...")
+        local stoneEquipped = AutoEquipEnchantStone()
+        
+        -- Do the activation and roll
         ActivateEnchantingAltar()
         wait(2)
         RollEnchant()
+        
+        local statusMsg = "✅ Completed!"
+        if atAltar then statusMsg = statusMsg .. " (Auto-teleported)"
+        if stoneEquipped then statusMsg = statusMsg .. " (Auto-equipped)"
+        Notify("Manual Enchant", statusMsg)
     end
 
     -- Trading Functions
@@ -2062,6 +2297,51 @@ local function BuildUI()
     end)
 
     rollEnchantBtn.MouseButton1Click:Connect(ManualRollEnchant)
+
+    autoEquipToggle.MouseButton1Click:Connect(function()
+        AdvancedFeatures.autoEquipStone = not AdvancedFeatures.autoEquipStone
+        autoEquipToggle.Text = AdvancedFeatures.autoEquipStone and "Auto Equip: ON" or "Auto Equip: OFF"
+        autoEquipToggle.BackgroundColor3 = AdvancedFeatures.autoEquipStone and Color3.fromRGB(40,167,69) or Color3.fromRGB(220,53,69)
+        
+        if AdvancedFeatures.autoEquipStone then
+            Notify("Auto Equip", "✅ Auto equip enchant stone enabled")
+            print("[AUTO-EQUIP] Auto equip enchant stone enabled")
+        else
+            Notify("Auto Equip", "❌ Auto equip enchant stone disabled")
+            print("[AUTO-EQUIP] Auto equip enchant stone disabled")
+        end
+    end)
+
+    autoTeleportToggle.MouseButton1Click:Connect(function()
+        AdvancedFeatures.autoTeleportAltar = not AdvancedFeatures.autoTeleportAltar
+        autoTeleportToggle.Text = AdvancedFeatures.autoTeleportAltar and "Auto Teleport: ON" or "Auto Teleport: OFF"
+        autoTeleportToggle.BackgroundColor3 = AdvancedFeatures.autoTeleportAltar and Color3.fromRGB(40,167,69) or Color3.fromRGB(220,53,69)
+        
+        if AdvancedFeatures.autoTeleportAltar then
+            Notify("Auto Teleport", "✅ Auto teleport to altar enabled")
+            print("[AUTO-TELEPORT] Auto teleport to altar enabled")
+        else
+            Notify("Auto Teleport", "❌ Auto teleport to altar disabled")
+            print("[AUTO-TELEPORT] Auto teleport to altar disabled")
+        end
+    end)
+
+    manualTeleportBtn.MouseButton1Click:Connect(function()
+        print("[MANUAL-TELEPORT] Manual teleport to altar requested...")
+        local isNear, distance = CheckDistanceToAltar()
+        
+        if isNear then
+            Notify("Teleport", "✅ Already at altar (distance: " .. math.floor(distance) .. ")")
+        else
+            Notify("Teleport", "Teleporting to enchanting altar...")
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = ENCHANT_ALTAR_POSITION
+                Notify("Teleport", "✅ Teleported to enchanting altar")
+            else
+                Notify("Teleport", "❌ Character not found")
+            end
+        end
+    end)
 
     -- Smart Target Enchant Event Handlers
     local enchantListWindow = nil -- Reference to enchant list window
