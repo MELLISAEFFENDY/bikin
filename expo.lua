@@ -27,10 +27,21 @@ local function SafeFormat(template, ...)
     return string.format(template, unpack(args))
 end
 
--- Function to save file to accessible folder (Android compatible)
+-- Function to save file to accessible folder (Android compatible) - Enhanced
 local function SaveToFile(data, filename)
     local saved = false
     local fullPath = ""
+    
+    -- Validate input
+    if not data or type(data) ~= "string" then
+        print("❌ Invalid data to save")
+        return false, "Invalid data"
+    end
+    
+    if not filename or type(filename) ~= "string" then
+        print("❌ Invalid filename")
+        return false, "Invalid filename"
+    end
     
     -- Try various accessible paths for Android
     local paths = {
@@ -41,19 +52,35 @@ local function SaveToFile(data, filename)
         filename -- Fallback to working directory
     }
     
-    for _, path in pairs(paths) do
+    for i, path in pairs(paths) do
         pcall(function()
             if writefile then
                 writefile(path, data)
                 fullPath = path
                 saved = true
+                print("✅ File saved using writefile to: " .. path)
             elseif syn and syn.write_file then
                 syn.write_file(path, data)
                 fullPath = path
                 saved = true
+                print("✅ File saved using syn.write_file to: " .. path)
             end
         end)
         if saved then break end
+    end
+    
+    -- If still not saved, try alternative methods
+    if not saved then
+        pcall(function()
+            -- Try with different file function names
+            if makefolders and writefile then
+                makefolders("FishItExplorer")
+                writefile("FishItExplorer/" .. filename, data)
+                fullPath = "FishItExplorer/" .. filename
+                saved = true
+                print("✅ File saved to custom folder: " .. fullPath)
+            end
+        end)
     end
     
     return saved, fullPath
@@ -525,15 +552,15 @@ end
 local function ExportAllData()
     Notify("Export", "Starting data export...")
     
-    local remotes = FindAllRemotes()
-    local rsData = scanReplicatedStorage()
-    local wsData = scanWorkspace()
-    local invData = scanPlayerInventory()
-    local netData = scanForNetRemotes()
-    local boatData = scanForBoatData()
-    local fishData = scanFishData()
-    local baitData = scanBaitData()
-    local rodData = scanRodData()
+    local remotes = FindAllRemotes() or {}
+    local rsData = scanReplicatedStorage() or {}
+    local wsData = scanWorkspace() or {boats = {}, npcs = {}, areas = {}}
+    local invData = scanPlayerInventory() or {}
+    local netData = scanForNetRemotes() or {}
+    local boatData = scanForBoatData() or {}
+    local fishData = scanFishData() or {}
+    local baitData = scanBaitData() or {}
+    local rodData = scanRodData() or {}
     
     -- Store in global for access
     _G.FishItExplorationData = {
@@ -550,7 +577,16 @@ local function ExportAllData()
         placeId = game.PlaceId
     }
     
+    -- Safe length function
+    local function safeLength(tbl)
+        if not tbl then return 0 end
+        if type(tbl) == "table" then return #tbl end
+        return 0
+    end
+    
     -- Create export text for clipboard (limited)
+    local totalItems = safeLength(remotes) + safeLength(fishData) + safeLength(baitData) + safeLength(rodData) + safeLength(wsData.boats) + safeLength(wsData.npcs)
+    
     local exportText = SafeFormat([[
 === FISH IT COMPLETE EXPLORATION EXPORT ===
 Game PlaceId: %s
@@ -569,26 +605,35 @@ Inventory Tools: %d
 
 === TOP FISHING REMOTES ===
 ]], game.PlaceId, os.date("%Y-%m-%d %H:%M:%S"), 
-#remotes + #fishData + #baitData + #rodData + #wsData.boats + #wsData.npcs,
-#remotes, #fishData, #baitData, #rodData, #wsData.boats, #wsData.npcs, #wsData.areas, #invData)
+totalItems,
+safeLength(remotes), safeLength(fishData), safeLength(baitData), safeLength(rodData), 
+safeLength(wsData.boats), safeLength(wsData.npcs), safeLength(wsData.areas), safeLength(invData))
     
     -- Add fishing-related remotes
     local fishingRemotes = {}
-    for _, remote in pairs(remotes) do
-        if remote.Category == "Fishing" then
-            table.insert(fishingRemotes, remote)
+    if remotes and type(remotes) == "table" then
+        for _, remote in pairs(remotes) do
+            if remote and remote.Category == "Fishing" then
+                table.insert(fishingRemotes, remote)
+            end
         end
     end
     
-    for i = 1, math.min(#fishingRemotes, 10) do
+    for i = 1, math.min(safeLength(fishingRemotes), 10) do
         local remote = fishingRemotes[i]
-        exportText = exportText .. SafeFormat("[%d] %s (%s)\n", i, remote.Name, remote.Type)
+        if remote and remote.Name and remote.Type then
+            exportText = exportText .. SafeFormat("[%d] %s (%s)\n", i, remote.Name, remote.Type)
+        end
     end
     
     exportText = exportText .. "\n=== TOP FISH TYPES ===\n"
-    for i = 1, math.min(#fishData, 10) do
-        local fish = fishData[i]
-        exportText = exportText .. SafeFormat("[%d] %s (%s)\n", i, fish.name, fish.type)
+    if fishData and type(fishData) == "table" then
+        for i = 1, math.min(safeLength(fishData), 10) do
+            local fish = fishData[i]
+            if fish and fish.name and fish.type then
+                exportText = exportText .. SafeFormat("[%d] %s (%s)\n", i, fish.name, fish.type)
+            end
+        end
     end
     
     exportText = exportText .. "\n=== STATUS ===\n"
@@ -629,6 +674,24 @@ local function SaveCompleteDataToFile()
     local timestamp = os.date("%Y%m%d_%H%M%S")
     local filename = "FishIt_Complete_Explorer_" .. timestamp .. ".txt"
     
+    -- Safe function to get length
+    local function safeLength(tbl)
+        if not tbl then return 0 end
+        if type(tbl) == "table" then return #tbl end
+        return 0
+    end
+    
+    -- Safe access to nested data
+    local remotesCount = safeLength(data.remotes)
+    local fishCount = safeLength(data.fishData)
+    local baitCount = safeLength(data.baitData)
+    local rodCount = safeLength(data.rodData)
+    local boatsCount = data.workspace and safeLength(data.workspace.boats) or 0
+    local npcsCount = data.workspace and safeLength(data.workspace.npcs) or 0
+    local areasCount = data.workspace and safeLength(data.workspace.areas) or 0
+    local inventoryCount = safeLength(data.inventory)
+    local netCount = safeLength(data.netFramework)
+    
     -- Create complete file data
     local fileData = SafeFormat([[
 === FISH IT COMPLETE GAME EXPLORATION DATA ===
@@ -649,56 +712,92 @@ Total Inventory Tools: %d
 Net Framework Items: %d
 
 === COMPLETE REMOTES LIST (by Category) ===
-]], game.PlaceId, data.timestamp, 
-#data.remotes + #data.fishData + #data.baitData + #data.rodData,
-#data.remotes, #data.fishData, #data.baitData, #data.rodData, 
-#data.workspace.boats, #data.workspace.npcs, #data.workspace.areas, 
-#data.inventory, #data.netFramework)
+]], game.PlaceId, data.timestamp or os.date("%Y-%m-%d %H:%M:%S"), 
+remotesCount + fishCount + baitCount + rodCount,
+remotesCount, fishCount, baitCount, rodCount, 
+boatsCount, npcsCount, areasCount, 
+inventoryCount, netCount)
     
     -- Group remotes by category
     local categories = {}
-    for _, remote in pairs(data.remotes) do
-        if not categories[remote.Category] then
-            categories[remote.Category] = {}
+    if data.remotes and type(data.remotes) == "table" then
+        for _, remote in pairs(data.remotes) do
+            if remote and remote.Category then
+                if not categories[remote.Category] then
+                    categories[remote.Category] = {}
+                end
+                table.insert(categories[remote.Category], remote)
+            end
         end
-        table.insert(categories[remote.Category], remote)
     end
     
     for category, remotes in pairs(categories) do
         fileData = fileData .. SafeFormat("\n--- %s REMOTES (%d) ---\n", string.upper(category), #remotes)
         for i, remote in pairs(remotes) do
-            fileData = fileData .. SafeFormat("[%d] %s (%s): %s\n", i, remote.Name, remote.Type, remote.Path)
+            if remote.Name and remote.Type and remote.Path then
+                fileData = fileData .. SafeFormat("[%d] %s (%s): %s\n", i, remote.Name, remote.Type, remote.Path)
+            end
         end
     end
     
     -- Add fish data
     fileData = fileData .. "\n=== COMPLETE FISH DATA ===\n"
-    for i, fish in pairs(data.fishData) do
-        fileData = fileData .. SafeFormat("[%d] %s (%s) - %s at %s\n", i, fish.name, fish.type, fish.class, fish.path)
+    if data.fishData and type(data.fishData) == "table" then
+        for i, fish in pairs(data.fishData) do
+            if fish and fish.name and fish.type and fish.class and fish.path then
+                fileData = fileData .. SafeFormat("[%d] %s (%s) - %s at %s\n", i, fish.name, fish.type, fish.class, fish.path)
+            end
+        end
+    else
+        fileData = fileData .. "No fish data available\n"
     end
     
     -- Add bait data
     fileData = fileData .. "\n=== COMPLETE BAIT DATA ===\n"
-    for i, bait in pairs(data.baitData) do
-        fileData = fileData .. SafeFormat("[%d] %s (%s) at %s\n", i, bait.name, bait.class, bait.path)
+    if data.baitData and type(data.baitData) == "table" then
+        for i, bait in pairs(data.baitData) do
+            if bait and bait.name and bait.class and bait.path then
+                fileData = fileData .. SafeFormat("[%d] %s (%s) at %s\n", i, bait.name, bait.class, bait.path)
+            end
+        end
+    else
+        fileData = fileData .. "No bait data available\n"
     end
     
     -- Add rod data
     fileData = fileData .. "\n=== COMPLETE FISHING ROD DATA ===\n"
-    for i, rod in pairs(data.rodData) do
-        fileData = fileData .. SafeFormat("[%d] %s (%s) - %s at %s\n", i, rod.name, rod.type, rod.class, rod.path)
+    if data.rodData and type(data.rodData) == "table" then
+        for i, rod in pairs(data.rodData) do
+            if rod and rod.name and rod.type and rod.class and rod.path then
+                fileData = fileData .. SafeFormat("[%d] %s (%s) - %s at %s\n", i, rod.name, rod.type, rod.class, rod.path)
+            end
+        end
+    else
+        fileData = fileData .. "No rod data available\n"
     end
     
     -- Add boat data
     fileData = fileData .. "\n=== COMPLETE BOAT DATA ===\n"
-    for i, boat in pairs(data.workspace.boats) do
-        fileData = fileData .. SafeFormat("[%d] %s (%s) at %s\n", i, boat.name, boat.class, boat.path)
+    if data.workspace and data.workspace.boats and type(data.workspace.boats) == "table" then
+        for i, boat in pairs(data.workspace.boats) do
+            if boat and boat.name and boat.class and boat.path then
+                fileData = fileData .. SafeFormat("[%d] %s (%s) at %s\n", i, boat.name, boat.class, boat.path)
+            end
+        end
+    else
+        fileData = fileData .. "No boat data available\n"
     end
     
     -- Add NPC data
     fileData = fileData .. "\n=== COMPLETE NPC DATA ===\n"
-    for i, npc in pairs(data.workspace.npcs) do
-        fileData = fileData .. SafeFormat("[%d] %s (%s) at %s\n", i, npc.name, npc.class, npc.path)
+    if data.workspace and data.workspace.npcs and type(data.workspace.npcs) == "table" then
+        for i, npc in pairs(data.workspace.npcs) do
+            if npc and npc.name and npc.class and npc.path then
+                fileData = fileData .. SafeFormat("[%d] %s (%s) at %s\n", i, npc.name, npc.class, npc.path)
+            end
+        end
+    else
+        fileData = fileData .. "No NPC data available\n"
     end
     
     -- Add analysis notes
@@ -857,24 +956,49 @@ local function CreateEnhancedUI()
             {text = "🔍 Complete Exploration", color = Color3.fromRGB(180, 120, 220), func = function()
                 statusLabel.Text = "Running complete exploration..."
                 task.spawn(function()
-                    ExportAllData()
-                    statusLabel.Text = "Complete exploration finished!"
+                    local success, result = pcall(function()
+                        return ExportAllData()
+                    end)
+                    
+                    if success then
+                        statusLabel.Text = "Complete exploration finished!"
+                    else
+                        statusLabel.Text = "Exploration error: " .. tostring(result)
+                        print("❌ Error during exploration: " .. tostring(result))
+                    end
                 end)
             end},
             {text = "📋 Export to Clipboard", color = Color3.fromRGB(220, 180, 120), func = function()
                 statusLabel.Text = "Exporting to clipboard..."
                 task.spawn(function()
-                    ExportAllData()
-                    statusLabel.Text = "Data exported to clipboard!"
+                    local success, result = pcall(function()
+                        return ExportAllData()
+                    end)
+                    
+                    if success then
+                        statusLabel.Text = "Data exported to clipboard!"
+                    else
+                        statusLabel.Text = "Export error: " .. tostring(result)
+                        print("❌ Error during export: " .. tostring(result))
+                    end
                 end)
             end},
             {text = "💾 Save to File", color = Color3.fromRGB(120, 220, 180), func = function()
                 statusLabel.Text = "Saving to file..."
                 task.spawn(function()
-                    if SaveCompleteDataToFile() then
-                        statusLabel.Text = "File saved successfully!"
+                    local success, result = pcall(function()
+                        return SaveCompleteDataToFile()
+                    end)
+                    
+                    if success then
+                        if result then
+                            statusLabel.Text = "File saved successfully!"
+                        else
+                            statusLabel.Text = "File save failed - no data!"
+                        end
                     else
-                        statusLabel.Text = "File save failed!"
+                        statusLabel.Text = "File save error: " .. tostring(result)
+                        print("❌ Error saving file: " .. tostring(result))
                     end
                 end)
             end},
@@ -940,31 +1064,40 @@ local function exploreGame()
     
     Notify("Explorer", "Starting complete game exploration...")
     
-    -- Scan all areas with enhanced data
-    local remotes = FindAllRemotes()
-    local rsData = scanReplicatedStorage()
-    local wsData = scanWorkspace()
-    local invData = scanPlayerInventory()
-    local netData = scanForNetRemotes()
-    local boatData = scanForBoatData()
-    local fishData = scanFishData()
-    local baitData = scanBaitData()
-    local rodData = scanRodData()
+    -- Scan all areas with enhanced data (with error handling)
+    local remotes = pcall(FindAllRemotes) and FindAllRemotes() or {}
+    local rsData = pcall(scanReplicatedStorage) and scanReplicatedStorage() or {}
+    local wsData = pcall(scanWorkspace) and scanWorkspace() or {boats = {}, npcs = {}, areas = {}}
+    local invData = pcall(scanPlayerInventory) and scanPlayerInventory() or {}
+    local netData = pcall(scanForNetRemotes) and scanForNetRemotes() or {}
+    local boatData = pcall(scanForBoatData) and scanForBoatData() or {}
+    local fishData = pcall(scanFishData) and scanFishData() or {}
+    local baitData = pcall(scanBaitData) and scanBaitData() or {}
+    local rodData = pcall(scanRodData) and scanRodData() or {}
+    
+    -- Safe length function
+    local function safeLength(tbl)
+        if not tbl then return 0 end
+        if type(tbl) == "table" then return #tbl end
+        return 0
+    end
     
     -- Enhanced summary
     print("\n" .. "=" .. string.rep("=", 60))
     print("📊 COMPLETE EXPLORATION SUMMARY:")
-    print("  🔗 Remotes found: " .. #remotes)
-    print("  🐟 Fish types found: " .. #fishData)
-    print("  🪱 Bait types found: " .. #baitData)
-    print("  🎣 Fishing rods found: " .. #rodData)
-    print("  🚤 Boats found: " .. #wsData.boats)
-    print("  👥 NPCs found: " .. #wsData.npcs)
-    print("  🏝️ Areas found: " .. #wsData.areas)
-    print("  🎒 Tools found: " .. #invData)
-    print("  📡 Net packages: " .. #netData)
-    print("  🛥️ Boat data: " .. #boatData)
-    print("  📈 Total items analyzed: " .. (#remotes + #fishData + #baitData + #rodData + #wsData.boats + #wsData.npcs + #invData))
+    print("  🔗 Remotes found: " .. safeLength(remotes))
+    print("  🐟 Fish types found: " .. safeLength(fishData))
+    print("  🪱 Bait types found: " .. safeLength(baitData))
+    print("  🎣 Fishing rods found: " .. safeLength(rodData))
+    print("  🚤 Boats found: " .. safeLength(wsData.boats))
+    print("  👥 NPCs found: " .. safeLength(wsData.npcs))
+    print("  🏝️ Areas found: " .. safeLength(wsData.areas))
+    print("  🎒 Tools found: " .. safeLength(invData))
+    print("  📡 Net packages: " .. safeLength(netData))
+    print("  🛥️ Boat data: " .. safeLength(boatData))
+    
+    local totalItems = safeLength(remotes) + safeLength(fishData) + safeLength(baitData) + safeLength(rodData) + safeLength(wsData.boats) + safeLength(wsData.npcs) + safeLength(invData)
+    print("  📈 Total items analyzed: " .. totalItems)
     
     Notify("Explorer", "Complete exploration finished! Check UI for export options.")
     
