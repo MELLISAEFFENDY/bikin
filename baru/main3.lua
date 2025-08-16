@@ -1042,17 +1042,41 @@ end
 
 local function DoSecureCycle()
     if inCooldown() then task.wait(1); return end
-    if equipRemote then secureInvoke(equipRemote, 1) end
+    
+    -- Equip rod first
+    if equipRemote then 
+        local ok = pcall(function() equipRemote:FireServer(1) end)
+        if not ok then print("[Secure Mode] Failed to equip") end
+    end
+    
+    -- Safe mode logic: random between perfect and normal cast
     local usePerfect = math.random(1,100) <= Config.safeModeChance
-    local ts = GetServerTime()
-    local timestamp = usePerfect and ts or ts + (math.random()*0.8 - 0.4)
-    secureInvoke(rodRemote, timestamp)
-    task.wait(0.08 + math.random()*0.12)
-    local x = usePerfect and -1.2379989 or (math.random(-1000,1000)/1000)
-    local y = usePerfect and 0.9800224 or (math.random(0,1000)/1000)
-    secureInvoke(miniGameRemote, x, y)
-    task.wait(0.6 + math.random()*1.2)
-    if finishRemote then secureInvoke(finishRemote) end
+    
+    -- Charge rod with proper timing
+    local timestamp = usePerfect and 9999999999 or (tick() + math.random())
+    if rodRemote then
+        local ok = pcall(function() rodRemote:InvokeServer(timestamp) end)
+        if not ok then print("[Secure Mode] Failed to charge") end
+    end
+    
+    task.wait(0.1) -- Standard charge wait
+    
+    -- Minigame with safe mode values
+    local x = usePerfect and -1.238 or (math.random(-1000,1000)/1000)
+    local y = usePerfect and 0.969 or (math.random(0,1000)/1000)
+    
+    if miniGameRemote then
+        local ok = pcall(function() miniGameRemote:InvokeServer(x, y) end)
+        if not ok then print("[Secure Mode] Failed minigame") end
+    end
+    
+    task.wait(1.3) -- Standard fishing wait
+    
+    -- Complete fishing
+    if finishRemote then 
+        local ok = pcall(function() finishRemote:FireServer() end)
+        if not ok then print("[Secure Mode] Failed to finish") end
+    end
     
     -- Real fish simulation for dashboard  
     local fishByLocation = {
@@ -1068,57 +1092,43 @@ end
 local function DoFastCycle()
     if inCooldown() then task.wait(0.5); return end
     
-    -- Fast cycle with nil checks for AnimationMonitor
-    if AnimationMonitor then
-        AnimationMonitor.currentState = "casting"
-    end
+    -- Fast mode based on old.lua implementation
     
-    -- Step 1: Equip rod
-    if equipRemote then 
-        local success = secureInvoke(equipRemote, 1)
-        if not success then print("[Fast Mode] Failed to equip") end
-    end
-    
-    -- Step 2: Charge rod
-    local ts = GetServerTime()
-    local chargeSuccess = secureInvoke(rodRemote, ts)
-    if not chargeSuccess then 
-        print("[Fast Mode] Failed to charge rod")
-        return
-    end
-    
-    -- Step 3: Wait for charge to complete
-    task.wait(0.08 + math.random()*0.05)
-    
-    -- Step 4: Start minigame (always perfect in fast mode)
-    local minigameSuccess = secureInvoke(miniGameRemote, -1.2379989, 0.9800224)
-    if not minigameSuccess then 
-        print("[Fast Mode] Failed to start minigame")
-        return
-    end
-    
-    -- Step 5: Wait for fish to bite (realistic timing)
-    task.wait(0.6 + math.random()*0.4)
-    
-    -- Step 6: Complete fishing
-    if finishRemote then 
-        local finishSuccess, result = secureInvoke(finishRemote)
-        if finishSuccess then
-            print("[Fast Mode] Fishing completed successfully")
-        else
-            print("[Fast Mode] Failed to finish fishing:", result)
-            -- Retry once
-            task.wait(0.1)
-            secureInvoke(finishRemote)
+    -- Check if rod is equipped, if not equip it
+    local character = LocalPlayer.Character
+    if character then
+        local equippedTool = character:FindFirstChildOfClass("Tool")
+        if not equippedTool then
+            -- Equip rod
+            if equipRemote then
+                local ok = pcall(function() equipRemote:FireServer(1) end)
+                if not ok then print("[Fast Mode] Failed to equip") end
+            end
+            task.wait(0.1) -- Wait for equip
         end
-    else
-        print("[Fast Mode] Warning: finishRemote is nil")
     end
     
-    -- Update animation state if available
-    if AnimationMonitor then
-        AnimationMonitor.fishingSuccess = true
-        AnimationMonitor.currentState = "idle"
+    -- Fast charge with server time (from old.lua)
+    if rodRemote then
+        local ok = pcall(function() rodRemote:InvokeServer(workspace:GetServerTimeNow()) end)
+        if not ok then print("[Fast Mode] Failed to charge") end
+    end
+    
+    task.wait(0.1) -- Quick charge wait
+    
+    -- Perfect cast minigame (from old.lua values)
+    if miniGameRemote then
+        local ok = pcall(function() miniGameRemote:InvokeServer(-1.2379989624023438, 0.9800224985802423) end)
+        if not ok then print("[Fast Mode] Failed minigame") end
+    end
+    
+    -- Fast fishing wait
+    task.wait(0.4) -- Minimal wait time for fast mode
+    
+    -- Complete fishing
+    if finishRemote then
+        local ok = pcall(function() finishRemote:FireServer() end)
+        if not ok then print("[Fast Mode] Failed to finish") end
     end
     
     -- Real fish simulation for dashboard  
@@ -1164,11 +1174,22 @@ local function AutofishRunner(mySession)
             task.wait(0.5 + math.random()*0.5)
         end
         
-        -- Smart delay based on animation completion
+        -- Smart delay based on mode
         local baseDelay = Config.autoRecastDelay
-        local smartDelay = baseDelay + GetRealisticTiming("waiting") * 0.3
-        local delay = smartDelay + (math.random()*0.2 - 0.1)
-        if delay < 0.05 then delay = 0.05 end
+        local delay = baseDelay
+        
+        -- Mode-specific delays
+        if Config.mode == "fast" then
+            delay = 0.4 -- Quick recast for fast mode
+        elseif Config.mode == "secure" then
+            delay = 0.6 + math.random()*0.4 -- Variable delay for secure mode
+        else
+            -- Smart mode with animation-based timing
+            local smartDelay = baseDelay + GetRealisticTiming("waiting") * 0.3
+            delay = smartDelay + (math.random()*0.2 - 0.1)
+        end
+        
+        if delay < 0.3 then delay = 0.3 end -- Minimum delay
         
         local elapsed = 0
         while elapsed < delay do
