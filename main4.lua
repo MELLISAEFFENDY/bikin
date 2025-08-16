@@ -1367,7 +1367,7 @@ local function BuildUI()
     local enchantDesc = Instance.new("TextLabel", enchantSection)
     enchantDesc.Size = UDim2.new(1, -20, 0, 40)
     enchantDesc.Position = UDim2.new(0, 10, 0, 40)
-    enchantDesc.Text = "Auto-enchant fishing equipment for maximum efficiency"
+    enchantDesc.Text = "Requirements: 1) Get enchant stone from items 2) Equip stone 3) Go to altar"
     enchantDesc.Font = Enum.Font.Gotham
     enchantDesc.TextSize = 12
     enchantDesc.TextColor3 = Color3.fromRGB(180,180,180)
@@ -1647,28 +1647,13 @@ local function BuildUI()
                 print("[DEBUG] Failed to activate enchanting altar:", result)
             end
         else
-            -- Try alternative remote names
-            local altRemote = GetRemote("RF/ActivateEnchantingAltar") or GetRemote("RE/UseEnchantingTable")
-            if altRemote then
-                local ok, result = safeInvoke(altRemote)
-                if ok then
-                    Notify("Enchanting", "Enchanting altar activated! (alt)")
-                    print("[DEBUG] Enchanting altar activated via alternative remote")
-                else
-                    print("[DEBUG] Alternative enchanting remote failed:", result)
-                end
-            else
-                Notify("Error", "Enchanting altar remote not found")
-                print("[DEBUG] Available remotes to check:")
-                print("- RE/ActivateEnchantingAltar")
-                print("- RF/ActivateEnchantingAltar") 
-                print("- RE/UseEnchantingTable")
-            end
+            Notify("Error", "Enchanting altar remote not found")
+            print("[DEBUG] RE/ActivateEnchantingAltar remote not found")
         end
     end
 
     local function RollEnchant()
-        -- Check multiple possible remote names for rolling enchantments
+        -- Check for roll enchant remote after altar activation
         local rollRemote = GetRemote("RE/RollEnchant") or GetRemote("RF/RollEnchant") or GetRemote("RE/EnchantRoll")
         if rollRemote then
             local ok, result = safeInvoke(rollRemote)
@@ -1681,12 +1666,30 @@ local function BuildUI()
             end
         else
             Notify("Error", "Roll enchant remote not found")
-            print("[DEBUG] Enchanting roll remotes not found. Try these:")
-            print("- RE/RollEnchant")
-            print("- RF/RollEnchant")
-            print("- RE/EnchantRoll")
-            print("[DEBUG] Manual enchanting required: Go to enchanting table first!")
+            print("[DEBUG] Roll enchant remotes not found")
+            print("[DEBUG] Make sure you have:")
+            print("1. Enchant stone in inventory")
+            print("2. Enchant stone equipped")
+            print("3. At enchanting altar/table")
         end
+    end
+
+    -- Enhanced Auto-Enchanting with proper sequence
+    local function AutoEnchantSequence()
+        if not AdvancedFeatures.autoEnchant or not Config.enabled then
+            return
+        end
+        
+        print("[AUTO-ENCHANT] Starting enchanting sequence...")
+        
+        -- Step 1: Activate altar (assumes player is at altar with enchant stone equipped)
+        ActivateEnchantingAltar()
+        
+        -- Step 2: Wait a bit then roll
+        wait(2)
+        RollEnchant()
+        
+        print("[AUTO-ENCHANT] Enchanting sequence completed")
     end
 
     -- Trading Functions
@@ -1746,9 +1749,7 @@ local function BuildUI()
         while true do
             wait(60) -- Check every minute
             if AdvancedFeatures.autoEnchant and Config.enabled then
-                pcall(ActivateEnchantingAltar)
-                wait(2)
-                pcall(RollEnchant)
+                pcall(AutoEnchantSequence)
             end
         end
     end)
