@@ -73,6 +73,142 @@ local Config = {
     antiAfkEnabled = false
 }
 
+-- Dashboard & Statistics System
+local Dashboard = {
+    fishCaught = {},
+    rareFishCaught = {},
+    locationStats = {},
+    sessionStats = {
+        startTime = 0,
+        fishCount = 0,
+        rareCount = 0,
+        currentLocation = "Unknown"
+    },
+    heatmap = {},
+    optimalTimes = {}
+}
+
+-- Fish Rarity Categories
+local FishRarity = {
+    CURSED = {"CursedScroll", "Golden of Decay"},
+    NEON = {"Meshes/FI_Luck_Machine_Neon", "Neon", "UpperNeon"},
+    GOLDEN = {"Golden of Decay", "Golden"},
+    RARE = {"Blue Lobster", "Gingerbread-Clownfish", "Water Wheel"},
+    LEGENDARY = {"CursedScroll", "Esoteric", "Sisypus"},
+    COMMON = {"Basic Fish", "Small Fish", "Medium Fish"}
+}
+
+-- Location mapping for heatmap
+local LocationMap = {
+    ["Kohana Volcano"] = {x = -594, z = 149},
+    ["Crater Island"] = {x = 1010, z = 5078},
+    ["Kohana"] = {x = -650, z = 711},
+    ["Lost Isle"] = {x = -3618, z = -1317},
+    ["Stingray Shores"] = {x = 45, z = 2987},
+    ["Esoteric Depths"] = {x = 1944, z = 1371},
+    ["Weather Machine"] = {x = -1488, z = 1876},
+    ["Tropical Grove"] = {x = -2095, z = 3718},
+    ["Coral Reefs"] = {x = -3023, z = 2195}
+}
+
+-- Statistics Functions
+local function GetFishRarity(fishName)
+    for rarity, fishList in pairs(FishRarity) do
+        for _, fish in pairs(fishList) do
+            if string.find(string.lower(fishName), string.lower(fish)) then
+                return rarity
+            end
+        end
+    end
+    return "COMMON"
+end
+
+local function LogFishCatch(fishName, location)
+    local currentTime = tick()
+    local rarity = GetFishRarity(fishName)
+    
+    -- Log to main fish database
+    table.insert(Dashboard.fishCaught, {
+        name = fishName,
+        rarity = rarity,
+        location = location or Dashboard.sessionStats.currentLocation,
+        timestamp = currentTime,
+        hour = tonumber(os.date("%H", currentTime))
+    })
+    
+    -- Log rare fish separately
+    if rarity ~= "COMMON" then
+        table.insert(Dashboard.rareFishCaught, {
+            name = fishName,
+            rarity = rarity,
+            location = location or Dashboard.sessionStats.currentLocation,
+            timestamp = currentTime
+        })
+        Dashboard.sessionStats.rareCount = Dashboard.sessionStats.rareCount + 1
+    end
+    
+    -- Update location stats
+    local loc = location or Dashboard.sessionStats.currentLocation
+    if not Dashboard.locationStats[loc] then
+        Dashboard.locationStats[loc] = {total = 0, rare = 0, common = 0, lastCatch = 0}
+    end
+    Dashboard.locationStats[loc].total = Dashboard.locationStats[loc].total + 1
+    Dashboard.locationStats[loc].lastCatch = currentTime
+    
+    if rarity ~= "COMMON" then
+        Dashboard.locationStats[loc].rare = Dashboard.locationStats[loc].rare + 1
+    else
+        Dashboard.locationStats[loc].common = Dashboard.locationStats[loc].common + 1
+    end
+    
+    -- Update session stats
+    Dashboard.sessionStats.fishCount = Dashboard.sessionStats.fishCount + 1
+    
+    -- Update heatmap data
+    if LocationMap[loc] then
+        local key = loc
+        if not Dashboard.heatmap[key] then
+            Dashboard.heatmap[key] = {count = 0, rare = 0, efficiency = 0}
+        end
+        Dashboard.heatmap[key].count = Dashboard.heatmap[key].count + 1
+        if rarity ~= "COMMON" then
+            Dashboard.heatmap[key].rare = Dashboard.heatmap[key].rare + 1
+        end
+        Dashboard.heatmap[key].efficiency = Dashboard.heatmap[key].rare / Dashboard.heatmap[key].count
+    end
+    
+    -- Update optimal times
+    local hour = tonumber(os.date("%H", currentTime))
+    if not Dashboard.optimalTimes[hour] then
+        Dashboard.optimalTimes[hour] = {total = 0, rare = 0}
+    end
+    Dashboard.optimalTimes[hour].total = Dashboard.optimalTimes[hour].total + 1
+    if rarity ~= "COMMON" then
+        Dashboard.optimalTimes[hour].rare = Dashboard.optimalTimes[hour].rare + 1
+    end
+end
+
+local function GetLocationEfficiency(location)
+    local stats = Dashboard.locationStats[location]
+    if not stats or stats.total == 0 then return 0 end
+    return math.floor((stats.rare / stats.total) * 100)
+end
+
+local function GetBestFishingTime()
+    local bestHour = 0
+    local bestRatio = 0
+    for hour, data in pairs(Dashboard.optimalTimes) do
+        if data.total > 5 then -- Minimum sample size
+            local ratio = data.rare / data.total
+            if ratio > bestRatio then
+                bestRatio = ratio
+                bestHour = hour
+            end
+        end
+    end
+    return bestHour, math.floor(bestRatio * 100)
+end
+
 -- AntiAFK System
 local AntiAFK = {
     enabled = false,
@@ -169,6 +305,11 @@ local function DoFastCycle()
     if miniGameRemote and miniGameRemote:IsA("RemoteFunction") then pcall(function() miniGameRemote:InvokeServer(x,y) end) end
     task.wait(1.0 + math.random()*0.4)
     if finishRemote then pcall(function() finishRemote:FireServer() end) end
+    
+    -- Simulate fish catch for dashboard (random fish for demo)
+    local fishNames = {"Basic Fish", "CursedScroll", "Blue Lobster", "Neon Fish", "Golden of Decay", "Water Wheel"}
+    local randomFish = fishNames[math.random(1, #fishNames)]
+    LogFishCatch(randomFish, Dashboard.sessionStats.currentLocation)
 end
 
 local function DoSecureCycle()
@@ -184,9 +325,18 @@ local function DoSecureCycle()
     secureInvoke(miniGameRemote, x, y)
     task.wait(0.6 + math.random()*1.2)
     if finishRemote then secureInvoke(finishRemote) end
+    
+    -- Simulate fish catch for dashboard (random fish for demo)
+    local fishNames = {"Basic Fish", "CursedScroll", "Blue Lobster", "Neon Fish", "Golden of Decay", "Water Wheel"}
+    local randomFish = fishNames[math.random(1, #fishNames)]
+    LogFishCatch(randomFish, Dashboard.sessionStats.currentLocation)
 end
 
 local function AutofishRunner(mySession)
+    Dashboard.sessionStats.startTime = tick()
+    Dashboard.sessionStats.fishCount = 0
+    Dashboard.sessionStats.rareCount = 0
+    
     Notify("modern_autofish", "AutoFishing started (mode: " .. Config.mode .. ")")
     while Config.enabled and sessionId == mySession do
         local ok, err = pcall(function()
@@ -363,6 +513,20 @@ local function BuildUI()
     featureTabCorner.CornerRadius = UDim.new(0, 6)
     local featureTabPadding = Instance.new("UIPadding", featureTabBtn)
     featureTabPadding.PaddingLeft = UDim.new(0, 10)
+
+    local dashboardTabBtn = Instance.new("TextButton", sidebar)
+    dashboardTabBtn.Size = UDim2.new(1, -10, 0, 40)
+    dashboardTabBtn.Position = UDim2.new(0, 5, 0, 210)
+    dashboardTabBtn.Text = "📊 Dashboard"
+    dashboardTabBtn.Font = Enum.Font.GothamSemibold
+    dashboardTabBtn.TextSize = 14
+    dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+    dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+    dashboardTabBtn.TextXAlignment = Enum.TextXAlignment.Left
+    local dashboardTabCorner = Instance.new("UICorner", dashboardTabBtn)
+    dashboardTabCorner.CornerRadius = UDim.new(0, 6)
+    local dashboardTabPadding = Instance.new("UIPadding", dashboardTabBtn)
+    dashboardTabPadding.PaddingLeft = UDim.new(0, 10)
 
     -- Content area on the right
     local contentContainer = Instance.new("Frame", panel)
@@ -924,6 +1088,258 @@ local function BuildUI()
         applyFeaturesToCharacter()
     end)
 
+    -- Dashboard Tab Content
+    local dashboardFrame = Instance.new("Frame", contentContainer)
+    dashboardFrame.Size = UDim2.new(1, 0, 1, -10)
+    dashboardFrame.Position = UDim2.new(0, 0, 0, 0)
+    dashboardFrame.BackgroundTransparency = 1
+    dashboardFrame.Visible = false
+
+    local dashboardTitle = Instance.new("TextLabel", dashboardFrame)
+    dashboardTitle.Size = UDim2.new(1, 0, 0, 24)
+    dashboardTitle.Text = "Fishing Analytics & Statistics"
+    dashboardTitle.Font = Enum.Font.GothamBold
+    dashboardTitle.TextSize = 16
+    dashboardTitle.TextColor3 = Color3.fromRGB(235,235,235)
+    dashboardTitle.BackgroundTransparency = 1
+    dashboardTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Create scrollable frame for dashboard
+    local dashboardScrollFrame = Instance.new("ScrollingFrame", dashboardFrame)
+    dashboardScrollFrame.Size = UDim2.new(1, 0, 1, -30)
+    dashboardScrollFrame.Position = UDim2.new(0, 0, 0, 30)
+    dashboardScrollFrame.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    dashboardScrollFrame.BorderSizePixel = 0
+    dashboardScrollFrame.ScrollBarThickness = 6
+    dashboardScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80,80,80)
+    Instance.new("UICorner", dashboardScrollFrame)
+
+    -- Session Stats Section
+    local sessionSection = Instance.new("Frame", dashboardScrollFrame)
+    sessionSection.Size = UDim2.new(1, -10, 0, 120)
+    sessionSection.Position = UDim2.new(0, 5, 0, 5)
+    sessionSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
+    sessionSection.BorderSizePixel = 0
+    Instance.new("UICorner", sessionSection)
+
+    local sessionTitle = Instance.new("TextLabel", sessionSection)
+    sessionTitle.Size = UDim2.new(1, -20, 0, 25)
+    sessionTitle.Position = UDim2.new(0, 10, 0, 5)
+    sessionTitle.Text = "📈 Current Session Stats"
+    sessionTitle.Font = Enum.Font.GothamBold
+    sessionTitle.TextSize = 14
+    sessionTitle.TextColor3 = Color3.fromRGB(100,200,255)
+    sessionTitle.BackgroundTransparency = 1
+    sessionTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local sessionFishCount = Instance.new("TextLabel", sessionSection)
+    sessionFishCount.Size = UDim2.new(0.5, -15, 0, 20)
+    sessionFishCount.Position = UDim2.new(0, 10, 0, 35)
+    sessionFishCount.Text = "🎣 Total Fish: 0"
+    sessionFishCount.Font = Enum.Font.GothamSemibold
+    sessionFishCount.TextSize = 12
+    sessionFishCount.TextColor3 = Color3.fromRGB(255,255,255)
+    sessionFishCount.BackgroundTransparency = 1
+    sessionFishCount.TextXAlignment = Enum.TextXAlignment.Left
+
+    local sessionRareCount = Instance.new("TextLabel", sessionSection)
+    sessionRareCount.Size = UDim2.new(0.5, -15, 0, 20)
+    sessionRareCount.Position = UDim2.new(0.5, 5, 0, 35)
+    sessionRareCount.Text = "✨ Rare Fish: 0"
+    sessionRareCount.Font = Enum.Font.GothamSemibold
+    sessionRareCount.TextSize = 12
+    sessionRareCount.TextColor3 = Color3.fromRGB(255,215,0)
+    sessionRareCount.BackgroundTransparency = 1
+    sessionRareCount.TextXAlignment = Enum.TextXAlignment.Left
+
+    local sessionTime = Instance.new("TextLabel", sessionSection)
+    sessionTime.Size = UDim2.new(0.5, -15, 0, 20)
+    sessionTime.Position = UDim2.new(0, 10, 0, 60)
+    sessionTime.Text = "⏱️ Session: 0m 0s"
+    sessionTime.Font = Enum.Font.GothamSemibold
+    sessionTime.TextSize = 12
+    sessionTime.TextColor3 = Color3.fromRGB(200,200,200)
+    sessionTime.BackgroundTransparency = 1
+    sessionTime.TextXAlignment = Enum.TextXAlignment.Left
+
+    local sessionLocation = Instance.new("TextLabel", sessionSection)
+    sessionLocation.Size = UDim2.new(0.5, -15, 0, 20)
+    sessionLocation.Position = UDim2.new(0.5, 5, 0, 60)
+    sessionLocation.Text = "🗺️ Location: Unknown"
+    sessionLocation.Font = Enum.Font.GothamSemibold
+    sessionLocation.TextSize = 12
+    sessionLocation.TextColor3 = Color3.fromRGB(150,255,150)
+    sessionLocation.BackgroundTransparency = 1
+    sessionLocation.TextXAlignment = Enum.TextXAlignment.Left
+
+    local sessionEfficiency = Instance.new("TextLabel", sessionSection)
+    sessionEfficiency.Size = UDim2.new(1, -20, 0, 20)
+    sessionEfficiency.Position = UDim2.new(0, 10, 0, 85)
+    sessionEfficiency.Text = "🎯 Rare Rate: 0% | ⚡ Fish/Min: 0.0"
+    sessionEfficiency.Font = Enum.Font.GothamSemibold
+    sessionEfficiency.TextSize = 12
+    sessionEfficiency.TextColor3 = Color3.fromRGB(255,165,0)
+    sessionEfficiency.BackgroundTransparency = 1
+    sessionEfficiency.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Fish Rarity Tracker Section
+    local raritySection = Instance.new("Frame", dashboardScrollFrame)
+    raritySection.Size = UDim2.new(1, -10, 0, 180)
+    raritySection.Position = UDim2.new(0, 5, 0, 135)
+    raritySection.BackgroundColor3 = Color3.fromRGB(45,45,52)
+    raritySection.BorderSizePixel = 0
+    Instance.new("UICorner", raritySection)
+
+    local rarityTitle = Instance.new("TextLabel", raritySection)
+    rarityTitle.Size = UDim2.new(1, -20, 0, 25)
+    rarityTitle.Position = UDim2.new(0, 10, 0, 5)
+    rarityTitle.Text = "🏆 Fish Rarity Tracker"
+    rarityTitle.Font = Enum.Font.GothamBold
+    rarityTitle.TextSize = 14
+    rarityTitle.TextColor3 = Color3.fromRGB(255,200,100)
+    rarityTitle.BackgroundTransparency = 1
+    rarityTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Rarity bars
+    local rarityTypes = {
+        {name = "LEGENDARY", color = Color3.fromRGB(255,100,255), icon = "👑"},
+        {name = "CURSED", color = Color3.fromRGB(150,50,200), icon = "💀"},
+        {name = "GOLDEN", color = Color3.fromRGB(255,215,0), icon = "🥇"},
+        {name = "NEON", color = Color3.fromRGB(0,255,200), icon = "💎"},
+        {name = "RARE", color = Color3.fromRGB(100,150,255), icon = "⭐"},
+        {name = "COMMON", color = Color3.fromRGB(150,150,150), icon = "🐟"}
+    }
+
+    local rarityBars = {}
+    for i, rarity in ipairs(rarityTypes) do
+        local yPos = 30 + (i - 1) * 22
+        
+        local rarityLabel = Instance.new("TextLabel", raritySection)
+        rarityLabel.Size = UDim2.new(0.3, -10, 0, 18)
+        rarityLabel.Position = UDim2.new(0, 10, 0, yPos)
+        rarityLabel.Text = rarity.icon .. " " .. rarity.name
+        rarityLabel.Font = Enum.Font.GothamSemibold
+        rarityLabel.TextSize = 10
+        rarityLabel.TextColor3 = rarity.color
+        rarityLabel.BackgroundTransparency = 1
+        rarityLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+        local rarityBar = Instance.new("Frame", raritySection)
+        rarityBar.Size = UDim2.new(0.5, -10, 0, 12)
+        rarityBar.Position = UDim2.new(0.3, 5, 0, yPos + 3)
+        rarityBar.BackgroundColor3 = Color3.fromRGB(60,60,70)
+        rarityBar.BorderSizePixel = 0
+        Instance.new("UICorner", rarityBar)
+
+        local rarityFill = Instance.new("Frame", rarityBar)
+        rarityFill.Size = UDim2.new(0, 0, 1, 0)
+        rarityFill.Position = UDim2.new(0, 0, 0, 0)
+        rarityFill.BackgroundColor3 = rarity.color
+        rarityFill.BorderSizePixel = 0
+        Instance.new("UICorner", rarityFill)
+
+        local rarityCount = Instance.new("TextLabel", raritySection)
+        rarityCount.Size = UDim2.new(0.2, -10, 0, 18)
+        rarityCount.Position = UDim2.new(0.8, 5, 0, yPos)
+        rarityCount.Text = "0"
+        rarityCount.Font = Enum.Font.GothamBold
+        rarityCount.TextSize = 11
+        rarityCount.TextColor3 = Color3.fromRGB(255,255,255)
+        rarityCount.BackgroundTransparency = 1
+        rarityCount.TextXAlignment = Enum.TextXAlignment.Center
+
+        rarityBars[rarity.name] = {fill = rarityFill, count = rarityCount}
+    end
+
+    -- Location Heatmap Section
+    local heatmapSection = Instance.new("Frame", dashboardScrollFrame)
+    heatmapSection.Size = UDim2.new(1, -10, 0, 200)
+    heatmapSection.Position = UDim2.new(0, 5, 0, 325)
+    heatmapSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
+    heatmapSection.BorderSizePixel = 0
+    Instance.new("UICorner", heatmapSection)
+
+    local heatmapTitle = Instance.new("TextLabel", heatmapSection)
+    heatmapTitle.Size = UDim2.new(1, -20, 0, 25)
+    heatmapTitle.Position = UDim2.new(0, 10, 0, 5)
+    heatmapTitle.Text = "🗺️ Location Efficiency Heatmap"
+    heatmapTitle.Font = Enum.Font.GothamBold
+    heatmapTitle.TextSize = 14
+    heatmapTitle.TextColor3 = Color3.fromRGB(100,255,150)
+    heatmapTitle.BackgroundTransparency = 1
+    heatmapTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Create location efficiency display
+    local locationList = Instance.new("ScrollingFrame", heatmapSection)
+    locationList.Size = UDim2.new(1, -20, 1, -35)
+    locationList.Position = UDim2.new(0, 10, 0, 30)
+    locationList.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    locationList.BorderSizePixel = 0
+    locationList.ScrollBarThickness = 4
+    locationList.ScrollBarImageColor3 = Color3.fromRGB(80,80,80)
+    Instance.new("UICorner", locationList)
+
+    -- Optimal Times Section
+    local timesSection = Instance.new("Frame", dashboardScrollFrame)
+    timesSection.Size = UDim2.new(1, -10, 0, 160)
+    timesSection.Position = UDim2.new(0, 5, 0, 535)
+    timesSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
+    timesSection.BorderSizePixel = 0
+    Instance.new("UICorner", timesSection)
+
+    local timesTitle = Instance.new("TextLabel", timesSection)
+    timesTitle.Size = UDim2.new(1, -20, 0, 25)
+    timesTitle.Position = UDim2.new(0, 10, 0, 5)
+    timesTitle.Text = "⏰ Optimal Fishing Times"
+    timesTitle.Font = Enum.Font.GothamBold
+    timesTitle.TextSize = 14
+    timesTitle.TextColor3 = Color3.fromRGB(255,200,100)
+    timesTitle.BackgroundTransparency = 1
+    timesTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local bestTimeLabel = Instance.new("TextLabel", timesSection)
+    bestTimeLabel.Size = UDim2.new(1, -20, 0, 20)
+    bestTimeLabel.Position = UDim2.new(0, 10, 0, 35)
+    bestTimeLabel.Text = "🏆 Best Time: Not enough data"
+    bestTimeLabel.Font = Enum.Font.GothamSemibold
+    bestTimeLabel.TextSize = 12
+    bestTimeLabel.TextColor3 = Color3.fromRGB(255,215,0)
+    bestTimeLabel.BackgroundTransparency = 1
+    bestTimeLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local currentTimeLabel = Instance.new("TextLabel", timesSection)
+    currentTimeLabel.Size = UDim2.new(1, -20, 0, 20)
+    currentTimeLabel.Position = UDim2.new(0, 10, 0, 60)
+    currentTimeLabel.Text = "🕐 Current Hour: " .. os.date("%H:00")
+    currentTimeLabel.Font = Enum.Font.GothamSemibold
+    currentTimeLabel.TextSize = 12
+    currentTimeLabel.TextColor3 = Color3.fromRGB(150,255,150)
+    currentTimeLabel.BackgroundTransparency = 1
+    currentTimeLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Time efficiency chart (simplified bars)
+    local timeChart = Instance.new("Frame", timesSection)
+    timeChart.Size = UDim2.new(1, -20, 0, 70)
+    timeChart.Position = UDim2.new(0, 10, 0, 85)
+    timeChart.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    timeChart.BorderSizePixel = 0
+    Instance.new("UICorner", timeChart)
+
+    -- Create time bars for 24 hours
+    local timeBars = {}
+    for hour = 0, 23 do
+        local x = (hour / 24) * (timeChart.AbsoluteSize.X - 20) + 10
+        local timeBar = Instance.new("Frame", timeChart)
+        timeBar.Size = UDim2.new(0, 8, 0, 2)
+        timeBar.Position = UDim2.new(hour/24, 2, 1, -15)
+        timeBar.BackgroundColor3 = Color3.fromRGB(100,100,120)
+        timeBar.BorderSizePixel = 0
+        timeBars[hour] = timeBar
+    end
+
+    -- Set canvas size for dashboard scroll
+    dashboardScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 720)
+
     -- Start/Stop buttons at bottom of content container (only visible in Main tab)
     local actions = Instance.new("Frame", contentContainer)
     actions.Size = UDim2.new(1, 0, 0, 38)
@@ -978,7 +1394,7 @@ local function BuildUI()
     end)
 
     -- Robust tab switching: collect tabs and provide SwitchTo
-    local Tabs = { Main = content, Teleport = teleportFrame, Player = playerFrame, Feature = featureFrame }
+    local Tabs = { Main = content, Teleport = teleportFrame, Player = playerFrame, Feature = featureFrame, Dashboard = dashboardFrame }
     local function SwitchTo(name)
         for k, v in pairs(Tabs) do
             v.Visible = (k == name)
@@ -997,6 +1413,8 @@ local function BuildUI()
             playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "AutoFish Controls"
         elseif name == "Teleport" then
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
@@ -1007,6 +1425,8 @@ local function BuildUI()
             playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Island Locations"
         elseif name == "Player" then
             playerTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
@@ -1017,9 +1437,11 @@ local function BuildUI()
             teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Player Teleport"
             updatePlayerList(searchBox.Text) -- Refresh when switching to player tab
-        else -- Feature
+        elseif name == "Feature" then
             featureTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             featureTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
             mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
@@ -1028,7 +1450,21 @@ local function BuildUI()
             teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             playerTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Character Features"
+        else -- Dashboard
+            dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
+            dashboardTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
+            mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            playerTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            contentTitle.Text = "Fishing Analytics"
         end
     end
 
@@ -1036,6 +1472,7 @@ local function BuildUI()
     teleportTabBtn.MouseButton1Click:Connect(function() SwitchTo("Teleport") end)
     playerTabBtn.MouseButton1Click:Connect(function() SwitchTo("Player") end)
     featureTabBtn.MouseButton1Click:Connect(function() SwitchTo("Feature") end)
+    dashboardTabBtn.MouseButton1Click:Connect(function() SwitchTo("Dashboard") end)
 
     -- Start with Main visible
     SwitchTo("Main")
@@ -1107,6 +1544,136 @@ local function BuildUI()
     end)
 
     Notify("modern_autofish", "UI ready - Select mode and press Start")
+
+    -- Dashboard Update Functions
+    local function UpdateDashboard()
+        if not dashboardFrame.Visible then return end
+        
+        -- Update session stats
+        local currentTime = tick()
+        local sessionDuration = currentTime - Dashboard.sessionStats.startTime
+        local minutes = math.floor(sessionDuration / 60)
+        local seconds = math.floor(sessionDuration % 60)
+        
+        sessionFishCount.Text = "🎣 Total Fish: " .. Dashboard.sessionStats.fishCount
+        sessionRareCount.Text = "✨ Rare Fish: " .. Dashboard.sessionStats.rareCount
+        sessionTime.Text = string.format("⏱️ Session: %dm %ds", minutes, seconds)
+        sessionLocation.Text = "🗺️ Location: " .. Dashboard.sessionStats.currentLocation
+        
+        -- Calculate efficiency
+        local rareRate = Dashboard.sessionStats.fishCount > 0 and 
+                        math.floor((Dashboard.sessionStats.rareCount / Dashboard.sessionStats.fishCount) * 100) or 0
+        local fishPerMin = sessionDuration > 0 and (Dashboard.sessionStats.fishCount / (sessionDuration / 60)) or 0
+        sessionEfficiency.Text = string.format("🎯 Rare Rate: %d%% | ⚡ Fish/Min: %.1f", rareRate, fishPerMin)
+        
+        -- Update rarity bars
+        local rarityCounts = {}
+        for _, rarity in pairs(FishRarity) do
+            rarityCounts[_] = 0
+        end
+        
+        for _, fish in pairs(Dashboard.fishCaught) do
+            rarityCounts[fish.rarity] = (rarityCounts[fish.rarity] or 0) + 1
+        end
+        
+        local maxCount = math.max(1, Dashboard.sessionStats.fishCount)
+        for rarityName, bar in pairs(rarityBars) do
+            local count = rarityCounts[rarityName] or 0
+            local percentage = count / maxCount
+            bar.fill.Size = UDim2.new(percentage, 0, 1, 0)
+            bar.count.Text = tostring(count)
+        end
+        
+        -- Update location efficiency list
+        for _, child in pairs(locationList:GetChildren()) do
+            if child:IsA("Frame") then child:Destroy() end
+        end
+        
+        local yPos = 5
+        for location, stats in pairs(Dashboard.locationStats) do
+            local efficiency = GetLocationEfficiency(location)
+            local locationFrame = Instance.new("Frame", locationList)
+            locationFrame.Size = UDim2.new(1, -10, 0, 25)
+            locationFrame.Position = UDim2.new(0, 5, 0, yPos)
+            locationFrame.BackgroundColor3 = Color3.fromRGB(50,50,60)
+            locationFrame.BorderSizePixel = 0
+            Instance.new("UICorner", locationFrame)
+            
+            local locationLabel = Instance.new("TextLabel", locationFrame)
+            locationLabel.Size = UDim2.new(0.6, -10, 1, 0)
+            locationLabel.Position = UDim2.new(0, 5, 0, 0)
+            locationLabel.Text = "🏝️ " .. location
+            locationLabel.Font = Enum.Font.GothamSemibold
+            locationLabel.TextSize = 10
+            locationLabel.TextColor3 = Color3.fromRGB(255,255,255)
+            locationLabel.BackgroundTransparency = 1
+            locationLabel.TextXAlignment = Enum.TextXAlignment.Left
+            
+            local efficiencyLabel = Instance.new("TextLabel", locationFrame)
+            efficiencyLabel.Size = UDim2.new(0.4, -10, 1, 0)
+            efficiencyLabel.Position = UDim2.new(0.6, 5, 0, 0)
+            efficiencyLabel.Text = string.format("%d%% (%d/%d)", efficiency, stats.rare, stats.total)
+            efficiencyLabel.Font = Enum.Font.GothamBold
+            efficiencyLabel.TextSize = 10
+            local effColor = efficiency > 15 and Color3.fromRGB(100,255,100) or 
+                           efficiency > 5 and Color3.fromRGB(255,255,100) or Color3.fromRGB(255,100,100)
+            efficiencyLabel.TextColor3 = effColor
+            efficiencyLabel.BackgroundTransparency = 1
+            efficiencyLabel.TextXAlignment = Enum.TextXAlignment.Right
+            
+            yPos = yPos + 30
+        end
+        locationList.CanvasSize = UDim2.new(0, 0, 0, yPos)
+        
+        -- Update optimal times
+        local bestHour, bestPercent = GetBestFishingTime()
+        if bestPercent > 0 then
+            bestTimeLabel.Text = string.format("🏆 Best Time: %02d:00 (%d%% rare rate)", bestHour, bestPercent)
+        else
+            bestTimeLabel.Text = "🏆 Best Time: Not enough data"
+        end
+        
+        currentTimeLabel.Text = "🕐 Current Hour: " .. os.date("%H:00")
+        
+        -- Update time bars
+        for hour, bar in pairs(timeBars) do
+            local data = Dashboard.optimalTimes[hour]
+            if data and data.total > 0 then
+                local efficiency = data.rare / data.total
+                local height = math.max(2, efficiency * 50)
+                bar.Size = UDim2.new(0, 8, 0, height)
+                bar.Position = UDim2.new(hour/24, 2, 1, -15 - height + 2)
+                local color = efficiency > 0.2 and Color3.fromRGB(100,255,100) or 
+                             efficiency > 0.1 and Color3.fromRGB(255,255,100) or Color3.fromRGB(255,100,100)
+                bar.BackgroundColor3 = color
+            end
+        end
+    end
+
+    -- Auto-update dashboard every 2 seconds
+    local function DashboardUpdater()
+        while true do
+            if dashboardFrame and dashboardFrame.Visible then
+                pcall(UpdateDashboard)
+            end
+            task.wait(2)
+        end
+    end
+    task.spawn(DashboardUpdater)
+
+    -- Update current location when teleporting
+    for islandName, cframe in pairs(islandLocations) do
+        -- Find existing teleport button and wrap its click function
+        for _, btn in pairs(buttons) do
+            if btn.Text == islandName then
+                local originalClick = btn.MouseButton1Click
+                btn.MouseButton1Click:Connect(function()
+                    Dashboard.sessionStats.currentLocation = islandName:gsub("🏝️", ""):gsub("🦈 ", ""):gsub("🎣 ", ""):gsub("❄️ ", ""):gsub("🌋 ", ""):gsub("🌴 ", ""):gsub("🗿 ", ""):gsub("⚙️ ", "")
+                end)
+                break
+            end
+        end
+    end
 end
 
 -- Build UI and ready
@@ -1126,8 +1693,25 @@ _G.ModernAutoFish = {
             AntiAFK.sessionId = AntiAFK.sessionId + 1
         end
     end,
+    
+    -- Dashboard API
+    LogFish = LogFishCatch,
+    GetStats = function() return Dashboard end,
+    ClearStats = function() 
+        Dashboard.fishCaught = {}
+        Dashboard.rareFishCaught = {}
+        Dashboard.locationStats = {}
+        Dashboard.heatmap = {}
+        Dashboard.optimalTimes = {}
+        Dashboard.sessionStats.fishCount = 0
+        Dashboard.sessionStats.rareCount = 0
+        Dashboard.sessionStats.startTime = tick()
+    end,
+    SetLocation = function(loc) Dashboard.sessionStats.currentLocation = loc end,
+    
     Config = Config,
-    AntiAFK = AntiAFK
+    AntiAFK = AntiAFK,
+    Dashboard = Dashboard
 }
 
 print("modern_autofish loaded - UI created and API available via _G.ModernAutoFish")
