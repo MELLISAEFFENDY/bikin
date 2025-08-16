@@ -16,10 +16,10 @@ end
 -- Data structure for Fish It exploration data
 local FishItData = {
     gameInfo = {
-        placeName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name,
-        placeId = game.PlaceId,
+        placeName = "Unknown Game",
+        placeId = game.PlaceId or 0,
         scanTime = os.date("%Y-%m-%d %H:%M:%S"),
-        playerName = LocalPlayer.Name
+        playerName = LocalPlayer.Name or "Unknown Player"
     },
     remotes = {},
     boats = {
@@ -36,6 +36,13 @@ local FishItData = {
     areas = {},
     packages = {}
 }
+
+-- Safe initialization of game info
+pcall(function()
+    local marketplaceService = game:GetService("MarketplaceService")
+    local productInfo = marketplaceService:GetProductInfo(game.PlaceId)
+    FishItData.gameInfo.placeName = productInfo.Name or "Fish It"
+end)
 
 -- Save data to JSON format (for console output)
 local function saveToJSON(data, filename)
@@ -63,18 +70,21 @@ local function saveToReadable(data, filename)
     local output = {}
     table.insert(output, "🎮 FISH IT GAME DATA EXPORT")
     table.insert(output, "=" .. string.rep("=", 50))
-    table.insert(output, "Game: " .. data.gameInfo.placeName)
-    table.insert(output, "Place ID: " .. data.gameInfo.placeId)
-    table.insert(output, "Scan Time: " .. data.gameInfo.scanTime)
-    table.insert(output, "Player: " .. data.gameInfo.playerName)
+    table.insert(output, "Game: " .. (data.gameInfo.placeName or "Unknown Game"))
+    table.insert(output, "Place ID: " .. (data.gameInfo.placeId or "Unknown"))
+    table.insert(output, "Scan Time: " .. (data.gameInfo.scanTime or "Unknown"))
+    table.insert(output, "Player: " .. (data.gameInfo.playerName or "Unknown Player"))
     table.insert(output, "")
     
     -- Remotes section
     table.insert(output, "📡 REMOTES FOUND (" .. #data.remotes .. "):")
     table.insert(output, "-" .. string.rep("-", 40))
     for _, remote in pairs(data.remotes) do
-        table.insert(output, "  • " .. remote.name .. " (" .. remote.class .. ")")
-        table.insert(output, "    Path: " .. remote.path)
+        local name = remote.name or "Unknown"
+        local class = remote.class or "Unknown" 
+        local path = remote.path or "Unknown"
+        table.insert(output, "  • " .. name .. " (" .. class .. ")")
+        table.insert(output, "    Path: " .. path)
     end
     table.insert(output, "")
     
@@ -82,7 +92,10 @@ local function saveToReadable(data, filename)
     table.insert(output, "🚤 BOAT REMOTES (" .. #data.boats.remotes .. "):")
     table.insert(output, "-" .. string.rep("-", 40))
     for _, remote in pairs(data.boats.remotes) do
-        table.insert(output, "  • " .. remote.name .. " (" .. remote.class .. ") - " .. remote.type)
+        local name = remote.name or "Unknown"
+        local class = remote.class or "Unknown"
+        local rtype = remote.type or "unknown"
+        table.insert(output, "  • " .. name .. " (" .. class .. ") - " .. rtype)
     end
     table.insert(output, "")
     
@@ -90,8 +103,11 @@ local function saveToReadable(data, filename)
     table.insert(output, "⚙️ BOAT CONFIGS (" .. #data.boats.configs .. "):")
     table.insert(output, "-" .. string.rep("-", 40))
     for _, config in pairs(data.boats.configs) do
-        table.insert(output, "  • " .. config.name .. " (" .. config.class .. ")")
-        table.insert(output, "    Path: " .. config.path)
+        local name = config.name or "Unknown"
+        local class = config.class or "Unknown"
+        local path = config.path or "Unknown"
+        table.insert(output, "  • " .. name .. " (" .. class .. ")")
+        table.insert(output, "    Path: " .. path)
     end
     table.insert(output, "")
     
@@ -99,8 +115,11 @@ local function saveToReadable(data, filename)
     table.insert(output, "🛥️ EXISTING BOATS (" .. #data.boats.existing .. "):")
     table.insert(output, "-" .. string.rep("-", 40))
     for _, boat in pairs(data.boats.existing) do
-        table.insert(output, "  • " .. boat.name .. " (Owner: " .. boat.owner .. ")")
-        table.insert(output, "    Path: " .. boat.path)
+        local name = boat.name or "Unknown"
+        local owner = boat.owner or "Unknown"
+        local path = boat.path or "Unknown"
+        table.insert(output, "  • " .. name .. " (Owner: " .. owner .. ")")
+        table.insert(output, "    Path: " .. path)
     end
     table.insert(output, "")
     
@@ -108,8 +127,11 @@ local function saveToReadable(data, filename)
     table.insert(output, "🎒 TOOLS/ITEMS (" .. #data.items.tools .. "):")
     table.insert(output, "-" .. string.rep("-", 40))
     for _, tool in pairs(data.items.tools) do
-        table.insert(output, "  • " .. tool.name .. " (" .. tool.class .. ")")
-        table.insert(output, "    Path: " .. tool.path)
+        local name = tool.name or "Unknown"
+        local class = tool.class or "Unknown"
+        local path = tool.path or "Unknown"
+        table.insert(output, "  • " .. name .. " (" .. class .. ")")
+        table.insert(output, "    Path: " .. path)
     end
     table.insert(output, "")
     
@@ -117,8 +139,11 @@ local function saveToReadable(data, filename)
     table.insert(output, "👥 NPCs/VENDORS (" .. #data.npcs .. "):")
     table.insert(output, "-" .. string.rep("-", 40))
     for _, npc in pairs(data.npcs) do
-        table.insert(output, "  • " .. npc.name .. " (" .. npc.class .. ")")
-        table.insert(output, "    Path: " .. npc.path)
+        local name = npc.name or "Unknown"
+        local class = npc.class or "Unknown"
+        local path = npc.path or "Unknown"
+        table.insert(output, "  • " .. name .. " (" .. class .. ")")
+        table.insert(output, "    Path: " .. path)
     end
     table.insert(output, "")
     
@@ -127,7 +152,9 @@ local function saveToReadable(data, filename)
     table.insert(output, "-" .. string.rep("-", 40))
     for i, area in pairs(data.areas) do
         if i <= 20 then
-            table.insert(output, "  • " .. area.name .. " (" .. area.class .. ")")
+            local name = area.name or "Unknown"
+            local class = area.class or "Unknown"
+            table.insert(output, "  • " .. name .. " (" .. class .. ")")
         end
     end
     if #data.areas > 20 then
@@ -139,8 +166,11 @@ local function saveToReadable(data, filename)
     table.insert(output, "📦 PACKAGES (" .. #data.packages .. "):")
     table.insert(output, "-" .. string.rep("-", 40))
     for _, pkg in pairs(data.packages) do
-        table.insert(output, "  • " .. pkg.name .. " (" .. pkg.class .. ")")
-        table.insert(output, "    Path: " .. pkg.path)
+        local name = pkg.name or "Unknown"
+        local class = pkg.class or "Unknown"
+        local path = pkg.path or "Unknown"
+        table.insert(output, "  • " .. name .. " (" .. class .. ")")
+        table.insert(output, "    Path: " .. path)
     end
     table.insert(output, "")
     
