@@ -165,6 +165,11 @@ local newFishNotificationRemote = ResolveRemote("RE/ObtainedNewFishNotification"
 local playFishingEffectRemote = ResolveRemote("RE/PlayFishingEffect")
 local fishingMinigameChangedRemote = ResolveRemote("RE/FishingMinigameChanged")
 
+-- Enhancement remotes
+local activateEnchantingAltarRemote = ResolveRemote("RE/ActivateEnchantingAltar")
+local updateEnchantStateRemote = ResolveRemote("RE/UpdateEnchantState")
+local rollEnchantRemote = ResolveRemote("RE/RollEnchant")
+
 -- Animation-Based Fishing System (defined early to avoid nil errors)
 local AnimationMonitor = {
     isMonitoring = false,
@@ -284,7 +289,20 @@ local Config = {
     secure_max_actions_per_minute = 120,
     secure_detection_cooldown = 5,
     enabled = false,
-    antiAfkEnabled = false
+    antiAfkEnabled = false,
+    enhancementEnabled = false
+}
+
+-- Enhancement System
+local Enhancement = {
+    enabled = false,
+    autoActivateAltar = false,
+    autoRollEnchant = false,
+    maxRolls = 5,
+    currentRolls = 0,
+    isEnchanting = false,
+    lastActivateTime = 0,
+    cooldownTime = 2
 }
 
 -- Dashboard & Statistics System
@@ -638,6 +656,92 @@ local function AntiAfkRunner(mySessionId)
     end
     
     Notify("AntiAFK", "AntiAFK system stopped")
+end
+
+-- Enhancement Functions
+local function ActivateEnchantingAltar()
+    if not Enhancement.enabled or not activateEnchantingAltarRemote then return false end
+    
+    local now = tick()
+    if now - Enhancement.lastActivateTime < Enhancement.cooldownTime then return false end
+    Enhancement.lastActivateTime = now
+    
+    local ok, res = pcall(function()
+        activateEnchantingAltarRemote:FireServer()
+        return true
+    end)
+    
+    if ok then
+        Notify("Enhancement", "🔮 Enchanting Altar activated")
+        Enhancement.isEnchanting = true
+        Enhancement.currentRolls = 0
+        return true
+    else
+        Notify("Enhancement", "❌ Failed to activate altar: " .. tostring(res))
+        return false
+    end
+end
+
+local function RollEnchant()
+    if not Enhancement.enabled or not rollEnchantRemote then return false end
+    if not Enhancement.isEnchanting then return false end
+    if Enhancement.currentRolls >= Enhancement.maxRolls then return false end
+    
+    local ok, res = pcall(function()
+        rollEnchantRemote:FireServer()
+        return true
+    end)
+    
+    if ok then
+        Enhancement.currentRolls = Enhancement.currentRolls + 1
+        Notify("Enhancement", string.format("🎲 Enchant roll %d/%d", Enhancement.currentRolls, Enhancement.maxRolls))
+        return true
+    else
+        Notify("Enhancement", "❌ Failed to roll enchant: " .. tostring(res))
+        return false
+    end
+end
+
+local function EnhancementRunner(mySessionId)
+    Notify("Enhancement", "🔮 Auto Enhancement started")
+    while Enhancement.enabled and Enhancement.sessionId == mySessionId do
+        local ok, err = pcall(function()
+            if Enhancement.autoActivateAltar and not Enhancement.isEnchanting then
+                ActivateEnchantingAltar()
+                task.wait(1) -- Wait for altar activation
+            end
+            
+            if Enhancement.autoRollEnchant and Enhancement.isEnchanting then
+                if Enhancement.currentRolls < Enhancement.maxRolls then
+                    RollEnchant()
+                    task.wait(0.5 + math.random() * 0.5) -- Random delay between rolls
+                else
+                    Enhancement.isEnchanting = false
+                    Enhancement.currentRolls = 0
+                    task.wait(3) -- Wait before next altar activation
+                end
+            end
+        end)
+        
+        if not ok then
+            warn("Enhancement error:", err)
+            task.wait(1)
+        end
+        
+        task.wait(0.1)
+    end
+    Notify("Enhancement", "🔮 Auto Enhancement stopped")
+end
+
+-- Enhancement event listeners
+if updateEnchantStateRemote then
+    updateEnchantStateRemote.OnClientEvent:Connect(function(state)
+        if state then
+            Enhancement.isEnchanting = state.isEnchanting or false
+            Enhancement.currentRolls = state.currentRolls or 0
+            print("[Enhancement] State updated:", state)
+        end
+    end)
 end
 
 local Security = { actionsThisMinute = 0, lastMinuteReset = tick(), isInCooldown = false, suspicion = 0 }
@@ -1631,8 +1735,101 @@ local function BuildUI()
     sellBtn.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", sellBtn)
 
+    -- Enhancement Section
+    local enhancementSection = Instance.new("Frame", featureScrollFrame)
+    enhancementSection.Size = UDim2.new(1, -10, 0, 120)
+    enhancementSection.Position = UDim2.new(0, 5, 0, 325)
+    enhancementSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
+    enhancementSection.BorderSizePixel = 0
+    Instance.new("UICorner", enhancementSection)
+
+    local enhancementTitle = Instance.new("TextLabel", enhancementSection)
+    enhancementTitle.Size = UDim2.new(1, -20, 0, 20)
+    enhancementTitle.Position = UDim2.new(0, 10, 0, 5)
+    enhancementTitle.Text = "🔮 Auto Enhancement System"
+    enhancementTitle.Font = Enum.Font.GothamBold
+    enhancementTitle.TextSize = 14
+    enhancementTitle.TextColor3 = Color3.fromRGB(255,140,255)
+    enhancementTitle.BackgroundTransparency = 1
+    enhancementTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Auto Activate Altar Toggle
+    local autoAltarToggle = Instance.new("Frame", enhancementSection)
+    autoAltarToggle.Size = UDim2.new(1, -20, 0, 25)
+    autoAltarToggle.Position = UDim2.new(0, 10, 0, 30)
+    autoAltarToggle.BackgroundTransparency = 1
+
+    local altarLabel = Instance.new("TextLabel", autoAltarToggle)
+    altarLabel.Size = UDim2.new(0.7, -10, 1, 0)
+    altarLabel.Position = UDim2.new(0, 0, 0, 0)
+    altarLabel.Text = "🏛️ Auto Activate Altar"
+    altarLabel.Font = Enum.Font.GothamSemibold
+    altarLabel.TextSize = 12
+    altarLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    altarLabel.BackgroundTransparency = 1
+    altarLabel.TextXAlignment = Enum.TextXAlignment.Left
+    altarLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+    local altarToggleBtn = Instance.new("TextButton", autoAltarToggle)
+    altarToggleBtn.Size = UDim2.new(0, 50, 0, 20)
+    altarToggleBtn.Position = UDim2.new(1, -55, 0, 2)
+    altarToggleBtn.Text = "OFF"
+    altarToggleBtn.Font = Enum.Font.GothamBold
+    altarToggleBtn.TextSize = 10
+    altarToggleBtn.BackgroundColor3 = Color3.fromRGB(160,60,60)
+    altarToggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", altarToggleBtn)
+
+    -- Auto Roll Enchant Toggle
+    local autoRollToggle = Instance.new("Frame", enhancementSection)
+    autoRollToggle.Size = UDim2.new(1, -20, 0, 25)
+    autoRollToggle.Position = UDim2.new(0, 10, 0, 60)
+    autoRollToggle.BackgroundTransparency = 1
+
+    local rollLabel = Instance.new("TextLabel", autoRollToggle)
+    rollLabel.Size = UDim2.new(0.7, -10, 1, 0)
+    rollLabel.Position = UDim2.new(0, 0, 0, 0)
+    rollLabel.Text = "🎲 Auto Roll Enchant"
+    rollLabel.Font = Enum.Font.GothamSemibold
+    rollLabel.TextSize = 12
+    rollLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    rollLabel.BackgroundTransparency = 1
+    rollLabel.TextXAlignment = Enum.TextXAlignment.Left
+    rollLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+    local rollToggleBtn = Instance.new("TextButton", autoRollToggle)
+    rollToggleBtn.Size = UDim2.new(0, 50, 0, 20)
+    rollToggleBtn.Position = UDim2.new(1, -55, 0, 2)
+    rollToggleBtn.Text = "OFF"
+    rollToggleBtn.Font = Enum.Font.GothamBold
+    rollToggleBtn.TextSize = 10
+    rollToggleBtn.BackgroundColor3 = Color3.fromRGB(160,60,60)
+    rollToggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", rollToggleBtn)
+
+    -- Enhancement Start/Stop Buttons
+    local enhancementStartBtn = Instance.new("TextButton", enhancementSection)
+    enhancementStartBtn.Size = UDim2.new(0.48, -5, 0, 25)
+    enhancementStartBtn.Position = UDim2.new(0, 10, 0, 90)
+    enhancementStartBtn.Text = "🔮 Start Enhancement"
+    enhancementStartBtn.Font = Enum.Font.GothamBold
+    enhancementStartBtn.TextSize = 11
+    enhancementStartBtn.BackgroundColor3 = Color3.fromRGB(140,60,255)
+    enhancementStartBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", enhancementStartBtn)
+
+    local enhancementStopBtn = Instance.new("TextButton", enhancementSection)
+    enhancementStopBtn.Size = UDim2.new(0.48, -5, 0, 25)
+    enhancementStopBtn.Position = UDim2.new(0.52, 5, 0, 90)
+    enhancementStopBtn.Text = "🛑 Stop Enhancement"
+    enhancementStopBtn.Font = Enum.Font.GothamBold
+    enhancementStopBtn.TextSize = 11
+    enhancementStopBtn.BackgroundColor3 = Color3.fromRGB(190,60,60)
+    enhancementStopBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", enhancementStopBtn)
+
     -- Set canvas size for feature scroll frame
-    featureScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 330)
+    featureScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 460)
 
     -- Feature variables
     local currentSpeed = 16
@@ -1719,6 +1916,38 @@ local function BuildUI()
             LocalPlayer.Character.Humanoid.JumpPower = currentJump
         end
         Notify("Features", "Jump power reset to 50")
+    end)
+
+    -- Enhancement callbacks
+    altarToggleBtn.MouseButton1Click:Connect(function()
+        Enhancement.autoActivateAltar = not Enhancement.autoActivateAltar
+        altarToggleBtn.Text = Enhancement.autoActivateAltar and "ON" or "OFF"
+        altarToggleBtn.BackgroundColor3 = Enhancement.autoActivateAltar and Color3.fromRGB(100,200,100) or Color3.fromRGB(160,60,60)
+        Notify("Enhancement", "🏛️ Auto Activate Altar: " .. (Enhancement.autoActivateAltar and "Enabled" or "Disabled"))
+    end)
+
+    rollToggleBtn.MouseButton1Click:Connect(function()
+        Enhancement.autoRollEnchant = not Enhancement.autoRollEnchant
+        rollToggleBtn.Text = Enhancement.autoRollEnchant and "ON" or "OFF"
+        rollToggleBtn.BackgroundColor3 = Enhancement.autoRollEnchant and Color3.fromRGB(100,200,100) or Color3.fromRGB(160,60,60)
+        Notify("Enhancement", "🎲 Auto Roll Enchant: " .. (Enhancement.autoRollEnchant and "Enabled" or "Disabled"))
+    end)
+
+    enhancementStartBtn.MouseButton1Click:Connect(function()
+        if Enhancement.enabled then
+            Notify("Enhancement", "Enhancement already running")
+            return
+        end
+        Enhancement.enabled = true
+        Enhancement.sessionId = (Enhancement.sessionId or 0) + 1
+        task.spawn(function() EnhancementRunner(Enhancement.sessionId) end)
+    end)
+
+    enhancementStopBtn.MouseButton1Click:Connect(function()
+        Enhancement.enabled = false
+        Enhancement.sessionId = (Enhancement.sessionId or 0) + 1
+        Enhancement.isEnchanting = false
+        Enhancement.currentRolls = 0
     end)
 
     -- Auto-apply features when character spawns
@@ -2558,7 +2787,21 @@ _G.ModernAutoFish = {
     
     Config = Config,
     AntiAFK = AntiAFK,
-    Dashboard = Dashboard
+    Dashboard = Dashboard,
+    Enhancement = Enhancement,
+    
+    -- Enhancement API
+    StartEnhancement = function() 
+        Enhancement.enabled = true
+        Enhancement.sessionId = (Enhancement.sessionId or 0) + 1
+        task.spawn(function() EnhancementRunner(Enhancement.sessionId) end)
+    end,
+    StopEnhancement = function() 
+        Enhancement.enabled = false
+        Enhancement.sessionId = (Enhancement.sessionId or 0) + 1
+    end,
+    ActivateAltar = ActivateEnchantingAltar,
+    RollEnchant = RollEnchant
 }
 
 print("modern_autofish loaded - UI created and API available via _G.ModernAutoFish")
