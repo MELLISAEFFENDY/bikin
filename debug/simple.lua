@@ -28,112 +28,187 @@ local AutoAnalyzer = {
 local function QuickRemoteScan()
     print("🔍 Quick scan for fishing remotes...")
     
-    local keywords = {"fishing", "charge", "rod", "minigame", "cast", "reel"}
+    local fishingKeywords = {"fishing", "charge", "rod", "minigame", "cast", "reel", "fish", "hook", "bait"}
+    local excludeKeywords = {"purchase", "product", "buy", "shop", "store", "payment", "coin", "money", "robux", "gamepass", "developer"}
     local found = {}
     
     for _, descendant in pairs(ReplicatedStorage:GetDescendants()) do
         if descendant:IsA("RemoteEvent") or descendant:IsA("RemoteFunction") then
             local name = descendant.Name:lower()
-            for _, keyword in pairs(keywords) do
-                if name:find(keyword) then
-                    table.insert(found, descendant)
-                    print("🎯 Found:", descendant:GetFullName())
+            local fullName = descendant:GetFullName():lower()
+            
+            -- Check if it's an excluded remote first
+            local isExcluded = false
+            for _, excludeWord in pairs(excludeKeywords) do
+                if name:find(excludeWord) or fullName:find(excludeWord) then
+                    isExcluded = true
+                    print("🚫 Excluded (payment/shop):", descendant:GetFullName())
                     break
+                end
+            end
+            
+            -- Only add if not excluded and contains fishing keywords
+            if not isExcluded then
+                for _, keyword in pairs(fishingKeywords) do
+                    if name:find(keyword) then
+                        -- Additional validation: make sure it's not in Packages or vendor folders
+                        if not fullName:find("packages") and not fullName:find("_index") and not fullName:find("vendor") then
+                            table.insert(found, descendant)
+                            print("🎯 Found fishing remote:", descendant:GetFullName())
+                        else
+                            print("🚫 Excluded (vendor/package):", descendant:GetFullName())
+                        end
+                        break
+                    end
                 end
             end
         end
     end
     
     AutoAnalyzer.foundRemotes = found
-    print("✅ Found", #found, "fishing remotes")
+    print("✅ Found", #found, "verified fishing remotes")
     return #found > 0
 end
 
--- Apply perfect modifications to all found remotes
-local function ApplyPerfectMods()
-    if #AutoAnalyzer.foundRemotes == 0 then
-        print("❌ No remotes to modify")
+-- Validate if args are fishing-related
+local function IsFishingCall(remote, args)
+    local remoteName = remote.Name:lower()
+    
+    -- Skip if remote contains payment/purchase keywords
+    if remoteName:find("purchase") or remoteName:find("product") or remoteName:find("payment") then
         return false
     end
     
-    print("🎯 Applying perfect modifications...")
+    -- Check if args look like fishing data
+    if #args == 1 and tonumber(args[1]) then
+        -- Single number could be charge/power
+        local num = tonumber(args[1])
+        return num >= 0 and num <= 100
+    elseif #args == 2 and tonumber(args[1]) and tonumber(args[2]) then
+        -- Two numbers could be coordinates
+        local x, y = tonumber(args[1]), tonumber(args[2])
+        return x >= -2 and x <= 2 and y >= -2 and y <= 2
+    elseif #args >= 3 then
+        -- Multiple args - check if they contain reasonable fishing values
+        local hasReasonableNumbers = false
+        for _, arg in ipairs(args) do
+            if tonumber(arg) then
+                local num = tonumber(arg)
+                if num >= -2 and num <= 100 then
+                    hasReasonableNumbers = true
+                    break
+                end
+            end
+        end
+        return hasReasonableNumbers
+    end
+    
+    return true -- Default to true for now
+end
+-- Apply perfect hooks to found remotes
+local function ApplyPerfectHooks()
+    if #AutoAnalyzer.foundRemotes == 0 then
+        print("❌ No remotes found to modify")
+        return false
+    end
+    
+    print("🔧 Applying perfect hooks to", #AutoAnalyzer.foundRemotes, "remotes...")
     local modsApplied = 0
     
     for _, remote in pairs(AutoAnalyzer.foundRemotes) do
-        if remote:IsA("RemoteFunction") then
-            -- Hook InvokeServer
-            local original = remote.InvokeServer
-            remote.InvokeServer = function(self, ...)
-                local args = {...}
-                
-                -- Auto-detect and modify based on argument patterns
-                if #args == 1 and tonumber(args[1]) then
-                    -- Single number argument - likely charge value
-                    args[1] = 100 -- Perfect charge
-                    print("⚡ Perfect charge:", args[1])
-                elseif #args == 2 and tonumber(args[1]) and tonumber(args[2]) then
-                    -- Two numbers - likely minigame coordinates
-                    args[1] = -1.2379989624023438
-                    args[2] = 0.9800224985802423
-                    print("🎯 Perfect coords:", args[1], args[2])
-                elseif #args >= 1 then
-                    -- Multiple args - try to find and perfect the numeric ones
-                    for i, arg in ipairs(args) do
-                        if tonumber(arg) and arg < 1000 and arg > -1000 then
-                            if i == 1 then
-                                args[i] = -1.2379989624023438 -- Perfect X
-                            elseif i == 2 then
-                                args[i] = 0.9800224985802423   -- Perfect Y
-                            else
-                                args[i] = 100 -- Perfect power/charge
+        local success, err = pcall(function()
+            if remote:IsA("RemoteFunction") then
+                -- Hook InvokeServer with error handling
+                local original = remote.InvokeServer
+                remote.InvokeServer = function(self, ...)
+                    local args = {...}
+                    
+                    -- Validate this is a fishing call
+                    if not IsFishingCall(remote, args) then
+                        print("⚠️ Skipping non-fishing call to:", remote:GetFullName())
+                        return original(self, unpack(args))
+                    end
+                    
+                    -- Simple modification for single numeric argument (charge)
+                    if #args == 1 and tonumber(args[1]) then
+                        args[1] = 100
+                        print("⚡ Perfect charge:", args[1])
+                    -- Perfect coordinates for minigame
+                    elseif #args == 2 and tonumber(args[1]) and tonumber(args[2]) then
+                        args[1] = -1.2379989624023438
+                        args[2] = 0.9800224985802423
+                        print("🎯 Perfect coords:", args[1], args[2])
+                    elseif #args >= 1 then
+                        -- Multiple args - try to find and perfect the numeric ones
+                        for i, arg in ipairs(args) do
+                            if tonumber(arg) and arg < 1000 and arg > -1000 then
+                                if i == 1 then
+                                    args[i] = -1.2379989624023438 -- Perfect X
+                                elseif i == 2 then
+                                    args[i] = 0.9800224985802423   -- Perfect Y
+                                else
+                                    args[i] = 100 -- Perfect power/charge
+                                end
                             end
                         end
+                        print("🔧 Modified args:", unpack(args))
                     end
-                    print("🔧 Modified args:", unpack(args))
+                    
+                    AutoAnalyzer.castCount = AutoAnalyzer.castCount + 1
+                    AutoAnalyzer.perfectCount = AutoAnalyzer.perfectCount + 1
+                    
+                    return original(self, unpack(args))
                 end
+                modsApplied = modsApplied + 1
                 
-                AutoAnalyzer.castCount = AutoAnalyzer.castCount + 1
-                AutoAnalyzer.perfectCount = AutoAnalyzer.perfectCount + 1
-                
-                return original(self, unpack(args))
-            end
-            modsApplied = modsApplied + 1
-            
-        elseif remote:IsA("RemoteEvent") then
-            -- Hook FireServer
-            local original = remote.FireServer
-            remote.FireServer = function(self, ...)
-                local args = {...}
-                
-                -- Same modification logic for RemoteEvents
-                if #args == 1 and tonumber(args[1]) then
-                    args[1] = 100
-                    print("⚡ Perfect charge:", args[1])
-                elseif #args == 2 and tonumber(args[1]) and tonumber(args[2]) then
-                    args[1] = -1.2379989624023438
-                    args[2] = 0.9800224985802423
-                    print("🎯 Perfect coords:", args[1], args[2])
-                elseif #args >= 1 then
-                    for i, arg in ipairs(args) do
-                        if tonumber(arg) and arg < 1000 and arg > -1000 then
-                            if i == 1 then
-                                args[i] = -1.2379989624023438
-                            elseif i == 2 then
-                                args[i] = 0.9800224985802423
-                            else
-                                args[i] = 100
+            elseif remote:IsA("RemoteEvent") then
+                -- Hook FireServer with error handling
+                local original = remote.FireServer
+                remote.FireServer = function(self, ...)
+                    local args = {...}
+                    
+                    -- Validate this is a fishing call
+                    if not IsFishingCall(remote, args) then
+                        print("⚠️ Skipping non-fishing call to:", remote:GetFullName())
+                        return original(self, unpack(args))
+                    end
+                    
+                    -- Same modification logic for RemoteEvents
+                    if #args == 1 and tonumber(args[1]) then
+                        args[1] = 100
+                        print("⚡ Perfect charge:", args[1])
+                    elseif #args == 2 and tonumber(args[1]) and tonumber(args[2]) then
+                        args[1] = -1.2379989624023438
+                        args[2] = 0.9800224985802423
+                        print("🎯 Perfect coords:", args[1], args[2])
+                    elseif #args >= 1 then
+                        for i, arg in ipairs(args) do
+                            if tonumber(arg) and arg < 1000 and arg > -1000 then
+                                if i == 1 then
+                                    args[i] = -1.2379989624023438
+                                elseif i == 2 then
+                                    args[i] = 0.9800224985802423
+                                else
+                                    args[i] = 100
+                                end
                             end
                         end
+                        print("🔧 Modified args:", unpack(args))
                     end
-                    print("🔧 Modified args:", unpack(args))
+                    
+                    AutoAnalyzer.castCount = AutoAnalyzer.castCount + 1
+                    AutoAnalyzer.perfectCount = AutoAnalyzer.perfectCount + 1
+                    
+                    return original(self, unpack(args))
                 end
-                
-                AutoAnalyzer.castCount = AutoAnalyzer.castCount + 1
-                AutoAnalyzer.perfectCount = AutoAnalyzer.perfectCount + 1
-                
-                return original(self, unpack(args))
+                modsApplied = modsApplied + 1
             end
-            modsApplied = modsApplied + 1
+        end)
+        
+        if not success then
+            print("⚠️ Failed to hook remote:", remote:GetFullName(), "Error:", err)
+        else
+            print("✅ Successfully hooked:", remote:GetFullName())
         end
     end
     
