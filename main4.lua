@@ -1714,15 +1714,32 @@ local function BuildUI()
         end
         
         print("[AUTO-ENCHANT] Starting enchanting sequence...")
+        Notify("Auto Enchant", "Starting enchant sequence...")
         
         -- Step 1: Activate altar (assumes player is at altar with enchant stone equipped)
+        print("[AUTO-ENCHANT] Step 1: Activating enchanting altar...")
         ActivateEnchantingAltar()
         
         -- Step 2: Wait a bit then roll
+        print("[AUTO-ENCHANT] Step 2: Waiting 2 seconds...")
         wait(2)
+        
+        print("[AUTO-ENCHANT] Step 3: Rolling enchantment...")
         RollEnchant()
         
         print("[AUTO-ENCHANT] Enchanting sequence completed")
+        Notify("Auto Enchant", "Enchant sequence completed!")
+    end
+
+    -- Manual enchanting function for Roll Enchant button
+    local function ManualRollEnchant()
+        print("[MANUAL-ENCHANT] Manual enchant requested...")
+        Notify("Manual Enchant", "Starting manual enchant...")
+        
+        -- For manual enchant, just do the activation and roll
+        ActivateEnchantingAltar()
+        wait(2)
+        RollEnchant()
     end
 
     -- Trading Functions
@@ -1762,9 +1779,19 @@ local function BuildUI()
         AdvancedFeatures.autoEnchant = not AdvancedFeatures.autoEnchant
         enchantToggle.Text = AdvancedFeatures.autoEnchant and "Auto Enchant: ON" or "Auto Enchant: OFF"
         enchantToggle.BackgroundColor3 = AdvancedFeatures.autoEnchant and Color3.fromRGB(40,167,69) or Color3.fromRGB(220,53,69)
+        
+        -- Notify user about the change
+        if AdvancedFeatures.autoEnchant then
+            Notify("Auto Enchant", "Enabled! Will auto-enchant every 60 seconds")
+            print("[AUTO-ENCHANT] Auto enchanting enabled")
+            print("[AUTO-ENCHANT] Requirements: Enchant stone equipped + At altar")
+        else
+            Notify("Auto Enchant", "Disabled")
+            print("[AUTO-ENCHANT] Auto enchanting disabled")
+        end
     end)
 
-    rollEnchantBtn.MouseButton1Click:Connect(RollEnchant)
+    rollEnchantBtn.MouseButton1Click:Connect(ManualRollEnchant)
 
     tradeToggle.MouseButton1Click:Connect(function()
         AdvancedFeatures.autoTrade = not AdvancedFeatures.autoTrade
