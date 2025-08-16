@@ -83,7 +83,7 @@ local AntiAFK = {
 
 local function generateRandomJumpTime()
     -- Random time between 5-10 minutes (300-600 seconds)
-    return math.random(300, 600)
+    return math.random(100, 600)
 end
 
 local function performAntiAfkJump()
@@ -152,182 +152,6 @@ local function secureInvoke(remote, ...)
     return ok, res
 end
 
--- 📊 STATS DASHBOARD SYSTEM
-local Stats = {
-    sessionStartTime = tick(),
-    fishCaught = 0,
-    rareFishCaught = 0,
-    totalCasts = 0,
-    successfulCasts = 0,
-    coinsEarned = 0,
-    sessionsCompleted = 0,
-    currentStreak = 0,
-    bestStreak = 0,
-    fishPerHour = 0,
-    coinsPerHour = 0,
-    efficiency = 0,
-    lastFishTime = 0,
-    averageCatchTime = 0,
-    elapsedTime = 0,
-    longestStreak = 0
-}
-
--- Forward declarations
-local UpdateStatsCalculations
-local UpdateStatsDisplay
-
--- Fish It specific remotes for monitoring (based on debug results)
-local fishCaughtRemote
-local newFishRemote  
-local sellAllRemote
-
--- Initialize Fish It monitoring
-local function InitializeFishItMonitoring()
-    pcall(function()
-        -- Based on debug analysis
-        fishCaughtRemote = ReplicatedStorage.Packages._Index.sleitnick_net@0.2.0.net.RE.FishCaught
-        newFishRemote = ReplicatedStorage.Packages._Index.sleitnick_net@0.2.0.net.RE.ObtainedNewFishNotification
-        sellAllRemote = ReplicatedStorage.Packages._Index.sleitnick_net@0.2.0.net.RF.SellAllItems
-        
-        -- Monitor fish caught events
-        if fishCaughtRemote then
-            fishCaughtRemote.OnClientEvent:Connect(function(fishData)
-                Stats.fishCaught = Stats.fishCaught + 1
-                Stats.currentStreak = Stats.currentStreak + 1
-                Stats.lastFishTime = tick()
-                
-                if Stats.currentStreak > Stats.bestStreak then
-                    Stats.bestStreak = Stats.currentStreak
-                end
-                
-                UpdateStatsCalculations()
-                UpdateStatsDisplay()
-            end)
-        end
-        
-        -- Monitor rare fish notifications  
-        if newFishRemote then
-            newFishRemote.OnClientEvent:Connect(function(fishName, rarity)
-                if rarity and rarity >= 4 then -- Rare fish threshold
-                    Stats.rareFishCaught = Stats.rareFishCaught + 1
-                    Notify("🌟 RARE FISH!", fishName .. " caught!")
-                    UpdateStatsDisplay()
-                end
-            end)
-        end
-    end)
-end
-
--- Calculate real-time statistics
-local function UpdateStatsCalculations()
-    local elapsed = tick() - Stats.sessionStartTime
-    local hours = elapsed / 3600
-    
-    if hours > 0 then
-        Stats.fishPerHour = math.floor(Stats.fishCaught / hours * 10) / 10
-        Stats.coinsPerHour = math.floor(Stats.coinsEarned / hours * 10) / 10
-    end
-    
-    if Stats.totalCasts > 0 then
-        Stats.efficiency = math.floor((Stats.successfulCasts / Stats.totalCasts) * 100)
-    end
-    
-    if Stats.fishCaught > 1 then
-        Stats.averageCatchTime = elapsed / Stats.fishCaught
-    end
-end
-
--- Reset statistics
-local function ResetStats()
-    Stats.sessionStartTime = tick()
-    Stats.fishCaught = 0
-    Stats.rareFishCaught = 0
-    Stats.totalCasts = 0
-    Stats.successfulCasts = 0
-    Stats.coinsEarned = 0
-    Stats.currentStreak = 0
-    Stats.fishPerHour = 0
-    Stats.coinsPerHour = 0
-    Stats.efficiency = 0
-    Stats.lastFishTime = 0
-    Stats.averageCatchTime = 0
-    UpdateStatsDisplay()
-    Notify("📊 Stats", "Statistics reset!")
-end
-
--- Format time helper
-local function FormatTime(seconds)
-    local hours = math.floor(seconds / 3600)
-    local minutes = math.floor((seconds % 3600) / 60)
-    local secs = math.floor(seconds % 60)
-    
-    if hours > 0 then
-        return string.format("%dh %dm %ds", hours, minutes, secs)
-    elseif minutes > 0 then
-        return string.format("%dm %ds", minutes, secs)
-    else
-        return string.format("%ds", secs)
-    end
-end
-
--- Update stats display (will be connected to UI)
-function UpdateStatsDisplay()
-    -- Update stats calculations first
-    if UpdateStatsCalculations then
-        UpdateStatsCalculations()
-    end
-    
-    -- Update UI labels if they exist
-    pcall(function()
-        if _G.ModernAutoFish and _G.ModernAutoFish.UI then
-            local ui = _G.ModernAutoFish.UI
-            
-            if ui.fishCountLabel then
-                ui.fishCountLabel.Text = "Fish: " .. Stats.fishCaught
-            end
-            if ui.rareCountLabel then  
-                ui.rareCountLabel.Text = "Rare: " .. Stats.rareFishCaught
-            end
-            if ui.timeLabel then
-                ui.timeLabel.Text = "Time: " .. FormatTime(Stats.elapsedTime)
-            end
-            if ui.efficiencyLabel then
-                ui.efficiencyLabel.Text = "Success: " .. string.format("%.1f", Stats.efficiency) .. "%"
-            end
-            if ui.streakLabel then
-                ui.streakLabel.Text = "Streak: " .. Stats.currentStreak
-            end
-            if ui.rateLabel then
-                ui.rateLabel.Text = string.format("%.1f", Stats.fishPerHour) .. "/h"
-            end
-        end
-    end)
-end
-
--- Track fishing attempts
-local function TrackFishingAttempt(success)
-    Stats.totalCasts = Stats.totalCasts + 1
-    if success then
-        Stats.successfulCasts = Stats.successfulCasts + 1
-    else
-        Stats.currentStreak = 0 -- Reset streak on failure
-    end
-    UpdateStatsCalculations()
-    UpdateStatsDisplay()
-end
-
--- Track selling (estimate coins earned)
-local function TrackSelling(estimatedCoins)
-    if estimatedCoins then
-        Stats.coinsEarned = Stats.coinsEarned + estimatedCoins
-    else
-        -- Estimate based on fish caught (rough calculation)
-        Stats.coinsEarned = Stats.coinsEarned + (Stats.fishCaught * 10) -- Rough estimate
-    end
-    UpdateStatsCalculations()
-    UpdateStatsDisplay()
-end
-
 local function GetServerTime()
     local ok, st = pcall(function() return workspace:GetServerTimeNow() end)
     if ok and type(st) == "number" then return st end
@@ -387,14 +211,7 @@ end
 
 -- UI builder
 local function BuildUI()
-    -- Check if UI already exists and remove it
     local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-    local existingUI = playerGui:FindFirstChild("ModernAutoFishUI")
-    if existingUI then
-        existingUI:Destroy()
-        wait(0.1) -- Small delay to ensure cleanup
-    end
-    
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "ModernAutoFishUI"
     screenGui.ResetOnSpawn = false
@@ -1137,345 +954,174 @@ local function BuildUI()
     dashboardTitle.BackgroundTransparency = 1
     dashboardTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Main Stats Section (Enhanced)
-    local mainStatsSection = Instance.new("Frame", dashboardFrame)
-    mainStatsSection.Size = UDim2.new(1, 0, 0, 120)
-    mainStatsSection.Position = UDim2.new(0, 0, 0, 35)
-    mainStatsSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
-    mainStatsSection.BorderSizePixel = 0
-    Instance.new("UICorner", mainStatsSection)
+    -- Simple stats display (no complex tracking for now)
+    local statsContainer = Instance.new("Frame", dashboardFrame)
+    statsContainer.Size = UDim2.new(1, 0, 0, 120)
+    statsContainer.Position = UDim2.new(0, 0, 0, 35)
+    statsContainer.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    statsContainer.BorderSizePixel = 0
+    Instance.new("UICorner", statsContainer)
 
-    -- Stats Cards Layout (2x3 grid)
-    local statsGrid = Instance.new("Frame", mainStatsSection)
-    statsGrid.Size = UDim2.new(1, -20, 1, -40)
-    statsGrid.Position = UDim2.new(0, 10, 0, 30)
+    local statsTitle = Instance.new("TextLabel", statsContainer)
+    statsTitle.Size = UDim2.new(1, -20, 0, 20)
+    statsTitle.Position = UDim2.new(0, 10, 0, 5)
+    statsTitle.Text = "📈 Session Overview"
+    statsTitle.Font = Enum.Font.GothamBold
+    statsTitle.TextSize = 13
+    statsTitle.TextColor3 = Color3.fromRGB(235,235,235)
+    statsTitle.BackgroundTransparency = 1
+    statsTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Stats grid (2x3)
+    local statsGrid = Instance.new("Frame", statsContainer)
+    statsGrid.Size = UDim2.new(1, -20, 1, -30)
+    statsGrid.Position = UDim2.new(0, 10, 0, 25)
     statsGrid.BackgroundTransparency = 1
 
-    -- Create stats labels for Dashboard
-    local dashboardStatsLabels = {}
-
-    -- Top Row Stats Cards
-    local fishCard = Instance.new("Frame", statsGrid)
-    fishCard.Size = UDim2.new(0.33, -7, 0.5, -3)
-    fishCard.Position = UDim2.new(0, 0, 0, 0)
-    fishCard.BackgroundColor3 = Color3.fromRGB(45,45,52)
-    Instance.new("UICorner", fishCard)
-    
-    local fishIcon = Instance.new("TextLabel", fishCard)
-    fishIcon.Size = UDim2.new(0, 20, 0, 20)
-    fishIcon.Position = UDim2.new(0, 8, 0, 5)
-    fishIcon.Text = "🐟"
-    fishIcon.Font = Enum.Font.GothamBold
-    fishIcon.TextSize = 14
-    fishIcon.BackgroundTransparency = 1
-    fishIcon.TextXAlignment = Enum.TextXAlignment.Center
-    
-    local fishCountLabel = Instance.new("TextLabel", fishCard)
-    fishCountLabel.Size = UDim2.new(1, -35, 0, 16)
-    fishCountLabel.Position = UDim2.new(0, 30, 0, 6)
-    fishCountLabel.Text = "0"
-    fishCountLabel.Font = Enum.Font.GothamBold
-    fishCountLabel.TextSize = 18
-    fishCountLabel.TextColor3 = Color3.fromRGB(120,200,255)
-    fishCountLabel.BackgroundTransparency = 1
-    fishCountLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local fishLabel = Instance.new("TextLabel", fishCard)
-    fishLabel.Size = UDim2.new(1, -10, 0, 12)
-    fishLabel.Position = UDim2.new(0, 5, 1, -17)
-    fishLabel.Text = "Fish Caught"
-    fishLabel.Font = Enum.Font.Gotham
-    fishLabel.TextSize = 10
-    fishLabel.TextColor3 = Color3.fromRGB(180,180,180)
-    fishLabel.BackgroundTransparency = 1
-    fishLabel.TextXAlignment = Enum.TextXAlignment.Left
-    dashboardStatsLabels.fishCountLabel = fishCountLabel
-
-    local rareCard = Instance.new("Frame", statsGrid)
-    rareCard.Size = UDim2.new(0.33, -7, 0.5, -3)
-    rareCard.Position = UDim2.new(0.33, 3, 0, 0)
-    rareCard.BackgroundColor3 = Color3.fromRGB(45,45,52)
-    Instance.new("UICorner", rareCard)
-    
-    local rareIcon = Instance.new("TextLabel", rareCard)
-    rareIcon.Size = UDim2.new(0, 20, 0, 20)
-    rareIcon.Position = UDim2.new(0, 8, 0, 5)
-    rareIcon.Text = "⭐"
-    rareIcon.Font = Enum.Font.GothamBold
-    rareIcon.TextSize = 14
-    rareIcon.BackgroundTransparency = 1
-    rareIcon.TextXAlignment = Enum.TextXAlignment.Center
-    
-    local rareCountLabel = Instance.new("TextLabel", rareCard)
-    rareCountLabel.Size = UDim2.new(1, -35, 0, 16)
-    rareCountLabel.Position = UDim2.new(0, 30, 0, 6)
-    rareCountLabel.Text = "0"
-    rareCountLabel.Font = Enum.Font.GothamBold
-    rareCountLabel.TextSize = 18
-    rareCountLabel.TextColor3 = Color3.fromRGB(255,215,0)
-    rareCountLabel.BackgroundTransparency = 1
-    rareCountLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local rareLabel = Instance.new("TextLabel", rareCard)
-    rareLabel.Size = UDim2.new(1, -10, 0, 12)
-    rareLabel.Position = UDim2.new(0, 5, 1, -17)
-    rareLabel.Text = "Rare Fish"
-    rareLabel.Font = Enum.Font.Gotham
-    rareLabel.TextSize = 10
-    rareLabel.TextColor3 = Color3.fromRGB(180,180,180)
-    rareLabel.BackgroundTransparency = 1
-    rareLabel.TextXAlignment = Enum.TextXAlignment.Left
-    dashboardStatsLabels.rareCountLabel = rareCountLabel
-
-    local timeCard = Instance.new("Frame", statsGrid)
-    timeCard.Size = UDim2.new(0.33, -7, 0.5, -3)
-    timeCard.Position = UDim2.new(0.66, 7, 0, 0)
-    timeCard.BackgroundColor3 = Color3.fromRGB(45,45,52)
-    Instance.new("UICorner", timeCard)
-    
-    local timeIcon = Instance.new("TextLabel", timeCard)
-    timeIcon.Size = UDim2.new(0, 20, 0, 20)
-    timeIcon.Position = UDim2.new(0, 8, 0, 5)
-    timeIcon.Text = "⏱️"
-    timeIcon.Font = Enum.Font.GothamBold
-    timeIcon.TextSize = 14
-    timeIcon.BackgroundTransparency = 1
-    timeIcon.TextXAlignment = Enum.TextXAlignment.Center
-    
-    local timeLabel = Instance.new("TextLabel", timeCard)
-    timeLabel.Size = UDim2.new(1, -35, 0, 16)
-    timeLabel.Position = UDim2.new(0, 30, 0, 6)
-    timeLabel.Text = "0s"
-    timeLabel.Font = Enum.Font.GothamBold
-    timeLabel.TextSize = 18
-    timeLabel.TextColor3 = Color3.fromRGB(150,255,150)
-    timeLabel.BackgroundTransparency = 1
-    timeLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local timeLabelText = Instance.new("TextLabel", timeCard)
-    timeLabelText.Size = UDim2.new(1, -10, 0, 12)
-    timeLabelText.Position = UDim2.new(0, 5, 1, -17)
-    timeLabelText.Text = "Session Time"
-    timeLabelText.Font = Enum.Font.Gotham
-    timeLabelText.TextSize = 10
-    timeLabelText.TextColor3 = Color3.fromRGB(180,180,180)
-    timeLabelText.BackgroundTransparency = 1
-    timeLabelText.TextXAlignment = Enum.TextXAlignment.Left
-    dashboardStatsLabels.timeLabel = timeLabel
-
-    -- Bottom Row Stats Cards
-    local efficiencyCard = Instance.new("Frame", statsGrid)
-    efficiencyCard.Size = UDim2.new(0.33, -7, 0.5, -3)
-    efficiencyCard.Position = UDim2.new(0, 0, 0.5, 3)
-    efficiencyCard.BackgroundColor3 = Color3.fromRGB(45,45,52)
-    Instance.new("UICorner", efficiencyCard)
-    
-    local effIcon = Instance.new("TextLabel", efficiencyCard)
-    effIcon.Size = UDim2.new(0, 20, 0, 20)
-    effIcon.Position = UDim2.new(0, 8, 0, 5)
-    effIcon.Text = "📈"
-    effIcon.Font = Enum.Font.GothamBold
-    effIcon.TextSize = 14
-    effIcon.BackgroundTransparency = 1
-    effIcon.TextXAlignment = Enum.TextXAlignment.Center
-    
-    local efficiencyLabel = Instance.new("TextLabel", efficiencyCard)
-    efficiencyLabel.Size = UDim2.new(1, -35, 0, 16)
-    efficiencyLabel.Position = UDim2.new(0, 30, 0, 6)
-    efficiencyLabel.Text = "0%"
-    efficiencyLabel.Font = Enum.Font.GothamBold
-    efficiencyLabel.TextSize = 18
-    efficiencyLabel.TextColor3 = Color3.fromRGB(255,150,255)
-    efficiencyLabel.BackgroundTransparency = 1
-    efficiencyLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local effLabelText = Instance.new("TextLabel", efficiencyCard)
-    effLabelText.Size = UDim2.new(1, -10, 0, 12)
-    effLabelText.Position = UDim2.new(0, 5, 1, -17)
-    effLabelText.Text = "Success Rate"
-    effLabelText.Font = Enum.Font.Gotham
-    effLabelText.TextSize = 10
-    effLabelText.TextColor3 = Color3.fromRGB(180,180,180)
-    effLabelText.BackgroundTransparency = 1
-    effLabelText.TextXAlignment = Enum.TextXAlignment.Left
-    dashboardStatsLabels.efficiencyLabel = efficiencyLabel
-
-    local streakCard = Instance.new("Frame", statsGrid)
-    streakCard.Size = UDim2.new(0.33, -7, 0.5, -3)
-    streakCard.Position = UDim2.new(0.33, 3, 0.5, 3)
-    streakCard.BackgroundColor3 = Color3.fromRGB(45,45,52)
-    Instance.new("UICorner", streakCard)
-    
-    local streakIcon = Instance.new("TextLabel", streakCard)
-    streakIcon.Size = UDim2.new(0, 20, 0, 20)
-    streakIcon.Position = UDim2.new(0, 8, 0, 5)
-    streakIcon.Text = "🔥"
-    streakIcon.Font = Enum.Font.GothamBold
-    streakIcon.TextSize = 14
-    streakIcon.BackgroundTransparency = 1
-    streakIcon.TextXAlignment = Enum.TextXAlignment.Center
-    
-    local streakLabel = Instance.new("TextLabel", streakCard)
-    streakLabel.Size = UDim2.new(1, -35, 0, 16)
-    streakLabel.Position = UDim2.new(0, 30, 0, 6)
-    streakLabel.Text = "0"
-    streakLabel.Font = Enum.Font.GothamBold
-    streakLabel.TextSize = 18
-    streakLabel.TextColor3 = Color3.fromRGB(255,120,120)
-    streakLabel.BackgroundTransparency = 1
-    streakLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local streakLabelText = Instance.new("TextLabel", streakCard)
-    streakLabelText.Size = UDim2.new(1, -10, 0, 12)
-    streakLabelText.Position = UDim2.new(0, 5, 1, -17)
-    streakLabelText.Text = "Current Streak"
-    streakLabelText.Font = Enum.Font.Gotham
-    streakLabelText.TextSize = 10
-    streakLabelText.TextColor3 = Color3.fromRGB(180,180,180)
-    streakLabelText.BackgroundTransparency = 1
-    streakLabelText.TextXAlignment = Enum.TextXAlignment.Left
-    dashboardStatsLabels.streakLabel = streakLabel
-
-    local rateCard = Instance.new("Frame", statsGrid)
-    rateCard.Size = UDim2.new(0.33, -7, 0.5, -3)
-    rateCard.Position = UDim2.new(0.66, 7, 0.5, 3)
-    rateCard.BackgroundColor3 = Color3.fromRGB(45,45,52)
-    Instance.new("UICorner", rateCard)
-    
-    local rateIcon = Instance.new("TextLabel", rateCard)
-    rateIcon.Size = UDim2.new(0, 20, 0, 20)
-    rateIcon.Position = UDim2.new(0, 8, 0, 5)
-    rateIcon.Text = "⚡"
-    rateIcon.Font = Enum.Font.GothamBold
-    rateIcon.TextSize = 14
-    rateIcon.BackgroundTransparency = 1
-    rateIcon.TextXAlignment = Enum.TextXAlignment.Center
-    
-    local rateLabel = Instance.new("TextLabel", rateCard)
-    rateLabel.Size = UDim2.new(1, -35, 0, 16)
-    rateLabel.Position = UDim2.new(0, 30, 0, 6)
-    rateLabel.Text = "0.0/h"
-    rateLabel.Font = Enum.Font.GothamBold
-    rateLabel.TextSize = 18
-    rateLabel.TextColor3 = Color3.fromRGB(150,220,255)
-    rateLabel.BackgroundTransparency = 1
-    rateLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local rateLabelText = Instance.new("TextLabel", rateCard)
-    rateLabelText.Size = UDim2.new(1, -10, 0, 12)
-    rateLabelText.Position = UDim2.new(0, 5, 1, -17)
-    rateLabelText.Text = "Fish Per Hour"
-    rateLabelText.Font = Enum.Font.Gotham
-    rateLabelText.TextSize = 10
-    rateLabelText.TextColor3 = Color3.fromRGB(180,180,180)
-    rateLabelText.BackgroundTransparency = 1
-    rateLabelText.TextXAlignment = Enum.TextXAlignment.Left
-    dashboardStatsLabels.rateLabel = rateLabel
-
-    -- Dashboard Section Title
-    local mainStatsTitle = Instance.new("TextLabel", mainStatsSection)
-    mainStatsTitle.Size = UDim2.new(1, -20, 0, 20)
-    mainStatsTitle.Position = UDim2.new(0, 10, 0, 5)
-    mainStatsTitle.Text = "📊 Session Overview"
-    mainStatsTitle.Font = Enum.Font.GothamBold
-    mainStatsTitle.TextSize = 13
-    mainStatsTitle.TextColor3 = Color3.fromRGB(235,235,235)
-    mainStatsTitle.BackgroundTransparency = 1
-    mainStatsTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    -- Controls Section
-    local controlsSection = Instance.new("Frame", dashboardFrame)
-    controlsSection.Size = UDim2.new(1, 0, 0, 60)
-    controlsSection.Position = UDim2.new(0, 0, 0, 170)
-    controlsSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
-    controlsSection.BorderSizePixel = 0
-    Instance.new("UICorner", controlsSection)
-
-    local controlsTitle = Instance.new("TextLabel", controlsSection)
-    controlsTitle.Size = UDim2.new(1, -20, 0, 20)
-    controlsTitle.Position = UDim2.new(0, 10, 0, 5)
-    controlsTitle.Text = "🎛️ Session Controls"
-    controlsTitle.Font = Enum.Font.GothamBold
-    controlsTitle.TextSize = 13
-    controlsTitle.TextColor3 = Color3.fromRGB(235,235,235)
-    controlsTitle.BackgroundTransparency = 1
-    controlsTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    -- Reset Button (Enhanced)
-    local resetStatsBtn = Instance.new("TextButton", controlsSection)
-    resetStatsBtn.Size = UDim2.new(0, 120, 0, 28)
-    resetStatsBtn.Position = UDim2.new(0, 15, 0, 27)
-    resetStatsBtn.Text = "🔄 Reset Stats"
-    resetStatsBtn.Font = Enum.Font.GothamSemibold
-    resetStatsBtn.TextSize = 12
-    resetStatsBtn.BackgroundColor3 = Color3.fromRGB(180,60,60)
-    resetStatsBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", resetStatsBtn)
-
-    -- Export Button
-    local exportStatsBtn = Instance.new("TextButton", controlsSection)
-    exportStatsBtn.Size = UDim2.new(0, 120, 0, 28)
-    exportStatsBtn.Position = UDim2.new(0, 145, 0, 27)
-    exportStatsBtn.Text = "📋 Export Data"
-    exportStatsBtn.Font = Enum.Font.GothamSemibold
-    exportStatsBtn.TextSize = 12
-    exportStatsBtn.BackgroundColor3 = Color3.fromRGB(60,120,180)
-    exportStatsBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", exportStatsBtn)
-
-    -- Event handlers for Dashboard buttons
-    resetStatsBtn.MouseButton1Click:Connect(function()
-        -- Reset all stats
-        Stats.fishCaught = 0
-        Stats.rareFishCaught = 0
-        Stats.totalCasts = 0
-        Stats.successfulCasts = 0
-        Stats.currentStreak = 0
-        Stats.longestStreak = 0
-        Stats.sessionStartTime = tick()
-        Stats.elapsedTime = 0
-        Stats.fishPerHour = 0
-        Stats.efficiency = 0
+    -- Create simple stat cards
+    local function createStatCard(parent, position, icon, label, value, color)
+        local card = Instance.new("Frame", parent)
+        card.Size = UDim2.new(0.32, 0, 0.45, 0)
+        card.Position = position
+        card.BackgroundColor3 = Color3.fromRGB(45,45,52)
+        Instance.new("UICorner", card)
         
-        -- Update display immediately
-        UpdateStatsDisplay()
+        local iconLabel = Instance.new("TextLabel", card)
+        iconLabel.Size = UDim2.new(0, 20, 0, 20)
+        iconLabel.Position = UDim2.new(0, 8, 0, 5)
+        iconLabel.Text = icon
+        iconLabel.Font = Enum.Font.GothamBold
+        iconLabel.TextSize = 14
+        iconLabel.BackgroundTransparency = 1
+        iconLabel.TextXAlignment = Enum.TextXAlignment.Center
         
-        print("📊 [AutoFish] Stats reset successfully!")
+        local valueLabel = Instance.new("TextLabel", card)
+        valueLabel.Size = UDim2.new(1, -35, 0, 16)
+        valueLabel.Position = UDim2.new(0, 30, 0, 6)
+        valueLabel.Text = value
+        valueLabel.Font = Enum.Font.GothamBold
+        valueLabel.TextSize = 16
+        valueLabel.TextColor3 = color
+        valueLabel.BackgroundTransparency = 1
+        valueLabel.TextXAlignment = Enum.TextXAlignment.Left
+        
+        local nameLabel = Instance.new("TextLabel", card)
+        nameLabel.Size = UDim2.new(1, -10, 0, 12)
+        nameLabel.Position = UDim2.new(0, 5, 1, -17)
+        nameLabel.Text = label
+        nameLabel.Font = Enum.Font.Gotham
+        nameLabel.TextSize = 9
+        nameLabel.TextColor3 = Color3.fromRGB(180,180,180)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+        
+        return valueLabel
+    end
+
+    -- Create stat cards
+    local fishCountLabel = createStatCard(statsGrid, UDim2.new(0, 0, 0, 0), "🐟", "Fish Caught", "0", Color3.fromRGB(120,200,255))
+    local timeLabel = createStatCard(statsGrid, UDim2.new(0.34, 0, 0, 0), "⏱️", "Session Time", "0s", Color3.fromRGB(150,255,150))
+    local statusLabel = createStatCard(statsGrid, UDim2.new(0.68, 0, 0, 0), "🎣", "Status", "Ready", Color3.fromRGB(255,215,0))
+    
+    local modeLabel = createStatCard(statsGrid, UDim2.new(0, 0, 0.55, 0), "⚡", "Mode", "Secure", Color3.fromRGB(255,150,255))
+    local delayLabel = createStatCard(statsGrid, UDim2.new(0.34, 0, 0.55, 0), "⏰", "Delay", "0.60s", Color3.fromRGB(150,220,255))
+    local antiafkLabel = createStatCard(statsGrid, UDim2.new(0.68, 0, 0.55, 0), "🛡️", "AntiAFK", "Disabled", Color3.fromRGB(255,120,120))
+
+    -- Control section
+    local controlSection = Instance.new("Frame", dashboardFrame)
+    controlSection.Size = UDim2.new(1, 0, 0, 60)
+    controlSection.Position = UDim2.new(0, 0, 0, 170)
+    controlSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    controlSection.BorderSizePixel = 0
+    Instance.new("UICorner", controlSection)
+
+    local controlTitle = Instance.new("TextLabel", controlSection)
+    controlTitle.Size = UDim2.new(1, -20, 0, 20)
+    controlTitle.Position = UDim2.new(0, 10, 0, 5)
+    controlTitle.Text = "🎛️ Quick Controls"
+    controlTitle.Font = Enum.Font.GothamBold
+    controlTitle.TextSize = 13
+    controlTitle.TextColor3 = Color3.fromRGB(235,235,235)
+    controlTitle.BackgroundTransparency = 1
+    controlTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Quick action buttons
+    local refreshBtn = Instance.new("TextButton", controlSection)
+    refreshBtn.Size = UDim2.new(0, 100, 0, 28)
+    refreshBtn.Position = UDim2.new(0, 15, 0, 27)
+    refreshBtn.Text = "🔄 Refresh"
+    refreshBtn.Font = Enum.Font.GothamSemibold
+    refreshBtn.TextSize = 11
+    refreshBtn.BackgroundColor3 = Color3.fromRGB(60,120,180)
+    refreshBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", refreshBtn)
+
+    local exportBtn = Instance.new("TextButton", controlSection)
+    exportBtn.Size = UDim2.new(0, 100, 0, 28)
+    exportBtn.Position = UDim2.new(0, 125, 0, 27)
+    exportBtn.Text = "📋 Export"
+    exportBtn.Font = Enum.Font.GothamSemibold
+    exportBtn.TextSize = 11
+    exportBtn.BackgroundColor3 = Color3.fromRGB(180,120,60)
+    exportBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", exportBtn)
+
+    -- Simple update function for dashboard
+    local sessionStartTime = tick()
+    local function updateDashboard()
+        local elapsed = tick() - sessionStartTime
+        local minutes = math.floor(elapsed / 60)
+        local seconds = math.floor(elapsed % 60)
+        timeLabel.Text = string.format("%dm %ds", minutes, seconds)
+        
+        modeLabel.Text = Config.mode:upper()
+        delayLabel.Text = string.format("%.2fs", Config.autoRecastDelay)
+        statusLabel.Text = Config.enabled and "Running" or "Stopped"
+        statusLabel.TextColor3 = Config.enabled and Color3.fromRGB(100,255,100) or Color3.fromRGB(255,100,100)
+        antiafkLabel.Text = AntiAFK.enabled and "Enabled" or "Disabled"
+        antiafkLabel.TextColor3 = AntiAFK.enabled and Color3.fromRGB(100,255,100) or Color3.fromRGB(255,120,120)
+    end
+
+    -- Button actions
+    refreshBtn.MouseButton1Click:Connect(function()
+        updateDashboard()
+        Notify("Dashboard", "Stats refreshed!")
     end)
 
-    exportStatsBtn.MouseButton1Click:Connect(function()
-        local exportData = string.format(
-            "📊 AutoFish Session Report\n" ..
-            "════════════════════════\n" ..
-            "🐟 Fish Caught: %d\n" ..
-            "⭐ Rare Fish: %d\n" ..
-            "⏱️ Session Time: %s\n" ..
-            "📈 Success Rate: %.1f%%\n" ..
-            "🔥 Current Streak: %d\n" ..
-            "⚡ Fish Per Hour: %.1f\n" ..
-            "════════════════════════\n" ..
+    exportBtn.MouseButton1Click:Connect(function()
+        local elapsed = tick() - sessionStartTime
+        local report = string.format(
+            "📊 AutoFish Dashboard Report\n" ..
+            "═══════════════════════════\n" ..
+            "⏱️ Session Time: %dm %ds\n" ..
+            "⚡ Mode: %s\n" ..
+            "⏰ Delay: %.2fs\n" ..
+            "🎣 Status: %s\n" ..
+            "🛡️ AntiAFK: %s\n" ..
+            "═══════════════════════════\n" ..
             "Generated: %s",
-            Stats.fishCaught,
-            Stats.rareFishCaught,
-            FormatTime(Stats.elapsedTime),
-            Stats.efficiency,
-            Stats.currentStreak,
-            Stats.fishPerHour,
+            math.floor(elapsed / 60), math.floor(elapsed % 60),
+            Config.mode:upper(),
+            Config.autoRecastDelay,
+            Config.enabled and "Running" or "Stopped",
+            AntiAFK.enabled and "Enabled" or "Disabled",
             os.date("%Y-%m-%d %H:%M:%S")
         )
         
-        -- Try to copy to clipboard
-        pcall(function()
-            setclipboard(exportData)
-            print("📋 [AutoFish] Stats exported to clipboard!")
-        end)
-        
-        print(exportData)
+        print(report)
+        pcall(function() setclipboard(report) end)
+        Notify("Dashboard", "Report exported to console & clipboard!")
     end)
 
-    -- Store dashboard stats labels for global access
-    _G.ModernAutoFish = _G.ModernAutoFish or {}
-    _G.ModernAutoFish.UI = dashboardStatsLabels
+    -- Auto-update dashboard every second when visible
+    spawn(function()
+        while true do
+            wait(1)
+            if dashboardFrame.Visible then
+                updateDashboard()
+            end
+        end
+    end)
 
     -- Start/Stop buttons at bottom of content container (only visible in Main tab)
     local actions = Instance.new("Frame", contentContainer)
@@ -1574,6 +1220,8 @@ local function BuildUI()
             teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Player Teleport"
             updatePlayerList(searchBox.Text) -- Refresh when switching to player tab
         elseif name == "Feature" then
@@ -1682,44 +1330,7 @@ local function BuildUI()
 end
 
 -- Build UI and ready
-print("🔄 [Modern AutoFish] Starting UI creation...")
-
-local success, err = pcall(function()
-    BuildUI()
-end)
-
-if not success then
-    warn("🚨 [Modern AutoFish] UI Creation Failed: " .. tostring(err))
-    Notify("AutoFish Error", "UI failed to load. Check console for details.")
-    
-    -- Print helpful debugging info
-    print("🔍 [Debug] LocalPlayer:", LocalPlayer)
-    print("🔍 [Debug] PlayerGui exists:", LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") ~= nil)
-    
-else
-    print("✅ [Modern AutoFish] UI created successfully!")
-    
-    -- Initialize stats system
-    print("🔄 [Modern AutoFish] Initializing stats system...")
-    
-    -- Start stats update loop (updates every second)
-    spawn(function()
-        while true do
-            wait(1)
-            if Stats and UpdateStatsDisplay then
-                local ok, updateErr = pcall(UpdateStatsDisplay)
-                if not ok then
-                    warn("⚠️ [Stats] Update failed:", updateErr)
-                end
-            end
-        end
-    end)
-    
-    -- Success message
-    print("🎣 [Modern AutoFish] Stats Dashboard loaded successfully!")
-    print("📊 Features: Real-time tracking, efficiency metrics, Fish It integration")
-    print("🎮 Use the UI to configure and start fishing!")
-end
+BuildUI()
 
 -- Expose quick API on _G for convenience
 _G.ModernAutoFish = {
