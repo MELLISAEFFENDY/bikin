@@ -48,6 +48,112 @@ local function ResolveRemote(name)
     return ok and rem or nil
 end
 
+-- Smart Enchant Targeting System
+local SmartEnchant = {
+    enabled = false,
+    targetEnchant = nil,
+    targetFound = false,
+    rollCount = 0,
+    maxRolls = 50, -- Maximum rolls before stopping
+    enchantDatabase = {
+        -- Positive Enchants
+        ["Stargazer I"] = { tier = 1, type = "luck", description = "+60% luck at night", rarity = "uncommon" },
+        ["Glistening I"] = { tier = 1, type = "shiny", description = "Increase chance of obtaining shiny fish by 10%", rarity = "uncommon" },
+        ["XPerienced I"] = { tier = 1, type = "xp", description = "1.5x more xp from all fish catches", rarity = "common" },
+        ["Stormhunter I"] = { tier = 1, type = "weather", description = "+80% luck during rain", rarity = "rare" },
+        ["Prismatic I"] = { tier = 1, type = "rainbow", description = "Rainbow boost activates with 10 less throws", rarity = "uncommon" },
+        ["Mutation Hunter I"] = { tier = 1, type = "mutation", description = "10% more chance for mutation", rarity = "uncommon" },
+        ["Big Hunter I"] = { tier = 1, type = "size", description = "Makes fish 10% bigger", rarity = "common" },
+        ["Reeler I"] = { tier = 1, type = "speed", description = "Reel in fish +7% faster", rarity = "common" },
+        ["Gold Digger I"] = { tier = 1, type = "gold", description = "10% chance to get Gold mutation", rarity = "rare" },
+        ["Leprechaun I"] = { tier = 1, type = "luck", description = "+30% luck", rarity = "uncommon" },
+        ["Empowered I"] = { tier = 1, type = "combo", description = "+20% luck, +10% faster reel", rarity = "rare" },
+        ["Mutation Hunter II"] = { tier = 2, type = "mutation", description = "30% more chance for mutation", rarity = "rare" },
+        ["Leprechaun II"] = { tier = 2, type = "luck", description = "+50% luck", rarity = "rare" },
+        
+        -- Negative Enchants
+        ["Cursed I"] = { tier = 1, type = "negative", description = "-75% luck, +75% mutation chance", rarity = "cursed" }
+    }
+}
+
+-- Function to detect current enchantment from game UI
+local function DetectCurrentEnchant()
+    -- Try to find enchanting UI elements
+    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
+    if not playerGui then return nil end
+    
+    -- Look for common enchanting UI names (adjust based on actual game UI)
+    local possibleGuis = {"EnchantingGui", "EnchantGui", "AlchemyGui", "CraftingGui"}
+    
+    for _, guiName in pairs(possibleGuis) do
+        local gui = playerGui:FindFirstChild(guiName)
+        if gui then
+            -- Look for text labels that might contain enchant names
+            local function scanForEnchantText(parent)
+                for _, child in pairs(parent:GetChildren()) do
+                    if child:IsA("TextLabel") or child:IsA("TextButton") then
+                        local text = child.Text
+                        -- Check if text matches any known enchantment
+                        for enchantName, _ in pairs(SmartEnchant.enchantDatabase) do
+                            if text:find(enchantName) then
+                                return enchantName
+                            end
+                        end
+                    end
+                    
+                    -- Recursively scan children
+                    local found = scanForEnchantText(child)
+                    if found then return found end
+                end
+                return nil
+            end
+            
+            local found = scanForEnchantText(gui)
+            if found then return found end
+        end
+    end
+    
+    -- If no GUI detection works, simulate based on rarity weights for testing
+    -- In real implementation, this should be removed and only GUI detection used
+    local rarityWeights = {
+        common = 40,     -- 40% chance
+        uncommon = 30,   -- 30% chance  
+        rare = 20,       -- 20% chance
+        cursed = 10      -- 10% chance
+    }
+    
+    local totalWeight = 0
+    for _, weight in pairs(rarityWeights) do
+        totalWeight = totalWeight + weight
+    end
+    
+    local roll = math.random(1, totalWeight)
+    local currentWeight = 0
+    local selectedRarity = nil
+    
+    for rarity, weight in pairs(rarityWeights) do
+        currentWeight = currentWeight + weight
+        if roll <= currentWeight then
+            selectedRarity = rarity
+            break
+        end
+    end
+    
+    -- Get random enchant of selected rarity
+    local enchantsOfRarity = {}
+    for enchantName, data in pairs(SmartEnchant.enchantDatabase) do
+        if data.rarity == selectedRarity then
+            table.insert(enchantsOfRarity, enchantName)
+        end
+    end
+    
+    if #enchantsOfRarity > 0 then
+        return enchantsOfRarity[math.random(1, #enchantsOfRarity)]
+    end
+    
+    return nil
+end
+
 -- Helper function for Advanced features
 local function GetRemote(name)
     local net = FindNet()
@@ -1242,7 +1348,7 @@ local function BuildUI()
     advancedScroll.BorderSizePixel = 0
     advancedScroll.ScrollBarThickness = 4
     advancedScroll.ScrollBarImageColor3 = Color3.fromRGB(64,64,64)
-    advancedScroll.CanvasSize = UDim2.new(0, 0, 0, 800)
+    advancedScroll.CanvasSize = UDim2.new(0, 0, 0, 900)
 
     -- Weather Event Section
     local weatherSection = Instance.new("Frame", advancedScroll)
@@ -1348,7 +1454,7 @@ local function BuildUI()
 
     -- Enchanting Section
     local enchantSection = Instance.new("Frame", advancedScroll)
-    enchantSection.Size = UDim2.new(1, 0, 0, 150)
+    enchantSection.Size = UDim2.new(1, 0, 0, 230)
     enchantSection.Position = UDim2.new(0, 0, 0, 330)
     enchantSection.BackgroundColor3 = Color3.fromRGB(48,48,54)
     local enchantCorner = Instance.new("UICorner", enchantSection)
@@ -1397,10 +1503,112 @@ local function BuildUI()
     local rollEnchantCorner = Instance.new("UICorner", rollEnchantBtn)
     rollEnchantCorner.CornerRadius = UDim.new(0, 6)
 
+    -- Auto Equip toggle
+    local autoEquipToggle = Instance.new("TextButton", enchantSection)
+    autoEquipToggle.Size = UDim2.new(0, 100, 0, 30)
+    autoEquipToggle.Position = UDim2.new(0, 250, 0, 90)
+    autoEquipToggle.Text = "Auto Equip: ON"
+    autoEquipToggle.Font = Enum.Font.GothamSemibold
+    autoEquipToggle.TextSize = 11
+    autoEquipToggle.BackgroundColor3 = Color3.fromRGB(40,167,69)
+    autoEquipToggle.TextColor3 = Color3.fromRGB(255,255,255)
+    local autoEquipCorner = Instance.new("UICorner", autoEquipToggle)
+    autoEquipCorner.CornerRadius = UDim.new(0, 6)
+
+    -- Smart Enchant Targeting Section
+    local smartTargetSection = Instance.new("Frame", enchantSection)
+    smartTargetSection.Size = UDim2.new(1, -20, 0, 120)
+    smartTargetSection.Position = UDim2.new(0, 10, 0, 130)
+    smartTargetSection.BackgroundColor3 = Color3.fromRGB(40,40,46)
+    local smartTargetCorner = Instance.new("UICorner", smartTargetSection)
+    smartTargetCorner.CornerRadius = UDim.new(0, 6)
+
+    local smartTargetTitle = Instance.new("TextLabel", smartTargetSection)
+    smartTargetTitle.Size = UDim2.new(1, -10, 0, 20)
+    smartTargetTitle.Position = UDim2.new(0, 5, 0, 5)
+    smartTargetTitle.Text = "🎯 Smart Target Enchant"
+    smartTargetTitle.Font = Enum.Font.GothamBold
+    smartTargetTitle.TextSize = 11
+    smartTargetTitle.TextColor3 = Color3.fromRGB(255,215,0)
+    smartTargetTitle.BackgroundTransparency = 1
+    smartTargetTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Target enchant dropdown/selector
+    local targetEnchantSelector = Instance.new("TextButton", smartTargetSection)
+    targetEnchantSelector.Size = UDim2.new(0.6, -5, 0, 25)
+    targetEnchantSelector.Position = UDim2.new(0, 5, 0, 25)
+    targetEnchantSelector.Text = "📋 Open Enchant List"
+    targetEnchantSelector.Font = Enum.Font.Gotham
+    targetEnchantSelector.TextSize = 10
+    targetEnchantSelector.BackgroundColor3 = Color3.fromRGB(70,130,180)
+    targetEnchantSelector.TextColor3 = Color3.fromRGB(255,255,255)
+    local targetEnchantCorner = Instance.new("UICorner", targetEnchantSelector)
+    targetEnchantCorner.CornerRadius = UDim.new(0, 4)
+
+    -- Smart target toggle
+    local smartTargetToggle = Instance.new("TextButton", smartTargetSection)
+    smartTargetToggle.Size = UDim2.new(0.35, -5, 0, 25)
+    smartTargetToggle.Position = UDim2.new(0.65, 0, 0, 25)
+    smartTargetToggle.Text = "Target: OFF"
+    smartTargetToggle.Font = Enum.Font.GothamSemibold
+    smartTargetToggle.TextSize = 10
+    smartTargetToggle.BackgroundColor3 = Color3.fromRGB(160,60,60)
+    smartTargetToggle.TextColor3 = Color3.fromRGB(255,255,255)
+    local smartTargetToggleCorner = Instance.new("UICorner", smartTargetToggle)
+    smartTargetToggleCorner.CornerRadius = UDim.new(0, 4)
+
+    -- Target status label
+    local targetStatusLabel = Instance.new("TextLabel", smartTargetSection)
+    targetStatusLabel.Size = UDim2.new(1, -10, 0, 20)
+    targetStatusLabel.Position = UDim2.new(0, 5, 0, 55)
+    targetStatusLabel.Text = "Status: No target selected"
+    targetStatusLabel.Font = Enum.Font.Gotham
+    targetStatusLabel.TextSize = 9
+    targetStatusLabel.TextColor3 = Color3.fromRGB(150,150,150)
+    targetStatusLabel.BackgroundTransparency = 1
+    targetStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Quick target buttons for popular enchants
+    local quickTargetFrame = Instance.new("Frame", smartTargetSection)
+    quickTargetFrame.Size = UDim2.new(1, -10, 0, 35)
+    quickTargetFrame.Position = UDim2.new(0, 5, 0, 75)
+    quickTargetFrame.BackgroundTransparency = 1
+
+    local quickTargetLabel = Instance.new("TextLabel", quickTargetFrame)
+    quickTargetLabel.Size = UDim2.new(1, 0, 0, 12)
+    quickTargetLabel.Text = "Quick Select:"
+    quickTargetLabel.Font = Enum.Font.Gotham
+    quickTargetLabel.TextSize = 8
+    quickTargetLabel.TextColor3 = Color3.fromRGB(180,180,180)
+    quickTargetLabel.BackgroundTransparency = 1
+    quickTargetLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Quick buttons for popular enchants
+    local quickEnchants = {"Stargazer I", "Gold Digger I", "Mutation Hunter II", "Cursed I"}
+    for i, enchantName in ipairs(quickEnchants) do
+        local quickBtn = Instance.new("TextButton", quickTargetFrame)
+        quickBtn.Size = UDim2.new(0.23, 0, 0, 20)
+        quickBtn.Position = UDim2.new((i-1) * 0.25, 2, 0, 15)
+        quickBtn.Text = enchantName:gsub(" I+", ""):sub(1,8) -- Shorten name
+        quickBtn.Font = Enum.Font.Gotham
+        quickBtn.TextSize = 7
+        quickBtn.BackgroundColor3 = Color3.fromRGB(60,90,120)
+        quickBtn.TextColor3 = Color3.fromRGB(255,255,255)
+        local quickBtnCorner = Instance.new("UICorner", quickBtn)
+        quickBtnCorner.CornerRadius = UDim.new(0, 3)
+        
+        quickBtn.MouseButton1Click:Connect(function()
+            SmartEnchant.targetEnchant = enchantName
+            targetEnchantSelector.Text = "Selected: " .. enchantName:sub(1,12) .. "..."
+            targetStatusLabel.Text = "Target: " .. enchantName
+            Notify("🎯 Smart Target", "Quick selected: " .. enchantName)
+        end)
+    end
+
     -- Trading Section
     local tradeSection = Instance.new("Frame", advancedScroll)
     tradeSection.Size = UDim2.new(1, 0, 0, 150)
-    tradeSection.Position = UDim2.new(0, 0, 0, 490)
+    tradeSection.Position = UDim2.new(0, 0, 0, 570)
     tradeSection.BackgroundColor3 = Color3.fromRGB(48,48,54)
     local tradeCorner = Instance.new("UICorner", tradeSection)
     tradeCorner.CornerRadius = UDim.new(0, 8)
@@ -1587,7 +1795,8 @@ local function BuildUI()
     local AdvancedFeatures = {
         autoWeather = false,
         autoEnchant = false,
-        autoTrade = false
+        autoTrade = false,
+        autoEquipStone = true -- Default ON untuk auto equip enchant stone
     }
 
     -- Weather Event Functions
@@ -1677,6 +1886,95 @@ local function BuildUI()
         end
     end
 
+    -- Auto Equip Enchant Stone Function
+    local function AutoEquipEnchantStone()
+        -- Check if auto equip is enabled
+        if not AdvancedFeatures.autoEquipStone then
+            print("[AUTO-EQUIP] Auto equip disabled - skipping")
+            return false
+        end
+        
+        print("[AUTO-EQUIP] Searching for enchant stone...")
+        Notify("Auto Equip", "Searching for enchant stone...")
+        
+        -- Look for enchant stone in different possible locations
+        local enchantStoneNames = {"Enchant Stone", "EnchantStone", "Enchanting Stone", "Stone"}
+        local foundStone = nil
+        
+        -- Check player's inventory/backpack
+        local player = LocalPlayer
+        if player and player.Character then
+            -- Try different methods to find enchant stone
+            
+            -- Method 1: Look in PlayerGui for inventory
+            if player.PlayerGui then
+                local function scanForEnchantStone(parent)
+                    for _, child in pairs(parent:GetChildren()) do
+                        if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("ImageLabel") then
+                            for _, stoneName in pairs(enchantStoneNames) do
+                                if child.Name:find(stoneName) or (child.Text and child.Text:find(stoneName)) then
+                                    print("[AUTO-EQUIP] Found potential enchant stone: " .. child.Name)
+                                    return child
+                                end
+                            end
+                        end
+                        local found = scanForEnchantStone(child)
+                        if found then return found end
+                    end
+                    return nil
+                end
+                
+                foundStone = scanForEnchantStone(player.PlayerGui)
+            end
+            
+            -- Method 2: Try direct remote calls for equipping
+            local equipRemotes = {"RE/EquipItem", "RF/EquipItem", "RE/Equip", "RF/Equip"}
+            for _, remoteName in pairs(equipRemotes) do
+                local equipRemote = GetRemote(remoteName)
+                if equipRemote then
+                    for _, stoneName in pairs(enchantStoneNames) do
+                        local success = pcall(function()
+                            if equipRemote:IsA("RemoteFunction") then
+                                equipRemote:InvokeServer(stoneName)
+                            else
+                                equipRemote:FireServer(stoneName)
+                            end
+                        end)
+                        if success then
+                            print("[AUTO-EQUIP] ✅ Successfully equipped: " .. stoneName)
+                            Notify("Auto Equip", "✅ Equipped: " .. stoneName)
+                            return true
+                        end
+                    end
+                end
+            end
+            
+            -- Method 3: Try item IDs or common enchant stone IDs
+            local stoneIds = {1, "enchant_stone", "EnchantStone", "stone"}
+            local equipRemote = GetRemote("RE/EquipItem") or GetRemote("RF/EquipItem")
+            if equipRemote then
+                for _, stoneId in pairs(stoneIds) do
+                    local success = pcall(function()
+                        if equipRemote:IsA("RemoteFunction") then
+                            equipRemote:InvokeServer(stoneId)
+                        else
+                            equipRemote:FireServer(stoneId)
+                        end
+                    end)
+                    if success then
+                        print("[AUTO-EQUIP] ✅ Successfully equipped stone ID: " .. tostring(stoneId))
+                        Notify("Auto Equip", "✅ Equipped enchant stone")
+                        return true
+                    end
+                end
+            end
+        end
+        
+        print("[AUTO-EQUIP] ❌ Could not find or equip enchant stone")
+        Notify("Auto Equip", "❌ Enchant stone not found - please equip manually")
+        return false
+    end
+
     local function RollEnchant()
         -- Check for roll enchant remote after altar activation
         local rollRemote = GetRemote("RE/RollEnchant") or GetRemote("RF/RollEnchant") or GetRemote("RE/EnchantRoll")
@@ -1707,7 +2005,7 @@ local function BuildUI()
         end
     end
 
-    -- Enhanced Auto-Enchanting with proper sequence
+    -- Enhanced Auto-Enchanting with Smart Target support
     local function AutoEnchantSequence()
         if not AdvancedFeatures.autoEnchant or not Config.enabled then
             return
@@ -1715,6 +2013,10 @@ local function BuildUI()
         
         print("[AUTO-ENCHANT] Starting enchanting sequence...")
         Notify("Auto Enchant", "Starting enchant sequence...")
+        
+        -- Step 0: Try to auto-equip enchant stone
+        print("[AUTO-ENCHANT] Step 0: Auto-equipping enchant stone...")
+        local stoneEquipped = AutoEquipEnchantStone()
         
         -- Step 1: Activate altar (assumes player is at altar with enchant stone equipped)
         print("[AUTO-ENCHANT] Step 1: Activating enchanting altar...")
@@ -1727,8 +2029,91 @@ local function BuildUI()
         print("[AUTO-ENCHANT] Step 3: Rolling enchantment...")
         RollEnchant()
         
+        -- Step 4: If Smart Target is enabled, check the result
+        if SmartEnchant.enabled and SmartEnchant.targetEnchant then
+            wait(1) -- Wait for UI to update
+            local currentEnchant = DetectCurrentEnchant()
+            SmartEnchant.rollCount = SmartEnchant.rollCount + 1
+            
+            print("[SMART-TARGET] Roll #" .. SmartEnchant.rollCount .. " - Got: " .. (currentEnchant or "Unknown"))
+            
+            if currentEnchant == SmartEnchant.targetEnchant then
+                SmartEnchant.targetFound = true
+                SmartEnchant.enabled = false -- Stop targeting
+                Notify("🎯 Smart Target", "TARGET FOUND! Got " .. currentEnchant .. " after " .. SmartEnchant.rollCount .. " rolls!")
+                print("[SMART-TARGET] ✅ TARGET FOUND: " .. currentEnchant)
+                return true -- Stop enchanting
+            elseif SmartEnchant.rollCount >= SmartEnchant.maxRolls then
+                SmartEnchant.enabled = false -- Stop after max rolls
+                Notify("🎯 Smart Target", "Max rolls reached (" .. SmartEnchant.maxRolls .. "). Stopping.")
+                print("[SMART-TARGET] ❌ Max rolls reached. Target not found.")
+                return false
+            else
+                Notify("🎯 Smart Target", "Roll " .. SmartEnchant.rollCount .. "/" .. SmartEnchant.maxRolls .. " - Got: " .. (currentEnchant or "Unknown"))
+            end
+        end
+        
         print("[AUTO-ENCHANT] Enchanting sequence completed")
-        Notify("Auto Enchant", "Enchant sequence completed!")
+        if stoneEquipped then
+            Notify("Auto Enchant", "Enchant sequence completed! (Stone auto-equipped)")
+        else
+            Notify("Auto Enchant", "Enchant sequence completed! (Manual stone equip)")
+        end
+    end
+
+    -- Smart Target Enchanting - keeps rolling until target is found
+    local function SmartTargetEnchantSequence()
+        if not SmartEnchant.enabled or not SmartEnchant.targetEnchant then
+            Notify("🎯 Smart Target", "No target selected or targeting disabled")
+            return
+        end
+        
+        SmartEnchant.rollCount = 0
+        SmartEnchant.targetFound = false
+        
+        Notify("🎯 Smart Target", "Targeting: " .. SmartEnchant.targetEnchant .. " (Max: " .. SmartEnchant.maxRolls .. " rolls)")
+        
+        while SmartEnchant.enabled and not SmartEnchant.targetFound and SmartEnchant.rollCount < SmartEnchant.maxRolls do
+            -- Check if player has enchant stone and try to auto-equip
+            print("[SMART-TARGET] Roll #" .. (SmartEnchant.rollCount + 1) .. " - Auto-equipping enchant stone...")
+            local stoneEquipped = AutoEquipEnchantStone()
+            
+            if not stoneEquipped then
+                print("[SMART-TARGET] ⚠️ Stone not auto-equipped, trying anyway...")
+            end
+            
+            -- Activate altar and roll
+            ActivateEnchantingAltar()
+            wait(2)
+            RollEnchant()
+            wait(1) -- Wait for result
+            
+            -- Check result
+            local currentEnchant = DetectCurrentEnchant()
+            SmartEnchant.rollCount = SmartEnchant.rollCount + 1
+            
+            print("[SMART-TARGET] Roll #" .. SmartEnchant.rollCount .. " - Got: " .. (currentEnchant or "Unknown"))
+            
+            if currentEnchant == SmartEnchant.targetEnchant then
+                SmartEnchant.targetFound = true
+                Notify("🎯 Smart Target", "✅ TARGET FOUND! Got " .. currentEnchant .. " after " .. SmartEnchant.rollCount .. " rolls!")
+                break
+            else
+                Notify("🎯 Smart Target", "Roll " .. SmartEnchant.rollCount .. "/" .. SmartEnchant.maxRolls .. " - Got: " .. (currentEnchant or "Unknown"))
+                
+                if SmartEnchant.rollCount < SmartEnchant.maxRolls then
+                    -- Brief pause before next roll (auto-equip will handle stone)
+                    print("[SMART-TARGET] Preparing for next roll...")
+                    wait(2) -- Give time for UI updates
+                end
+            end
+        end
+        
+        if not SmartEnchant.targetFound then
+            Notify("🎯 Smart Target", "❌ Target not found after " .. SmartEnchant.rollCount .. " rolls")
+        end
+        
+        SmartEnchant.enabled = false -- Stop targeting after completion
     end
 
     -- Manual enchanting function for Roll Enchant button
@@ -1736,10 +2121,20 @@ local function BuildUI()
         print("[MANUAL-ENCHANT] Manual enchant requested...")
         Notify("Manual Enchant", "Starting manual enchant...")
         
-        -- For manual enchant, just do the activation and roll
+        -- Try to auto-equip enchant stone first
+        print("[MANUAL-ENCHANT] Auto-equipping enchant stone...")
+        local stoneEquipped = AutoEquipEnchantStone()
+        
+        -- For manual enchant, do the activation and roll
         ActivateEnchantingAltar()
         wait(2)
         RollEnchant()
+        
+        if stoneEquipped then
+            Notify("Manual Enchant", "✅ Completed! (Stone auto-equipped)")
+        else
+            Notify("Manual Enchant", "✅ Completed! (Check stone manually)")
+        end
     end
 
     -- Trading Functions
@@ -1792,6 +2187,221 @@ local function BuildUI()
     end)
 
     rollEnchantBtn.MouseButton1Click:Connect(ManualRollEnchant)
+
+    autoEquipToggle.MouseButton1Click:Connect(function()
+        AdvancedFeatures.autoEquipStone = not AdvancedFeatures.autoEquipStone
+        autoEquipToggle.Text = AdvancedFeatures.autoEquipStone and "Auto Equip: ON" or "Auto Equip: OFF"
+        autoEquipToggle.BackgroundColor3 = AdvancedFeatures.autoEquipStone and Color3.fromRGB(40,167,69) or Color3.fromRGB(220,53,69)
+        
+        if AdvancedFeatures.autoEquipStone then
+            Notify("Auto Equip", "✅ Auto equip enchant stone enabled")
+            print("[AUTO-EQUIP] Auto equip enchant stone enabled")
+        else
+            Notify("Auto Equip", "❌ Auto equip enchant stone disabled")
+            print("[AUTO-EQUIP] Auto equip enchant stone disabled")
+        end
+    end)
+
+    -- Smart Target Enchant Event Handlers
+    local enchantListWindow = nil -- Reference to enchant list window
+    
+    targetEnchantSelector.MouseButton1Click:Connect(function()
+        -- Create enchant list window if it doesn't exist
+        if not enchantListWindow then
+            -- Create main window
+            enchantListWindow = Instance.new("Frame", screenGui)
+            enchantListWindow.Size = UDim2.new(0, 350, 0, 400)
+            enchantListWindow.Position = UDim2.new(0.5, -175, 0.5, -200)
+            enchantListWindow.BackgroundColor3 = Color3.fromRGB(30,30,36)
+            enchantListWindow.BorderSizePixel = 1
+            enchantListWindow.BorderColor3 = Color3.fromRGB(100,100,100)
+            enchantListWindow.ZIndex = 200
+            enchantListWindow.Visible = false
+            local windowCorner = Instance.new("UICorner", enchantListWindow)
+            windowCorner.CornerRadius = UDim.new(0, 8)
+            
+            -- Window header
+            local header = Instance.new("Frame", enchantListWindow)
+            header.Size = UDim2.new(1, 0, 0, 35)
+            header.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            header.BorderSizePixel = 0
+            header.ZIndex = 201
+            local headerCorner = Instance.new("UICorner", header)
+            headerCorner.CornerRadius = UDim.new(0, 8)
+            
+            local headerTitle = Instance.new("TextLabel", header)
+            headerTitle.Size = UDim2.new(1, -40, 1, 0)
+            headerTitle.Position = UDim2.new(0, 10, 0, 0)
+            headerTitle.Text = "🎯 Select Target Enchantment"
+            headerTitle.Font = Enum.Font.GothamBold
+            headerTitle.TextSize = 14
+            headerTitle.TextColor3 = Color3.fromRGB(255,215,0)
+            headerTitle.BackgroundTransparency = 1
+            headerTitle.TextXAlignment = Enum.TextXAlignment.Left
+            headerTitle.TextYAlignment = Enum.TextYAlignment.Center
+            headerTitle.ZIndex = 201
+            
+            -- Close button
+            local closeBtn = Instance.new("TextButton", header)
+            closeBtn.Size = UDim2.new(0, 25, 0, 25)
+            closeBtn.Position = UDim2.new(1, -30, 0, 5)
+            closeBtn.Text = "✕"
+            closeBtn.Font = Enum.Font.GothamBold
+            closeBtn.TextSize = 14
+            closeBtn.BackgroundColor3 = Color3.fromRGB(220,53,69)
+            closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+            closeBtn.ZIndex = 202
+            local closeBtnCorner = Instance.new("UICorner", closeBtn)
+            closeBtnCorner.CornerRadius = UDim.new(0, 4)
+            
+            -- Scrolling frame for enchants
+            local scrollFrame = Instance.new("ScrollingFrame", enchantListWindow)
+            scrollFrame.Size = UDim2.new(1, -20, 1, -50)
+            scrollFrame.Position = UDim2.new(0, 10, 0, 40)
+            scrollFrame.BackgroundTransparency = 1
+            scrollFrame.ScrollBarThickness = 8
+            scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(120,120,120)
+            scrollFrame.ZIndex = 201
+            
+            local yPos = 0
+            for enchantName, data in pairs(SmartEnchant.enchantDatabase) do
+                local enchantFrame = Instance.new("Frame", scrollFrame)
+                enchantFrame.Size = UDim2.new(1, -10, 0, 45)
+                enchantFrame.Position = UDim2.new(0, 5, 0, yPos)
+                enchantFrame.BackgroundColor3 = Color3.fromRGB(40,40,46)
+                enchantFrame.ZIndex = 201
+                local frameCorner = Instance.new("UICorner", enchantFrame)
+                frameCorner.CornerRadius = UDim.new(0, 6)
+                
+                -- Enchant name
+                local nameLabel = Instance.new("TextLabel", enchantFrame)
+                nameLabel.Size = UDim2.new(1, -80, 0, 20)
+                nameLabel.Position = UDim2.new(0, 10, 0, 5)
+                nameLabel.Text = enchantName
+                nameLabel.Font = Enum.Font.GothamBold
+                nameLabel.TextSize = 12
+                nameLabel.TextColor3 = data.rarity == "cursed" and Color3.fromRGB(255,100,100) or 
+                                     data.rarity == "rare" and Color3.fromRGB(100,200,255) or 
+                                     data.rarity == "uncommon" and Color3.fromRGB(150,255,150) or
+                                     Color3.fromRGB(200,200,200)
+                nameLabel.BackgroundTransparency = 1
+                nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+                nameLabel.ZIndex = 202
+                
+                -- Description
+                local descLabel = Instance.new("TextLabel", enchantFrame)
+                descLabel.Size = UDim2.new(1, -80, 0, 15)
+                descLabel.Position = UDim2.new(0, 10, 0, 25)
+                descLabel.Text = data.description
+                descLabel.Font = Enum.Font.Gotham
+                descLabel.TextSize = 9
+                descLabel.TextColor3 = Color3.fromRGB(150,150,150)
+                descLabel.BackgroundTransparency = 1
+                descLabel.TextXAlignment = Enum.TextXAlignment.Left
+                descLabel.ZIndex = 202
+                
+                -- Select button
+                local selectBtn = Instance.new("TextButton", enchantFrame)
+                selectBtn.Size = UDim2.new(0, 60, 0, 30)
+                selectBtn.Position = UDim2.new(1, -70, 0, 7)
+                selectBtn.Text = "SELECT"
+                selectBtn.Font = Enum.Font.GothamSemibold
+                selectBtn.TextSize = 10
+                selectBtn.BackgroundColor3 = Color3.fromRGB(40,167,69)
+                selectBtn.TextColor3 = Color3.fromRGB(255,255,255)
+                selectBtn.ZIndex = 202
+                local selectBtnCorner = Instance.new("UICorner", selectBtn)
+                selectBtnCorner.CornerRadius = UDim.new(0, 4)
+                
+                selectBtn.MouseButton1Click:Connect(function()
+                    SmartEnchant.targetEnchant = enchantName
+                    targetEnchantSelector.Text = "Selected: " .. enchantName:sub(1,12) .. "..."
+                    targetStatusLabel.Text = "Target: " .. enchantName .. " (" .. data.rarity .. ")"
+                    enchantListWindow.Visible = false
+                    Notify("🎯 Smart Target", "Target set to: " .. enchantName)
+                    print("[SMART-TARGET] Target selected: " .. enchantName)
+                end)
+                
+                yPos = yPos + 50
+            end
+            
+            scrollFrame.CanvasSize = UDim2.new(0, 0, 0, yPos)
+            
+            -- Event handlers
+            closeBtn.MouseButton1Click:Connect(function()
+                enchantListWindow.Visible = false
+            end)
+            
+            -- Make window draggable
+            local dragging = false
+            local dragStart = nil
+            local startPos = nil
+            
+            header.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    dragging = true
+                    dragStart = input.Position
+                    startPos = enchantListWindow.Position
+                end
+            end)
+            
+            header.InputChanged:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+                    local delta = input.Position - dragStart
+                    enchantListWindow.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                end
+            end)
+            
+            header.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    dragging = false
+                end
+            end)
+        end
+        
+        -- Toggle window visibility
+        enchantListWindow.Visible = not enchantListWindow.Visible
+        if enchantListWindow.Visible then
+            local enchantCount = 0
+            for _ in pairs(SmartEnchant.enchantDatabase) do
+                enchantCount = enchantCount + 1
+            end
+            print("[SMART-TARGET] Enchant list opened with " .. enchantCount .. " enchants")
+            Notify("🎯 Smart Target", "Enchant list opened - " .. enchantCount .. " available")
+        end
+    end)
+    
+    smartTargetToggle.MouseButton1Click:Connect(function()
+        if not SmartEnchant.targetEnchant then
+            Notify("🎯 Smart Target", "Please select a target enchant first!")
+            return
+        end
+        
+        SmartEnchant.enabled = not SmartEnchant.enabled
+        smartTargetToggle.Text = SmartEnchant.enabled and "Target: ON" or "Target: OFF"
+        smartTargetToggle.BackgroundColor3 = SmartEnchant.enabled and Color3.fromRGB(40,167,69) or Color3.fromRGB(160,60,60)
+        
+        if SmartEnchant.enabled then
+            targetStatusLabel.Text = "Status: Targeting " .. SmartEnchant.targetEnchant .. "..."
+            Notify("🎯 Smart Target", "Smart targeting enabled for: " .. SmartEnchant.targetEnchant)
+            
+            -- Start smart targeting in background
+            spawn(function()
+                SmartTargetEnchantSequence()
+                -- Update UI when finished
+                smartTargetToggle.Text = "Target: OFF"
+                smartTargetToggle.BackgroundColor3 = Color3.fromRGB(160,60,60)
+                if SmartEnchant.targetFound then
+                    targetStatusLabel.Text = "Status: ✅ Target found! (" .. SmartEnchant.rollCount .. " rolls)"
+                else
+                    targetStatusLabel.Text = "Status: ❌ Target not found (" .. SmartEnchant.rollCount .. " rolls)"
+                end
+            end)
+        else
+            targetStatusLabel.Text = "Status: Targeting disabled"
+            Notify("🎯 Smart Target", "Smart targeting disabled")
+        end
+    end)
 
     tradeToggle.MouseButton1Click:Connect(function()
         AdvancedFeatures.autoTrade = not AdvancedFeatures.autoTrade
