@@ -1594,7 +1594,14 @@ local function BuildUI()
     local function PurchaseWeatherEvent()
         local weatherRemote = GetRemote("RF/PurchaseWeatherEvent")
         if weatherRemote then
-            local ok, result = safeInvoke(weatherRemote)
+            local ok, result = pcall(function()
+                if weatherRemote:IsA("RemoteFunction") then
+                    return weatherRemote:InvokeServer()
+                else
+                    weatherRemote:FireServer()
+                    return "Event fired"
+                end
+            end)
             if ok then
                 Notify("Weather", "Weather event purchased!")
             else
@@ -1609,7 +1616,14 @@ local function BuildUI()
     local function SpawnBoat()
         local spawnRemote = GetRemote("RF/SpawnBoat")
         if spawnRemote then
-            local ok, result = safeInvoke(spawnRemote)
+            local ok, result = pcall(function()
+                if spawnRemote:IsA("RemoteFunction") then
+                    return spawnRemote:InvokeServer()
+                else
+                    spawnRemote:FireServer()
+                    return "Event fired"
+                end
+            end)
             if ok then
                 Notify("Boat", "Boat spawned successfully!")
             else
@@ -1623,7 +1637,14 @@ local function BuildUI()
     local function DespawnBoat()
         local despawnRemote = GetRemote("RF/DespawnBoat")
         if despawnRemote then
-            local ok, result = safeInvoke(despawnRemote)
+            local ok, result = pcall(function()
+                if despawnRemote:IsA("RemoteFunction") then
+                    return despawnRemote:InvokeServer()
+                else
+                    despawnRemote:FireServer()
+                    return "Event fired"
+                end
+            end)
             if ok then
                 Notify("Boat", "Boat despawned!")
             else
@@ -1638,7 +1659,11 @@ local function BuildUI()
     local function ActivateEnchantingAltar()
         local enchantRemote = GetRemote("RE/ActivateEnchantingAltar")
         if enchantRemote then
-            local ok, result = safeInvoke(enchantRemote)
+            -- Use direct FireServer instead of safeInvoke for enchanting
+            local ok, result = pcall(function()
+                enchantRemote:FireServer()
+                return "Event fired"
+            end)
             if ok then
                 Notify("Enchanting", "Enchanting altar activated!")
                 print("[DEBUG] Enchanting altar activated successfully")
@@ -1647,7 +1672,7 @@ local function BuildUI()
                 print("[DEBUG] Failed to activate enchanting altar:", result)
             end
         else
-            Notify("Error", "Enchanting altar remote not found")
+            Notify("Error", "RE/ActivateEnchantingAltar remote not found")
             print("[DEBUG] RE/ActivateEnchantingAltar remote not found")
         end
     end
@@ -1656,7 +1681,15 @@ local function BuildUI()
         -- Check for roll enchant remote after altar activation
         local rollRemote = GetRemote("RE/RollEnchant") or GetRemote("RF/RollEnchant") or GetRemote("RE/EnchantRoll")
         if rollRemote then
-            local ok, result = safeInvoke(rollRemote)
+            -- Use direct call instead of safeInvoke
+            local ok, result = pcall(function()
+                if rollRemote:IsA("RemoteFunction") then
+                    return rollRemote:InvokeServer()
+                else
+                    rollRemote:FireServer()
+                    return "Event fired"
+                end
+            end)
             if ok then
                 Notify("Enchanting", "Enchantment rolled!")
                 print("[DEBUG] Enchantment rolled successfully")
@@ -1696,7 +1729,14 @@ local function BuildUI()
     local function InitiateTrade()
         local tradeRemote = GetRemote("RF/InitiateTrade")
         if tradeRemote then
-            local ok, result = safeInvoke(tradeRemote)
+            local ok, result = pcall(function()
+                if tradeRemote:IsA("RemoteFunction") then
+                    return tradeRemote:InvokeServer()
+                else
+                    tradeRemote:FireServer()
+                    return "Event fired"
+                end
+            end)
             if ok then
                 Notify("Trading", "Trade initiated!")
             else
