@@ -1,344 +1,223 @@
 -- ═══════════════════════════════════════════════════════════════
--- 🔧 FISH IT NATIVE AUTO DEBUG & ENHANCEMENT SCRIPT
+-- 🔬 FISH IT DEBUG ANALYZER - BASED ON LOG DATA
 -- ═══════════════════════════════════════════════════════════════
--- Purpose: Analyze and enhance the built-in auto fishing feature
--- Target: Built-in "AUTO" button functionality
--- Goal: Perfect cast charging & instant roll speed
+-- Purpose: Debug auto fishing mechanism based on actual game data
+-- Focus: Target specific remotes identified in log analysis
+-- Method: Hook confirmed fishing remotes with precise targeting
 -- ═══════════════════════════════════════════════════════════════
 
-print("🔧 Fish It Native Auto Debug Script Loading...")
+print("🔬 Fish It Debug Analyzer - Loading...")
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 -- ═══════════════════════════════════════════════════════════════
--- 🔍 DETECTION SYSTEM - Find Native Auto Components
+-- 📊 FISHING REMOTES IDENTIFIED FROM LOG DEBUG
 -- ═══════════════════════════════════════════════════════════════
 
-local NativeAutoDebug = {
-    autoButton = nil,
-    autoButtonFound = false,
-    originalFunctions = {},
-    hooks = {},
-    monitoring = false,
-    enhancementActive = false
+local FishingRemotes = {
+    -- Auto Fishing System
+    "UpdateAutoFishingState",       -- RF/UpdateAutoFishingState
+    "ChargeFishingRod",            -- RF/ChargeFishingRod  
+    "CancelFishingInputs",         -- RF/CancelFishingInputs
+    "RequestFishingMinigameStarted", -- RF/RequestFishingMinigameStarted
+    "UpdateFishingRadar",          -- RF/UpdateFishingRadar
+    
+    -- Fishing Events
+    "PlayFishingEffect",           -- RE/PlayFishingEffect
+    "BaitSpawned",                 -- RE/BaitSpawned
+    "FishCaught",                  -- RE/FishCaught
+    "FishingStopped",              -- RE/FishingStopped
+    "FishingCompleted",            -- RE/FishingCompleted
+    "FishingMinigameChanged",      -- RE/FishingMinigameChanged
+    "ObtainedNewFishNotification", -- RE/ObtainedNewFishNotification
+    
+    -- Equipment/Gear
+    "EquipRodSkin",                -- RE/EquipRodSkin
+    "UnequipRodSkin",              -- RE/UnequipRodSkin
+    "EquipBait",                   -- RE/EquipBait
+    
+    -- Power/Charge Related
+    "UpdateChargeState"            -- RE/UpdateChargeState
 }
 
--- Function to find the native AUTO button
-local function FindNativeAutoButton()
-    print("🔍 Searching for native AUTO button...")
+local DebugAnalyzer = {
+    foundRemotes = {},
+    hooksActive = false,
+    debugData = {},
+    callCount = 0
+}
+
+-- ═══════════════════════════════════════════════════════════════
+-- 🎯 PRECISE REMOTE FINDER BASED ON LOG DATA
+-- ═══════════════════════════════════════════════════════════════
+
+local function FindExactFishingRemotes()
+    print("🎯 Searching for exact fishing remotes from log data...")
     
-    local function searchInGui(parent, depth)
-        if depth > 10 then return nil end -- Prevent infinite recursion
-        
-        for _, child in pairs(parent:GetChildren()) do
-            if child:IsA("TextButton") or child:IsA("ImageButton") then
-                if child.Text and (
-                    string.upper(child.Text):find("AUTO") or 
-                    string.upper(child.Text):find("FISH") or
-                    child.Name:find("Auto") or
-                    child.Name:find("Fish")
-                ) then
-                    print("🎯 Found potential AUTO button:", child.Name, "Text:", child.Text)
-                    return child
-                end
+    local found = {}
+    local searchPaths = {
+        "ReplicatedStorage.Packages._Index.sleitnick_net@0.2.0.net.RF",
+        "ReplicatedStorage.Packages._Index.sleitnick_net@0.2.0.net.RE"
+    }
+    
+    for _, remoteName in pairs(FishingRemotes) do
+        for _, basePath in pairs(searchPaths) do
+            local fullPath = basePath .. "/" .. remoteName
+            local success, remote = pcall(function()
+                return game:GetService("ReplicatedStorage"):FindFirstChild("Packages")
+                    and game:GetService("ReplicatedStorage").Packages:FindFirstChild("_Index")
+                    and game:GetService("ReplicatedStorage").Packages._Index:FindFirstChild("sleitnick_net@0.2.0")
+                    and game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"]:FindFirstChild("net")
+                    and game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net:FindFirstChild("RF")
+                    and game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net.RF:FindFirstChild(remoteName)
+                    or game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net:FindFirstChild("RE")
+                    and game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net.RE:FindFirstChild(remoteName)
+            end)
+            
+            if success and remote then
+                table.insert(found, {
+                    remote = remote,
+                    name = remoteName,
+                    path = fullPath,
+                    type = remote.ClassName
+                })
+                print("✅ Found:", remoteName, "(" .. remote.ClassName .. ")")
             end
-            
-            local found = searchInGui(child, depth + 1)
-            if found then return found end
         end
-        return nil
     end
     
-    -- Search in PlayerGui
-    local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-    local autoBtn = searchInGui(playerGui, 0)
-    
-    if autoBtn then
-        NativeAutoDebug.autoButton = autoBtn
-        NativeAutoDebug.autoButtonFound = true
-        print("✅ Native AUTO button found:", autoBtn:GetFullName())
-        return true
-    else
-        print("❌ Native AUTO button not found")
-        return false
-    end
-end
-
--- ═══════════════════════════════════════════════════════════════
--- 📊 MONITORING SYSTEM - Track Native Auto Behavior
--- ═══════════════════════════════════════════════════════════════
-
-local MonitoringData = {
-    castAttempts = 0,
-    chargingTimes = {},
-    rollSpeeds = {},
-    perfectCasts = 0,
-    failedCasts = 0,
-    averageChargeTime = 0,
-    averageRollSpeed = 0
-}
-
--- Monitor fishing casting behavior
-local function StartMonitoring()
-    if NativeAutoDebug.monitoring then return end
-    
-    NativeAutoDebug.monitoring = true
-    print("📊 Starting native auto monitoring...")
-    
-    -- Monitor charge timing
-    local chargeStartTime = 0
-    local isCharging = false
-    
-    -- Hook into charge detection
-    RunService.Heartbeat:Connect(function()
-        if not NativeAutoDebug.monitoring then return end
-        
-        -- Detect charging state from UI or character animations
-        local character = LocalPlayer.Character
-        if character then
-            -- Look for charging indicators
-            local chargingUI = LocalPlayer.PlayerGui:FindFirstChild("ChargingUI") or
-                              LocalPlayer.PlayerGui:FindFirstChild("FishingUI")
-            
-            if chargingUI then
-                local chargeBar = chargingUI:FindFirstChild("ChargeBar") or
-                                 chargingUI:FindFirstChild("Charge") or
-                                 chargingUI:FindFirstChild("Power")
-                
-                if chargeBar and chargeBar.Visible then
-                    if not isCharging then
-                        isCharging = true
-                        chargeStartTime = tick()
-                        print("🔋 Charge started")
-                    end
-                else
-                    if isCharging then
-                        isCharging = false
-                        local chargeTime = tick() - chargeStartTime
-                        table.insert(MonitoringData.chargingTimes, chargeTime)
-                        MonitoringData.castAttempts = MonitoringData.castAttempts + 1
-                        
-                        -- Calculate if it was a perfect cast (charge time close to optimal)
-                        if chargeTime >= 0.8 and chargeTime <= 1.2 then
-                            MonitoringData.perfectCasts = MonitoringData.perfectCasts + 1
-                        else
-                            MonitoringData.failedCasts = MonitoringData.failedCasts + 1
+    -- Also scan by descendants method as backup
+    for _, descendant in pairs(ReplicatedStorage:GetDescendants()) do
+        if descendant:IsA("RemoteEvent") or descendant:IsA("RemoteFunction") then
+            local name = descendant.Name
+            for _, targetName in pairs(FishingRemotes) do
+                if name == targetName then
+                    -- Check if already found
+                    local alreadyFound = false
+                    for _, existing in pairs(found) do
+                        if existing.remote == descendant then
+                            alreadyFound = true
+                            break
                         end
-                        
-                        print("⚡ Charge completed in", string.format("%.3f", chargeTime), "seconds")
+                    end
+                    
+                    if not alreadyFound then
+                        table.insert(found, {
+                            remote = descendant,
+                            name = name,
+                            path = descendant:GetFullName(),
+                            type = descendant.ClassName
+                        })
+                        print("✅ Found (backup scan):", name, "(" .. descendant.ClassName .. ")")
                     end
                 end
             end
         end
-    end)
+    end
     
-    print("✅ Monitoring system active")
+    DebugAnalyzer.foundRemotes = found
+    print("📊 Total fishing remotes found:", #found)
+    return #found > 0
 end
 
 -- ═══════════════════════════════════════════════════════════════
--- 🎯 ENHANCEMENT SYSTEM - Modify Native Auto Behavior
+-- 🔍 DEBUG HOOK SYSTEM - MONITOR ALL CALLS
 -- ═══════════════════════════════════════════════════════════════
 
-local AutoEnhancer = {
-    perfectChargeTime = 1.0, -- Optimal charge time for perfect cast
-    instantRollSpeed = 0.1,  -- Target roll speed for instant results
-    originalChargingFunction = nil,
-    originalRollingFunction = nil
-}
-
--- Find and hook into charging system
-local function HookChargingSystem()
-    print("🎣 Hooking into charging system...")
-    
-    -- Look for charging remotes or functions
-    local chargingRemote = nil
-    
-    -- Search in ReplicatedStorage for charging-related remotes
-    local function findChargingRemote(parent)
-        for _, child in pairs(parent:GetDescendants()) do
-            if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
-                if child.Name:lower():find("charge") or 
-                   child.Name:lower():find("power") or
-                   child.Name:lower():find("cast") then
-                    print("🎯 Found potential charging remote:", child:GetFullName())
-                    return child
-                end
-            end
-        end
-        return nil
-    end
-    
-    chargingRemote = findChargingRemote(ReplicatedStorage)
-    
-    if chargingRemote then
-        print("✅ Charging remote found:", chargingRemote.Name)
-        
-        -- Hook the charging function to force perfect timing
-        if chargingRemote:IsA("RemoteFunction") then
-            local originalInvoke = chargingRemote.InvokeServer
-            chargingRemote.InvokeServer = function(self, ...)
-                local args = {...}
-                -- Modify charge value to perfect (usually around 100 or 1.0)
-                if #args > 0 and tonumber(args[1]) then
-                    args[1] = 100 -- Force perfect charge
-                    print("🎯 Modified charge to perfect:", args[1])
-                end
-                return originalInvoke(self, unpack(args))
-            end
-        elseif chargingRemote:IsA("RemoteEvent") then
-            local originalFire = chargingRemote.FireServer
-            chargingRemote.FireServer = function(self, ...)
-                local args = {...}
-                if #args > 0 and tonumber(args[1]) then
-                    args[1] = 100 -- Force perfect charge
-                    print("🎯 Modified charge to perfect:", args[1])
-                end
-                return originalFire(self, unpack(args))
-            end
-        end
-        
-        return true
-    else
-        print("❌ Charging remote not found")
-        return false
-    end
-end
-
--- Hook into rolling/minigame system
-local function HookRollingSystem()
-    print("🎲 Hooking into rolling system...")
-    
-    -- Look for minigame or rolling remotes
-    local rollingRemote = nil
-    
-    local function findRollingRemote(parent)
-        for _, child in pairs(parent:GetDescendants()) do
-            if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
-                if child.Name:lower():find("minigame") or 
-                   child.Name:lower():find("roll") or
-                   child.Name:lower():find("fishing") then
-                    print("🎯 Found potential rolling remote:", child:GetFullName())
-                    return child
-                end
-            end
-        end
-        return nil
-    end
-    
-    rollingRemote = findRollingRemote(ReplicatedStorage)
-    
-    if rollingRemote then
-        print("✅ Rolling remote found:", rollingRemote.Name)
-        
-        -- Hook the rolling function to force perfect results
-        if rollingRemote:IsA("RemoteFunction") then
-            local originalInvoke = rollingRemote.InvokeServer
-            rollingRemote.InvokeServer = function(self, ...)
-                local args = {...}
-                -- Modify minigame args for perfect results
-                if #args >= 2 then
-                    args[1] = -1.2379989624023438  -- Perfect X coordinate
-                    args[2] = 0.9800224985802423   -- Perfect Y coordinate
-                    print("🎯 Modified minigame to perfect coordinates")
-                end
-                return originalInvoke(self, unpack(args))
-            end
-        elseif rollingRemote:IsA("RemoteEvent") then
-            local originalFire = rollingRemote.FireServer
-            rollingRemote.FireServer = function(self, ...)
-                local args = {...}
-                if #args >= 2 then
-                    args[1] = -1.2379989624023438
-                    args[2] = 0.9800224985802423
-                    print("🎯 Modified minigame to perfect coordinates")
-                end
-                return originalFire(self, unpack(args))
-            end
-        end
-        
-        return true
-    else
-        print("❌ Rolling remote not found")
-        return false
-    end
-end
-
--- ═══════════════════════════════════════════════════════════════
--- 🎮 AUTO BUTTON ENHANCEMENT
--- ═══════════════════════════════════════════════════════════════
-
-local function EnhanceNativeAuto()
-    if not NativeAutoDebug.autoButtonFound then
-        print("❌ Cannot enhance - AUTO button not found")
+local function ApplyDebugHooks()
+    if #DebugAnalyzer.foundRemotes == 0 then
+        print("❌ No remotes found to debug")
         return false
     end
     
-    print("🚀 Enhancing native AUTO functionality...")
+    print("🔧 Applying debug hooks to", #DebugAnalyzer.foundRemotes, "remotes...")
+    local hooksApplied = 0
     
-    -- Hook charging system
-    local chargingHooked = HookChargingSystem()
-    
-    -- Hook rolling system
-    local rollingHooked = HookRollingSystem()
-    
-    if chargingHooked or rollingHooked then
-        NativeAutoDebug.enhancementActive = true
-        print("✅ Native AUTO enhancement active!")
-        print("🎯 Perfect charging:", chargingHooked and "✅" or "❌")
-        print("⚡ Instant rolling:", rollingHooked and "✅" or "❌")
-        return true
-    else
-        print("❌ Enhancement failed - no systems found to hook")
-        return false
-    end
-end
-
--- ═══════════════════════════════════════════════════════════════
--- 📈 ANALYTICS & REPORTING
--- ═══════════════════════════════════════════════════════════════
-
-local function GenerateReport()
-    print("\n" .. "═".rep(60))
-    print("📊 NATIVE AUTO FISHING ANALYSIS REPORT")
-    print("═".rep(60))
-    
-    if MonitoringData.castAttempts > 0 then
-        local avgChargeTime = 0
-        for _, time in ipairs(MonitoringData.chargingTimes) do
-            avgChargeTime = avgChargeTime + time
+    for _, remoteData in pairs(DebugAnalyzer.foundRemotes) do
+        local remote = remoteData.remote
+        local remoteName = remoteData.name
+        
+        local success, err = pcall(function()
+            if remote:IsA("RemoteFunction") then
+                local original = remote.InvokeServer
+                remote.InvokeServer = function(self, ...)
+                    local args = {...}
+                    DebugAnalyzer.callCount = DebugAnalyzer.callCount + 1
+                    
+                    -- Log the call
+                    print("🎣 [RF]", remoteName, "called with args:", #args)
+                    for i, arg in ipairs(args) do
+                        print("   Arg[" .. i .. "]:", tostring(arg), "(" .. type(arg) .. ")")
+                    end
+                    
+                    -- Store debug data
+                    table.insert(DebugAnalyzer.debugData, {
+                        timestamp = tick(),
+                        remote = remoteName,
+                        type = "RemoteFunction",
+                        args = args,
+                        argCount = #args
+                    })
+                    
+                    -- Call original and capture result
+                    local result = original(self, unpack(args))
+                    print("   Result:", tostring(result))
+                    
+                    return result
+                end
+                hooksApplied = hooksApplied + 1
+                
+            elseif remote:IsA("RemoteEvent") then
+                local original = remote.FireServer
+                remote.FireServer = function(self, ...)
+                    local args = {...}
+                    DebugAnalyzer.callCount = DebugAnalyzer.callCount + 1
+                    
+                    -- Log the call
+                    print("🎣 [RE]", remoteName, "fired with args:", #args)
+                    for i, arg in ipairs(args) do
+                        print("   Arg[" .. i .. "]:", tostring(arg), "(" .. type(arg) .. ")")
+                    end
+                    
+                    -- Store debug data
+                    table.insert(DebugAnalyzer.debugData, {
+                        timestamp = tick(),
+                        remote = remoteName,
+                        type = "RemoteEvent",
+                        args = args,
+                        argCount = #args
+                    })
+                    
+                    return original(self, unpack(args))
+                end
+                hooksApplied = hooksApplied + 1
+            end
+        end)
+        
+        if not success then
+            print("⚠️ Failed to hook:", remoteName, "Error:", err)
+        else
+            print("✅ Hooked:", remoteName)
         end
-        avgChargeTime = avgChargeTime / #MonitoringData.chargingTimes
-        
-        local perfectRate = (MonitoringData.perfectCasts / MonitoringData.castAttempts) * 100
-        
-        print("🎣 Total Cast Attempts:", MonitoringData.castAttempts)
-        print("⚡ Perfect Casts:", MonitoringData.perfectCasts)
-        print("❌ Failed Casts:", MonitoringData.failedCasts)
-        print("📊 Perfect Rate:", string.format("%.1f%%", perfectRate))
-        print("⏱️ Average Charge Time:", string.format("%.3f", avgChargeTime), "seconds")
-        print("🎯 Enhancement Status:", NativeAutoDebug.enhancementActive and "ACTIVE" or "INACTIVE")
-    else
-        print("📊 No fishing data collected yet")
     end
     
-    print("═".rep(60))
+    DebugAnalyzer.hooksActive = true
+    print("✅ Applied", hooksApplied, "debug hooks")
+    return hooksApplied > 0
 end
 
 -- ═══════════════════════════════════════════════════════════════
--- 🎛️ DEBUG UI INTERFACE
+-- 📊 DEBUG UI WITH REAL-TIME MONITORING
 -- ═══════════════════════════════════════════════════════════════
 
 local function CreateDebugUI()
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "NativeAutoDebug"
+    screenGui.Name = "FishItDebugAnalyzer"
     screenGui.ResetOnSpawn = false
     
-    -- Try to parent to CoreGui first, then PlayerGui
     local success = pcall(function()
         screenGui.Parent = game.CoreGui
     end)
@@ -346,138 +225,198 @@ local function CreateDebugUI()
         screenGui.Parent = LocalPlayer.PlayerGui
     end
     
-    -- Main frame
+    -- Main debug window
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 300, 0, 400)
-    frame.Position = UDim2.new(1, -320, 0, 20)
-    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    frame.Size = UDim2.new(0, 400, 0, 500)
+    frame.Position = UDim2.new(0, 20, 0, 20)
+    frame.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
     frame.BorderSizePixel = 0
     frame.Active = true
     frame.Draggable = true
     frame.Parent = screenGui
     
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
+    corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = frame
     
-    -- Title
+    -- Title bar
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 30)
+    titleBar.BackgroundColor3 = Color3.fromRGB(20, 30, 40)
+    titleBar.BorderSizePixel = 0
+    titleBar.Parent = frame
+    
+    local titleCorner = Instance.new("UICorner")
+    titleCorner.CornerRadius = UDim.new(0, 8)
+    titleCorner.Parent = titleBar
+    
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 30)
-    title.Text = "🔧 Native Auto Debug"
+    title.Size = UDim2.new(1, 0, 1, 0)
+    title.Text = "🔬 Fish It Debug Analyzer"
     title.Font = Enum.Font.GothamBold
     title.TextSize = 14
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-    title.BorderSizePixel = 0
-    title.Parent = frame
-    
-    local titleCorner = Instance.new("UICorner")
-    titleCorner.CornerRadius = UDim.new(0, 10)
-    titleCorner.Parent = title
-    
-    -- Content area
-    local content = Instance.new("ScrollingFrame")
-    content.Size = UDim2.new(1, -10, 1, -40)
-    content.Position = UDim2.new(0, 5, 0, 35)
-    content.BackgroundTransparency = 1
-    content.ScrollBarThickness = 4
-    content.Parent = frame
-    
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 5)
-    layout.Parent = content
+    title.BackgroundTransparency = 1
+    title.Parent = titleBar
     
     -- Status display
     local statusLabel = Instance.new("TextLabel")
-    statusLabel.Size = UDim2.new(1, 0, 0, 60)
-    statusLabel.Text = "🔍 Status: Initializing..."
+    statusLabel.Size = UDim2.new(1, -10, 0, 30)
+    statusLabel.Position = UDim2.new(0, 5, 0, 35)
+    statusLabel.Text = "🔍 Ready to debug Fish It auto fishing..."
     statusLabel.Font = Enum.Font.Gotham
-    statusLabel.TextSize = 12
+    statusLabel.TextSize = 10
     statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-    statusLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-    statusLabel.BorderSizePixel = 0
+    statusLabel.BackgroundTransparency = 1
     statusLabel.TextWrapped = true
-    statusLabel.Parent = content
+    statusLabel.Parent = frame
     
-    local statusCorner = Instance.new("UICorner")
-    statusCorner.CornerRadius = UDim.new(0, 6)
-    statusCorner.Parent = statusLabel
+    -- Debug button
+    local debugBtn = Instance.new("TextButton")
+    debugBtn.Size = UDim2.new(1, -10, 0, 35)
+    debugBtn.Position = UDim2.new(0, 5, 0, 70)
+    debugBtn.Text = "🚀 START DEBUG MONITORING"
+    debugBtn.Font = Enum.Font.GothamBold
+    debugBtn.TextSize = 12
+    debugBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    debugBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 200)
+    debugBtn.BorderSizePixel = 0
+    debugBtn.Parent = frame
     
-    -- Buttons
-    local function createButton(text, callback)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, 0, 0, 35)
-        btn.Text = text
-        btn.Font = Enum.Font.GothamSemibold
-        btn.TextSize = 12
-        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        btn.BackgroundColor3 = Color3.fromRGB(60, 120, 180)
-        btn.BorderSizePixel = 0
-        btn.Parent = content
-        
-        local btnCorner = Instance.new("UICorner")
-        btnCorner.CornerRadius = UDim.new(0, 6)
-        btnCorner.Parent = btn
-        
-        btn.MouseButton1Click:Connect(callback)
-        return btn
-    end
+    local debugCorner = Instance.new("UICorner")
+    debugCorner.CornerRadius = UDim.new(0, 6)
+    debugCorner.Parent = debugBtn
     
-    createButton("🔍 Find AUTO Button", function()
-        local found = FindNativeAutoButton()
-        statusLabel.Text = found and "✅ AUTO button found!" or "❌ AUTO button not found"
-    end)
+    -- Remote list display
+    local remotesList = Instance.new("ScrollingFrame")
+    remotesList.Size = UDim2.new(1, -10, 0, 180)
+    remotesList.Position = UDim2.new(0, 5, 0, 110)
+    remotesList.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+    remotesList.BorderSizePixel = 0
+    remotesList.ScrollBarThickness = 6
+    remotesList.Parent = frame
     
-    createButton("📊 Start Monitoring", function()
-        StartMonitoring()
-        statusLabel.Text = "📊 Monitoring native auto behavior..."
-    end)
+    local remotesCorner = Instance.new("UICorner")
+    remotesCorner.CornerRadius = UDim.new(0, 4)
+    remotesCorner.Parent = remotesList
     
-    createButton("🚀 Enhance Native Auto", function()
-        local enhanced = EnhanceNativeAuto()
-        statusLabel.Text = enhanced and "🚀 Enhancement active!" or "❌ Enhancement failed"
-    end)
+    local remotesLayout = Instance.new("UIListLayout")
+    remotesLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    remotesLayout.Padding = UDim.new(0, 2)
+    remotesLayout.Parent = remotesList
     
-    createButton("📈 Generate Report", function()
-        GenerateReport()
-        statusLabel.Text = "📈 Report generated in console"
-    end)
+    -- Debug log display
+    local debugLog = Instance.new("ScrollingFrame")
+    debugLog.Size = UDim2.new(1, -10, 0, 180)
+    debugLog.Position = UDim2.new(0, 5, 0, 295)
+    debugLog.BackgroundColor3 = Color3.fromRGB(5, 5, 10)
+    debugLog.BorderSizePixel = 0
+    debugLog.ScrollBarThickness = 6
+    debugLog.Parent = frame
     
-    -- Real-time stats
+    local logCorner = Instance.new("UICorner")
+    logCorner.CornerRadius = UDim.new(0, 4)
+    logCorner.Parent = debugLog
+    
+    local logLayout = Instance.new("UIListLayout")
+    logLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    logLayout.Padding = UDim.new(0, 1)
+    logLayout.Parent = debugLog
+    
+    -- Stats display
     local statsLabel = Instance.new("TextLabel")
-    statsLabel.Size = UDim2.new(1, 0, 0, 80)
-    statsLabel.Text = "📊 Stats will appear here..."
+    statsLabel.Size = UDim2.new(1, -10, 0, 20)
+    statsLabel.Position = UDim2.new(0, 5, 0, 480)
+    statsLabel.Text = "📊 Calls: 0 | Remotes: 0 | Status: Ready"
     statsLabel.Font = Enum.Font.Gotham
-    statsLabel.TextSize = 10
-    statsLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-    statsLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-    statsLabel.BorderSizePixel = 0
-    statsLabel.TextWrapped = true
-    statsLabel.Parent = content
+    statsLabel.TextSize = 9
+    statsLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+    statsLabel.BackgroundTransparency = 1
+    statsLabel.Parent = frame
     
-    local statsCorner = Instance.new("UICorner")
-    statsCorner.CornerRadius = UDim.new(0, 6)
-    statsCorner.Parent = statsLabel
+    -- Button functionality
+    debugBtn.MouseButton1Click:Connect(function()
+        debugBtn.Text = "🔍 SCANNING..."
+        statusLabel.Text = "🔍 Scanning for fishing remotes..."
+        
+        task.wait(0.5)
+        
+        if FindExactFishingRemotes() then
+            statusLabel.Text = "✅ Found " .. #DebugAnalyzer.foundRemotes .. " fishing remotes"
+            
+            -- Update remotes list
+            for i, remoteData in ipairs(DebugAnalyzer.foundRemotes) do
+                local remoteLabel = Instance.new("TextLabel")
+                remoteLabel.Size = UDim2.new(1, -5, 0, 20)
+                remoteLabel.Text = string.format("[%d] %s (%s)", i, remoteData.name, remoteData.type)
+                remoteLabel.Font = Enum.Font.Gotham
+                remoteLabel.TextSize = 8
+                remoteLabel.TextColor3 = Color3.fromRGB(100, 200, 100)
+                remoteLabel.BackgroundTransparency = 1
+                remoteLabel.TextXAlignment = Enum.TextXAlignment.Left
+                remoteLabel.Parent = remotesList
+            end
+            
+            task.wait(0.5)
+            
+            if ApplyDebugHooks() then
+                debugBtn.Text = "✅ DEBUG MONITORING ACTIVE"
+                debugBtn.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
+                statusLabel.Text = "✅ Debug hooks active! Use AUTO fishing to see calls."
+                debugBtn.Active = false
+            else
+                debugBtn.Text = "❌ DEBUG FAILED"
+                debugBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 100)
+                statusLabel.Text = "❌ Failed to apply debug hooks"
+            end
+        else
+            debugBtn.Text = "❌ NO REMOTES FOUND"
+            debugBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 100)
+            statusLabel.Text = "❌ No fishing remotes found"
+        end
+    end)
     
-    -- Update stats periodically
+    -- Real-time log updater
+    local lastLogCount = 0
     task.spawn(function()
         while true do
-            task.wait(2)
-            if MonitoringData.castAttempts > 0 then
-                local perfectRate = (MonitoringData.perfectCasts / MonitoringData.castAttempts) * 100
-                statsLabel.Text = string.format(
-                    "📊 Casts: %d\n🎯 Perfect: %d (%.1f%%)\n❌ Failed: %d\n🔧 Enhanced: %s",
-                    MonitoringData.castAttempts,
-                    MonitoringData.perfectCasts,
-                    perfectRate,
-                    MonitoringData.failedCasts,
-                    NativeAutoDebug.enhancementActive and "YES" or "NO"
-                )
+            task.wait(0.5)
+            
+            -- Update stats
+            statsLabel.Text = string.format("📊 Calls: %d | Remotes: %d | Status: %s", 
+                DebugAnalyzer.callCount, 
+                #DebugAnalyzer.foundRemotes,
+                DebugAnalyzer.hooksActive and "Monitoring" or "Ready"
+            )
+            
+            -- Update log if new entries
+            if #DebugAnalyzer.debugData > lastLogCount then
+                for i = lastLogCount + 1, #DebugAnalyzer.debugData do
+                    local data = DebugAnalyzer.debugData[i]
+                    local logEntry = Instance.new("TextLabel")
+                    logEntry.Size = UDim2.new(1, -5, 0, 15)
+                    logEntry.Text = string.format("[%.1f] %s: %d args", 
+                        data.timestamp - DebugAnalyzer.debugData[1].timestamp, 
+                        data.remote, 
+                        data.argCount
+                    )
+                    logEntry.Font = Enum.Font.Gotham
+                    logEntry.TextSize = 8
+                    logEntry.TextColor3 = data.type == "RemoteFunction" and 
+                        Color3.fromRGB(100, 150, 255) or Color3.fromRGB(255, 150, 100)
+                    logEntry.BackgroundTransparency = 1
+                    logEntry.TextXAlignment = Enum.TextXAlignment.Left
+                    logEntry.Parent = debugLog
+                    
+                    -- Auto-scroll to bottom
+                    debugLog.CanvasPosition = Vector2.new(0, debugLog.AbsoluteCanvasSize.Y)
+                end
+                lastLogCount = #DebugAnalyzer.debugData
             end
         end
     end)
     
-    print("🎛️ Debug UI created")
+    return screenGui
 end
 
 -- ═══════════════════════════════════════════════════════════════
@@ -485,55 +424,60 @@ end
 -- ═══════════════════════════════════════════════════════════════
 
 local function Initialize()
-    print("🚀 Initializing Native Auto Debug System...")
+    print("🔬 Fish It Debug Analyzer - Initializing...")
+    print("📊 Target remotes from log analysis:", #FishingRemotes)
     
     -- Create debug UI
     CreateDebugUI()
     
-    -- Auto-find AUTO button after a delay
-    task.wait(2)
-    FindNativeAutoButton()
-    
-    -- Auto-start monitoring
-    task.wait(1)
-    StartMonitoring()
-    
-    print("✅ Native Auto Debug System ready!")
-    print("📋 Use the debug UI to enhance native auto fishing")
-    print("🎯 Goal: Perfect cast charging & instant roll speed")
+    print("✅ Debug Analyzer ready!")
+    print("💡 Click 'START DEBUG MONITORING' to begin")
+    print("🎣 Then use the AUTO fishing button to see remote calls")
 end
 
--- Start the system
+-- Start the debug analyzer
 Initialize()
 
 -- ═══════════════════════════════════════════════════════════════
--- 📝 USAGE INSTRUCTIONS
+-- 📋 DEBUG USAGE GUIDE
 -- ═══════════════════════════════════════════════════════════════
 --[[
-🔧 NATIVE AUTO DEBUG SCRIPT USAGE:
+🔬 FISH IT DEBUG ANALYZER GUIDE:
 
-1. 🎮 Load this script while in Fish It game
-2. 🔍 Script will auto-find the native AUTO button
-3. 📊 Monitoring will start automatically
-4. 🚀 Click "Enhance Native Auto" to modify behavior
-5. 📈 Check reports to see improvement
+🎯 PURPOSE:
+- Monitor all fishing-related remote calls
+- Understand how AUTO fishing works
+- Identify the exact parameters used
+- Debug fishing mechanism in real-time
 
-🎯 ENHANCEMENT FEATURES:
-- Perfect cast charging (100% power)
-- Instant roll results (perfect coordinates)
-- Real-time monitoring & analytics
-- Automatic hook into game systems
+📊 IDENTIFIED REMOTES FROM LOG:
+✅ UpdateAutoFishingState - Controls AUTO fishing on/off
+✅ ChargeFishingRod - Handles rod charging/power
+✅ RequestFishingMinigameStarted - Starts minigame
+✅ UpdateChargeState - Updates charge/power state
+✅ FishingCompleted - Triggered when fishing completes
+✅ FishCaught - Triggered when fish is caught
 
-⚠️ NOTES:
-- Works with existing AUTO button
-- No interference with manual fishing
-- Safe hooks with error handling
-- Compatible with all fishing locations
+💡 HOW TO USE:
+1. Load script in Fish It game
+2. Click "START DEBUG MONITORING"
+3. Use the native AUTO fishing button
+4. Watch the debug log for remote calls
+5. Analyze the parameters being sent
 
-🔄 TO RESET:
-- Rejoin the game or reload script
-- Enhancement hooks will be cleared
+🔍 WHAT TO LOOK FOR:
+- ChargeFishingRod parameters (power values)
+- RequestFishingMinigameStarted coordinates
+- UpdateAutoFishingState true/false values
+- Timing between different remote calls
+
+📝 DEBUG OUTPUT:
+- Real-time remote call logging
+- Parameter values and types
+- Call timestamps and sequence
+- Success/failure indicators
 ]]
 
-print("🔧 Native Auto Debug Script Loaded Successfully!")
-print("📋 Check the debug UI on the right side of your screen")
+print("🔬 Fish It Debug Analyzer loaded!")
+print("🎯 Ready to analyze AUTO fishing mechanism")
+print("📊 Based on actual game log data analysis")
