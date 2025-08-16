@@ -165,17 +165,28 @@ local newFishNotificationRemote = ResolveRemote("RE/ObtainedNewFishNotification"
 local playFishingEffectRemote = ResolveRemote("RE/PlayFishingEffect")
 local fishingMinigameChangedRemote = ResolveRemote("RE/FishingMinigameChanged")
 
+-- Animation-Based Fishing System (defined early to avoid nil errors)
+local AnimationMonitor = {
+    isMonitoring = false,
+    currentState = "idle",
+    lastAnimationTime = 0,
+    animationSequence = {},
+    fishingSuccess = false
+}
+
 -- Enhanced Fish Detection System menggunakan semua 20 remotes
 local FishDetection = {
     lastCatchTime = 0,
     recentCatches = {}
 }
 
--- Event listeners untuk enhanced detection
+-- Event listeners untuk enhanced detection (setelah AnimationMonitor didefinisikan)
 if newFishNotificationRemote then
     newFishNotificationRemote.OnClientEvent:Connect(function(fishData)
-        if fishData and fishData.name then
-            LogFishCatch(fishData.name, Dashboard.sessionStats.currentLocation)
+        if fishData and fishData.name and Dashboard and Dashboard.LogFishCatch then
+            Dashboard.LogFishCatch(fishData.name, Dashboard.sessionStats.currentLocation)
+            Notify("New Fish!", "🎣 Caught: " .. fishData.name)
+        elseif fishData and fishData.name then
             Notify("New Fish!", "🎣 Caught: " .. fishData.name)
         end
     end)
@@ -192,15 +203,19 @@ end
 if fishingStoppedRemote then
     fishingStoppedRemote.OnClientEvent:Connect(function()
         -- Fishing stopped - reset animation state
-        AnimationMonitor.currentState = "idle"
-        AnimationMonitor.fishingSuccess = false
+        if AnimationMonitor then
+            AnimationMonitor.currentState = "idle"
+            AnimationMonitor.fishingSuccess = false
+        end
     end)
 end
 
 if playFishingEffectRemote then
     playFishingEffectRemote.OnClientEvent:Connect(function()
         -- Visual effect played - likely successful action
-        AnimationMonitor.fishingSuccess = true
+        if AnimationMonitor then
+            AnimationMonitor.fishingSuccess = true
+        end
     end)
 end
 
@@ -458,16 +473,7 @@ local function LocationTracker()
     end
 end
 
--- Animation-Based Fishing System
-local AnimationMonitor = {
-    isMonitoring = false,
-    currentState = "idle",
-    lastAnimationTime = 0,
-    animationSequence = {},
-    fishingSuccess = false
-}
-
--- Animation tracking for realistic timing
+-- Animation tracking for realistic timing (AnimationMonitor sudah didefinisikan di atas)
 local function MonitorCharacterAnimations()
     if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("Humanoid") then
         return
@@ -783,6 +789,39 @@ local function DoSecureCycle()
     LogFishCatch(randomFish, currentLocation)
 end
 
+local function DoFastCycle()
+    if inCooldown() then task.wait(0.5); return end
+    
+    -- Fast cycle with nil checks for AnimationMonitor
+    if AnimationMonitor then
+        AnimationMonitor.currentState = "casting"
+    end
+    
+    if equipRemote then secureInvoke(equipRemote, 1) end
+    local ts = GetServerTime()
+    secureInvoke(rodRemote, ts)
+    task.wait(0.05 + math.random()*0.05)
+    secureInvoke(miniGameRemote, -1.2379989, 0.9800224) -- Always perfect in fast mode
+    task.wait(0.3 + math.random()*0.2)
+    if finishRemote then secureInvoke(finishRemote) end
+    
+    -- Update animation state if available
+    if AnimationMonitor then
+        AnimationMonitor.fishingSuccess = true
+        AnimationMonitor.currentState = "idle"
+    end
+    
+    -- Real fish simulation for dashboard  
+    local fishByLocation = {
+        ["Ocean"] = {"Hammerhead Shark", "Manta Ray", "Chrome Tuna", "Moorish Idol", "Cow Clownfish", "Candy Butterfly", "Jewel Tang", "Vintage Damsel", "Tricolore Butterfly", "Skunk Tilefish", "Yellowstate Angelfish", "Vintage Blue Tang"}
+    }
+    
+    local currentLocation = Dashboard.sessionStats.currentLocation
+    local locationFish = fishByLocation[currentLocation] or fishByLocation["Ocean"]
+    local randomFish = locationFish[math.random(1, #locationFish)]
+    LogFishCatch(randomFish, currentLocation)
+end
+
 local function AutofishRunner(mySession)
     Dashboard.sessionStats.startTime = tick()
     Dashboard.sessionStats.fishCount = 0
@@ -1035,96 +1074,182 @@ local function BuildUI()
     rightCol.BackgroundTransparency = 1
 
     -- left: mode
-    local modeLabel = Instance.new("TextLabel", leftCol); modeLabel.Size = UDim2.new(1,0,0,18); modeLabel.Text = "Mode"; modeLabel.BackgroundTransparency = 1; modeLabel.Font = Enum.Font.GothamSemibold; modeLabel.TextColor3 = Color3.fromRGB(200,200,200)
-        local modeButtons = Instance.new("Frame", leftCol); modeButtons.Size = UDim2.new(1,-12,0,105); modeButtons.Position = UDim2.new(0,6,0,24); modeButtons.BackgroundTransparency = 1
-        local fastButton = Instance.new("TextButton", modeButtons); fastButton.Size = UDim2.new(0.46,-6,0,30); fastButton.Position = UDim2.new(0,6,0,0); fastButton.Text = "Fast"; fastButton.BackgroundColor3 = Color3.fromRGB(75,95,165); local fastCorner = Instance.new("UICorner", fastButton); fastCorner.CornerRadius = UDim.new(0,6)
-        local secureButton = Instance.new("TextButton", modeButtons); secureButton.Size = UDim2.new(0.46,-6,0,30); secureButton.Position = UDim2.new(0.52,6,0,0); secureButton.Text = "Secure"; secureButton.BackgroundColor3 = Color3.fromRGB(74,155,88); local secureCorner = Instance.new("UICorner", secureButton); secureCorner.CornerRadius = UDim.new(0,6)
-        local smartButton = Instance.new("TextButton", modeButtons); smartButton.Size = UDim2.new(1,-12,0,30); smartButton.Position = UDim2.new(0,6,0,35); smartButton.Text = "🧠 Smart AI"; smartButton.BackgroundColor3 = Color3.fromRGB(255,140,0); local smartCorner = Instance.new("UICorner", smartButton); smartCorner.CornerRadius = UDim.new(0,6)
-        local modeStatus = Instance.new("TextLabel", modeButtons); modeStatus.Size = UDim2.new(1,-12,0,25); modeStatus.Position = UDim2.new(0,6,0,70); modeStatus.Text = "Current: Smart AI Mode"; modeStatus.Font = Enum.Font.GothamSemibold; modeStatus.TextSize = 10; modeStatus.TextColor3 = Color3.fromRGB(255,200,100); modeStatus.BackgroundTransparency = 1; modeStatus.TextXAlignment = Enum.TextXAlignment.Center
+    local modeLabel = Instance.new("TextLabel", leftCol)
+    modeLabel.Size = UDim2.new(1,0,0,18)
+    modeLabel.Text = "Fishing Mode"
+    modeLabel.BackgroundTransparency = 1
+    modeLabel.Font = Enum.Font.GothamSemibold
+    modeLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    modeLabel.TextSize = 14
+    modeLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local modeButtons = Instance.new("Frame", leftCol)
+    modeButtons.Size = UDim2.new(1,-12,0,105)
+    modeButtons.Position = UDim2.new(0,6,0,24)
+    modeButtons.BackgroundTransparency = 1
+    
+    local fastButton = Instance.new("TextButton", modeButtons)
+    fastButton.Size = UDim2.new(0.48,-3,0,30)
+    fastButton.Position = UDim2.new(0,0,0,0)
+    fastButton.Text = "⚡ Fast"
+    fastButton.Font = Enum.Font.GothamSemibold
+    fastButton.TextSize = 12
+    fastButton.BackgroundColor3 = Color3.fromRGB(75,95,165)
+    fastButton.TextColor3 = Color3.fromRGB(255,255,255)
+    local fastCorner = Instance.new("UICorner", fastButton)
+    fastCorner.CornerRadius = UDim.new(0,6)
+    
+    local secureButton = Instance.new("TextButton", modeButtons)
+    secureButton.Size = UDim2.new(0.48,-3,0,30)
+    secureButton.Position = UDim2.new(0.52,3,0,0)
+    secureButton.Text = "🔒 Secure"
+    secureButton.Font = Enum.Font.GothamSemibold
+    secureButton.TextSize = 12
+    secureButton.BackgroundColor3 = Color3.fromRGB(74,155,88)
+    secureButton.TextColor3 = Color3.fromRGB(255,255,255)
+    local secureCorner = Instance.new("UICorner", secureButton)
+    secureCorner.CornerRadius = UDim.new(0,6)
+    
+    local smartButton = Instance.new("TextButton", modeButtons)
+    smartButton.Size = UDim2.new(1,-6,0,30)
+    smartButton.Position = UDim2.new(0,3,0,35)
+    smartButton.Text = "🧠 Smart AI (Recommended)"
+    smartButton.Font = Enum.Font.GothamSemibold
+    smartButton.TextSize = 12
+    smartButton.BackgroundColor3 = Color3.fromRGB(255,140,0)
+    smartButton.TextColor3 = Color3.fromRGB(255,255,255)
+    local smartCorner = Instance.new("UICorner", smartButton)
+    smartCorner.CornerRadius = UDim.new(0,6)
+    
+    local modeStatus = Instance.new("TextLabel", modeButtons)
+    modeStatus.Size = UDim2.new(1,-6,0,25)
+    modeStatus.Position = UDim2.new(0,3,0,70)
+    modeStatus.Text = "✅ Current: Smart AI Mode"
+    modeStatus.Font = Enum.Font.GothamSemibold
+    modeStatus.TextSize = 11
+    modeStatus.TextColor3 = Color3.fromRGB(100,255,150)
+    modeStatus.BackgroundTransparency = 1
+    modeStatus.TextXAlignment = Enum.TextXAlignment.Center
 
     -- right: numeric controls
     local delayLabel = Instance.new("TextLabel", rightCol)
     delayLabel.Size = UDim2.new(1,0,0,18)
-    delayLabel.Text = string.format("Recast Delay: %.2fs", Config.autoRecastDelay)
+    delayLabel.Text = string.format("⏱️ Recast Delay: %.2fs", Config.autoRecastDelay)
     delayLabel.BackgroundTransparency = 1
     delayLabel.Font = Enum.Font.GothamSemibold
     delayLabel.TextColor3 = Color3.fromRGB(180,180,200)
-    delayLabel.TextSize = 13
+    delayLabel.TextSize = 14
+    delayLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
     local delayControls = Instance.new("Frame", rightCol)
-    delayControls.Size = UDim2.new(1,0,0,28)
-    delayControls.Position = UDim2.new(0,0,0,26)
-    delayControls.BackgroundTransparency = 1
-    delayControls.BackgroundColor3 = Color3.fromRGB(28,28,34)
+    delayControls.Size = UDim2.new(1,0,0,32)
+    delayControls.Position = UDim2.new(0,0,0,24)
+    delayControls.BackgroundColor3 = Color3.fromRGB(40,40,46)
+    delayControls.BorderSizePixel = 0
+    Instance.new("UICorner", delayControls)
+    
     local delayMinus = Instance.new("TextButton", delayControls)
-    delayMinus.Size = UDim2.new(0,32,1,0)
-    delayMinus.Position = UDim2.new(0,4,0,0) -- small left padding
-    delayMinus.Text = "-"
-    delayMinus.BackgroundColor3 = Color3.fromRGB(72,72,72)
+    delayMinus.Size = UDim2.new(0,35,1,-4)
+    delayMinus.Position = UDim2.new(0,2,0,2)
+    delayMinus.Text = "−"
+    delayMinus.Font = Enum.Font.GothamSemibold
+    delayMinus.BackgroundColor3 = Color3.fromRGB(220,60,60)
     delayMinus.TextColor3 = Color3.fromRGB(255,255,255)
-    delayMinus.TextSize = 18
+    delayMinus.TextSize = 16
     Instance.new("UICorner", delayMinus)
+    
+    local delayDisplay = Instance.new("TextLabel", delayControls)
+    delayDisplay.Size = UDim2.new(1,-74,1,-4)
+    delayDisplay.Position = UDim2.new(0,37,0,2)
+    delayDisplay.Text = string.format("%.2fs", Config.autoRecastDelay)
+    delayDisplay.Font = Enum.Font.GothamSemibold
+    delayDisplay.TextSize = 12
+    delayDisplay.BackgroundColor3 = Color3.fromRGB(50,50,56)
+    delayDisplay.TextColor3 = Color3.fromRGB(255,255,255)
+    delayDisplay.TextXAlignment = Enum.TextXAlignment.Center
+    Instance.new("UICorner", delayDisplay)
+    
     local delayPlus = Instance.new("TextButton", delayControls)
-    delayPlus.Size = UDim2.new(0,32,1,0)
-    delayPlus.Position = UDim2.new(1,-36,0,0) -- keep 4px gap from right edge
+    delayPlus.Size = UDim2.new(0,35,1,-4)
+    delayPlus.Position = UDim2.new(1,-37,0,2)
     delayPlus.Text = "+"
-    delayPlus.BackgroundColor3 = Color3.fromRGB(72,72,72)
+    delayPlus.Font = Enum.Font.GothamSemibold
+    delayPlus.BackgroundColor3 = Color3.fromRGB(60,160,60)
     delayPlus.TextColor3 = Color3.fromRGB(255,255,255)
-    delayPlus.TextSize = 18
+    delayPlus.TextSize = 16
     Instance.new("UICorner", delayPlus)
 
     local chanceLabel = Instance.new("TextLabel", rightCol)
     chanceLabel.Size = UDim2.new(1,0,0,18)
-    chanceLabel.Position = UDim2.new(0,0,0,58)
-    chanceLabel.Text = string.format("Safe Perfect %%: %d", Config.safeModeChance)
+    chanceLabel.Position = UDim2.new(0,0,0,70)
+    chanceLabel.Text = string.format("🎯 Safe Perfect %%: %d", Config.safeModeChance)
     chanceLabel.BackgroundTransparency = 1
     chanceLabel.Font = Enum.Font.GothamSemibold
     chanceLabel.TextColor3 = Color3.fromRGB(180,180,200)
-    chanceLabel.TextSize = 13
+    chanceLabel.TextSize = 14
+    chanceLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
     local chanceControls = Instance.new("Frame", rightCol)
-    chanceControls.Size = UDim2.new(1,0,0,28)
-    chanceControls.Position = UDim2.new(0,0,0,82)
-    chanceControls.BackgroundTransparency = 1
-    chanceControls.BackgroundColor3 = Color3.fromRGB(28,28,34)
+    chanceControls.Size = UDim2.new(1,0,0,32)
+    chanceControls.Position = UDim2.new(0,0,0,94)
+    chanceControls.BackgroundColor3 = Color3.fromRGB(40,40,46)
+    chanceControls.BorderSizePixel = 0
+    Instance.new("UICorner", chanceControls)
+    
     local chanceMinus = Instance.new("TextButton", chanceControls)
-    chanceMinus.Size = UDim2.new(0,32,1,0)
-    chanceMinus.Position = UDim2.new(0,4,0,0)
-    chanceMinus.Text = "-"
-    chanceMinus.BackgroundColor3 = Color3.fromRGB(72,72,72)
+    chanceMinus.Size = UDim2.new(0,35,1,-4)
+    chanceMinus.Position = UDim2.new(0,2,0,2)
+    chanceMinus.Text = "−"
+    chanceMinus.Font = Enum.Font.GothamSemibold
+    chanceMinus.BackgroundColor3 = Color3.fromRGB(220,60,60)
     chanceMinus.TextColor3 = Color3.fromRGB(255,255,255)
-    chanceMinus.TextSize = 18
+    chanceMinus.TextSize = 16
     Instance.new("UICorner", chanceMinus)
+    
+    local chanceDisplay = Instance.new("TextLabel", chanceControls)
+    chanceDisplay.Size = UDim2.new(1,-74,1,-4)
+    chanceDisplay.Position = UDim2.new(0,37,0,2)
+    chanceDisplay.Text = string.format("%d%%", Config.safeModeChance)
+    chanceDisplay.Font = Enum.Font.GothamSemibold
+    chanceDisplay.TextSize = 12
+    chanceDisplay.BackgroundColor3 = Color3.fromRGB(50,50,56)
+    chanceDisplay.TextColor3 = Color3.fromRGB(255,255,255)
+    chanceDisplay.TextXAlignment = Enum.TextXAlignment.Center
+    Instance.new("UICorner", chanceDisplay)
+    
     local chancePlus = Instance.new("TextButton", chanceControls)
-    chancePlus.Size = UDim2.new(0,32,1,0)
-    chancePlus.Position = UDim2.new(1,-36,0,0)
+    chancePlus.Size = UDim2.new(0,35,1,-4)
+    chancePlus.Position = UDim2.new(1,-37,0,2)
     chancePlus.Text = "+"
-    chancePlus.BackgroundColor3 = Color3.fromRGB(72,72,72)
+    chancePlus.Font = Enum.Font.GothamSemibold
+    chancePlus.BackgroundColor3 = Color3.fromRGB(60,160,60)
     chancePlus.TextColor3 = Color3.fromRGB(255,255,255)
-    chancePlus.TextSize = 18
+    chancePlus.TextSize = 16
     Instance.new("UICorner", chancePlus)
 
     -- Sell All button in Main tab
     local sellBtn = Instance.new("TextButton", content)
-    sellBtn.Size = UDim2.new(1, 0, 0, 32)
-    sellBtn.Position = UDim2.new(0, 0, 1, -67)
-    sellBtn.Text = "Sell All Items"
+    sellBtn.Size = UDim2.new(1, 0, 0, 35)
+    sellBtn.Position = UDim2.new(0, 0, 1, -75)
+    sellBtn.Text = "💰 Sell All Items"
     sellBtn.Font = Enum.Font.GothamSemibold
     sellBtn.TextSize = 14
-    sellBtn.BackgroundColor3 = Color3.fromRGB(180,120,60)
+    sellBtn.BackgroundColor3 = Color3.fromRGB(255,140,0)
     sellBtn.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", sellBtn)
 
     -- AntiAFK Section
     local antiAfkSection = Instance.new("Frame", content)
-    antiAfkSection.Size = UDim2.new(1, 0, 0, 28)
-    antiAfkSection.Position = UDim2.new(0, 0, 1, -35)
-    antiAfkSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    antiAfkSection.Size = UDim2.new(1, 0, 0, 32)
+    antiAfkSection.Position = UDim2.new(0, 0, 1, -37)
+    antiAfkSection.BackgroundColor3 = Color3.fromRGB(40,40,46)
     antiAfkSection.BorderSizePixel = 0
     Instance.new("UICorner", antiAfkSection)
 
     local antiAfkLabel = Instance.new("TextLabel", antiAfkSection)
-    antiAfkLabel.Size = UDim2.new(0.6, -10, 1, 0)
-    antiAfkLabel.Position = UDim2.new(0, 10, 0, 0)
-    antiAfkLabel.Text = "AntiAFK: Disabled"
+    antiAfkLabel.Size = UDim2.new(0.65, -10, 1, 0)
+    antiAfkLabel.Position = UDim2.new(0, 15, 0, 0)
+    antiAfkLabel.Text = "🛡️ AntiAFK Protection: Disabled"
     antiAfkLabel.Font = Enum.Font.GothamSemibold
     antiAfkLabel.TextSize = 12
     antiAfkLabel.TextColor3 = Color3.fromRGB(200,200,200)
@@ -1133,11 +1258,11 @@ local function BuildUI()
     antiAfkLabel.TextYAlignment = Enum.TextYAlignment.Center
 
     local antiAfkToggle = Instance.new("TextButton", antiAfkSection)
-    antiAfkToggle.Size = UDim2.new(0, 60, 0, 20)
-    antiAfkToggle.Position = UDim2.new(1, -70, 0.5, -10)
-    antiAfkToggle.Text = "OFF"
+    antiAfkToggle.Size = UDim2.new(0, 70, 0, 24)
+    antiAfkToggle.Position = UDim2.new(1, -80, 0.5, -12)
+    antiAfkToggle.Text = "🔴 OFF"
     antiAfkToggle.Font = Enum.Font.GothamBold
-    antiAfkToggle.TextSize = 10
+    antiAfkToggle.TextSize = 11
     antiAfkToggle.BackgroundColor3 = Color3.fromRGB(160,60,60)
     antiAfkToggle.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", antiAfkToggle)
@@ -1996,9 +2121,24 @@ local function BuildUI()
     SwitchTo("Main")
 
     -- callbacks
-    fastButton.MouseButton1Click:Connect(function() Config.mode = "fast"; modeStatus.Text = "Current: Fast Mode"; Notify("modern_autofish", "Mode set to FAST") end)
-    secureButton.MouseButton1Click:Connect(function() Config.mode = "secure"; modeStatus.Text = "Current: Secure Mode"; Notify("modern_autofish", "Mode set to SECURE") end)
-    smartButton.MouseButton1Click:Connect(function() Config.mode = "smart"; modeStatus.Text = "Current: Smart AI Mode"; Notify("modern_autofish", "Mode set to SMART AI") end)
+    fastButton.MouseButton1Click:Connect(function() 
+        Config.mode = "fast"
+        modeStatus.Text = "⚡ Current: Fast Mode"
+        modeStatus.TextColor3 = Color3.fromRGB(100,150,255)
+        Notify("modern_autofish", "⚡ Mode set to FAST - Quick fishing") 
+    end)
+    secureButton.MouseButton1Click:Connect(function() 
+        Config.mode = "secure"
+        modeStatus.Text = "🔒 Current: Secure Mode"
+        modeStatus.TextColor3 = Color3.fromRGB(100,255,150)
+        Notify("modern_autofish", "🔒 Mode set to SECURE - Safe fishing") 
+    end)
+    smartButton.MouseButton1Click:Connect(function() 
+        Config.mode = "smart"
+        modeStatus.Text = "🧠 Current: Smart AI Mode"
+        modeStatus.TextColor3 = Color3.fromRGB(255,200,100)
+        Notify("modern_autofish", "🧠 Mode set to SMART AI - Intelligent fishing") 
+    end)
 
     -- AntiAFK toggle
     antiAfkToggle.MouseButton1Click:Connect(function()
@@ -2006,17 +2146,17 @@ local function BuildUI()
         Config.antiAfkEnabled = AntiAFK.enabled
         
         if AntiAFK.enabled then
-            antiAfkToggle.Text = "ON"
+            antiAfkToggle.Text = "🟢 ON"
             antiAfkToggle.BackgroundColor3 = Color3.fromRGB(70,170,90)
-            antiAfkLabel.Text = "AntiAFK: Enabled"
+            antiAfkLabel.Text = "🛡️ AntiAFK Protection: Enabled"
             antiAfkLabel.TextColor3 = Color3.fromRGB(100,255,150)
             
             AntiAFK.sessionId = AntiAFK.sessionId + 1
             task.spawn(function() AntiAfkRunner(AntiAFK.sessionId) end)
         else
-            antiAfkToggle.Text = "OFF"
+            antiAfkToggle.Text = "🔴 OFF"
             antiAfkToggle.BackgroundColor3 = Color3.fromRGB(160,60,60)
-            antiAfkLabel.Text = "AntiAFK: Disabled"
+            antiAfkLabel.Text = "🛡️ AntiAFK Protection: Disabled"
             antiAfkLabel.TextColor3 = Color3.fromRGB(200,200,200)
             
             AntiAFK.sessionId = AntiAFK.sessionId + 1
@@ -2046,20 +2186,24 @@ local function BuildUI()
 
     delayMinus.MouseButton1Click:Connect(function()
         Config.autoRecastDelay = math.max(0.05, Config.autoRecastDelay - 0.1)
-        delayLabel.Text = string.format("Recast Delay: %.2fs", Config.autoRecastDelay)
+        delayLabel.Text = string.format("⏱️ Recast Delay: %.2fs", Config.autoRecastDelay)
+        delayDisplay.Text = string.format("%.2fs", Config.autoRecastDelay)
     end)
     delayPlus.MouseButton1Click:Connect(function()
         Config.autoRecastDelay = Config.autoRecastDelay + 0.1
-        delayLabel.Text = string.format("Recast Delay: %.2fs", Config.autoRecastDelay)
+        delayLabel.Text = string.format("⏱️ Recast Delay: %.2fs", Config.autoRecastDelay)
+        delayDisplay.Text = string.format("%.2fs", Config.autoRecastDelay)
     end)
 
     chanceMinus.MouseButton1Click:Connect(function()
         Config.safeModeChance = math.max(0, Config.safeModeChance - 5)
-        chanceLabel.Text = string.format("Safe Perfect %%: %d", Config.safeModeChance)
+        chanceLabel.Text = string.format("🎯 Safe Perfect %%: %d", Config.safeModeChance)
+        chanceDisplay.Text = string.format("%d%%", Config.safeModeChance)
     end)
     chancePlus.MouseButton1Click:Connect(function()
         Config.safeModeChance = math.min(100, Config.safeModeChance + 5)
-        chanceLabel.Text = string.format("Safe Perfect %%: %d", Config.safeModeChance)
+        chanceLabel.Text = string.format("🎯 Safe Perfect %%: %d", Config.safeModeChance)
+        chanceDisplay.Text = string.format("%d%%", Config.safeModeChance)
     end)
 
     Notify("modern_autofish", "UI ready - Select mode and press Start")
