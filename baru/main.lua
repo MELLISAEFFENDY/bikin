@@ -1230,17 +1230,6 @@ local function BuildUI()
     chancePlus.TextSize = 16
     Instance.new("UICorner", chancePlus)
 
-    -- Sell All button in Main tab
-    local sellBtn = Instance.new("TextButton", content)
-    sellBtn.Size = UDim2.new(1, 0, 0, 35)
-    sellBtn.Position = UDim2.new(0, 0, 1, -40)
-    sellBtn.Text = "💰 Sell All Items"
-    sellBtn.Font = Enum.Font.GothamSemibold
-    sellBtn.TextSize = 14
-    sellBtn.BackgroundColor3 = Color3.fromRGB(255,140,0)
-    sellBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", sellBtn)
-
     -- Teleport Tab Content
     local teleportFrame = Instance.new("Frame", contentContainer)
     teleportFrame.Size = UDim2.new(1, 0, 1, -10)
@@ -1602,6 +1591,35 @@ local function BuildUI()
             Notify("Rod Fix", "🎣 Rod orientation fix disabled")
         end
     end)
+
+    -- Sell All Items Section
+    local sellAllSection = Instance.new("Frame", featureFrame)
+    sellAllSection.Size = UDim2.new(1, 0, 0, 60)
+    sellAllSection.Position = UDim2.new(0, 0, 0, 285)
+    sellAllSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    sellAllSection.BorderSizePixel = 0
+    Instance.new("UICorner", sellAllSection)
+
+    local sellAllLabel = Instance.new("TextLabel", sellAllSection)
+    sellAllLabel.Size = UDim2.new(0.6, -10, 1, 0)
+    sellAllLabel.Position = UDim2.new(0, 10, 0, 0)
+    sellAllLabel.Text = "💰 Sell All Items\nSell all fish in inventory"
+    sellAllLabel.Font = Enum.Font.GothamSemibold
+    sellAllLabel.TextSize = 13
+    sellAllLabel.TextColor3 = Color3.fromRGB(235,235,235)
+    sellAllLabel.BackgroundTransparency = 1
+    sellAllLabel.TextXAlignment = Enum.TextXAlignment.Left
+    sellAllLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+    local sellBtn = Instance.new("TextButton", sellAllSection)
+    sellBtn.Size = UDim2.new(0, 80, 0, 30)
+    sellBtn.Position = UDim2.new(1, -90, 0, 15)
+    sellBtn.Text = "💰 SELL ALL"
+    sellBtn.Font = Enum.Font.GothamBold
+    sellBtn.TextSize = 11
+    sellBtn.BackgroundColor3 = Color3.fromRGB(255,140,0)
+    sellBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", sellBtn)
 
     -- Feature variables
     local currentSpeed = 16
