@@ -22,14 +22,57 @@ end
 -- Rod Orientation Fix
 local RodFix = {
     enabled = true,
-    lastFixTime = 0
+    lastFixTime = 0,
+    isCharging = false,
+    chargingConnection = nil
 }
+
+-- Monitor charging phase untuk fix yang lebih aktif
+local function MonitorChargingPhase()
+    if RodFix.chargingConnection then
+        RodFix.chargingConnection:Disconnect()
+    end
+    
+    -- Monitor setiap frame selama charging untuk fix real-time
+    RodFix.chargingConnection = RunService.Heartbeat:Connect(function()
+        if not RodFix.enabled then return end
+        
+        local character = LocalPlayer.Character
+        if not character then return end
+        
+        local humanoid = character:FindFirstChild("Humanoid")
+        if not humanoid then return end
+        
+        -- Deteksi charging animation
+        local isCurrentlyCharging = false
+        for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+            local animName = track.Name:lower()
+            if animName:find("charge") or animName:find("cast") or animName:find("rod") then
+                isCurrentlyCharging = true
+                break
+            end
+        end
+        
+        -- Jika dalam phase charging, lakukan fix lebih sering
+        if isCurrentlyCharging then
+            RodFix.isCharging = true
+            FixRodOrientation() -- Fix setiap frame selama charging
+        else
+            if RodFix.isCharging then
+                -- Setelah charging selesai, lakukan fix final
+                RodFix.isCharging = false
+                task.wait(0.1)
+                FixRodOrientation()
+            end
+        end
+    end)
+end
 
 local function FixRodOrientation()
     if not RodFix.enabled then return end
     
     local now = tick()
-    if now - RodFix.lastFixTime < 0.1 then return end -- Throttle fixes
+    if now - RodFix.lastFixTime < 0.05 then return end -- Faster throttle for charging phase
     RodFix.lastFixTime = now
     
     local character = LocalPlayer.Character
@@ -44,24 +87,37 @@ local function FixRodOrientation()
                   equippedTool:FindFirstChild("Handle")
     if not isRod then return end
     
-    -- Method 1: Fix Motor6D (paling efektif)
+    -- Method 1: Fix Motor6D during charging phase (paling efektif)
     local rightArm = character:FindFirstChild("Right Arm")
     if rightArm then
         local rightGrip = rightArm:FindFirstChild("RightGrip")
         if rightGrip and rightGrip:IsA("Motor6D") then
-            -- Orientasi normal untuk rod menghadap depan
+            -- Orientasi normal untuk rod menghadap depan SELAMA charging
+            -- C0 mengontrol posisi/orientasi di right arm
+            -- C1 mengontrol posisi/orientasi di handle
             rightGrip.C0 = CFrame.new(0, -1, 0) * CFrame.Angles(math.rad(-90), 0, 0)
-            rightGrip.C1 = CFrame.new(0, 0, 0)
+            rightGrip.C1 = CFrame.new(0, 0, 0) * CFrame.Angles(0, 0, 0)
             return
         end
     end
     
-    -- Method 2: Fix Tool Grip
+    -- Method 2: Fix Tool Grip Value (untuk tools dengan custom grip)
     local handle = equippedTool:FindFirstChild("Handle")
     if handle then
+        -- Fix grip value yang ada
         local toolGrip = equippedTool:FindFirstChild("Grip")
         if toolGrip and toolGrip:IsA("CFrameValue") then
+            -- Grip value untuk rod menghadap depan
             toolGrip.Value = CFrame.new(0, -1.5, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+            return
+        end
+        
+        -- Jika tidak ada grip value, buat yang baru
+        if not toolGrip then
+            toolGrip = Instance.new("CFrameValue")
+            toolGrip.Name = "Grip"
+            toolGrip.Value = CFrame.new(0, -1.5, 0) * CFrame.Angles(math.rad(-90), 0, 0)
+            toolGrip.Parent = equippedTool
         end
     end
 end
@@ -108,6 +164,14 @@ LocalPlayer.CharacterAdded:Connect(function(character)
         if child:IsA("Tool") then
             task.wait(0.1) -- Wait for tool to fully load
             FixRodOrientation()
+            MonitorChargingPhase() -- Start monitoring charging phase
+        end
+    end)
+    
+    character.ChildRemoved:Connect(function(child)
+        if child:IsA("Tool") and RodFix.chargingConnection then
+            RodFix.chargingConnection:Disconnect()
+            RodFix.chargingConnection = nil
         end
     end)
 end)
@@ -118,8 +182,23 @@ if LocalPlayer.Character then
         if child:IsA("Tool") then
             task.wait(0.1)
             FixRodOrientation()
+            MonitorChargingPhase()
         end
     end)
+    
+    LocalPlayer.Character.ChildRemoved:Connect(function(child)
+        if child:IsA("Tool") and RodFix.chargingConnection then
+            RodFix.chargingConnection:Disconnect()
+            RodFix.chargingConnection = nil
+        end
+    end)
+    
+    -- Check if rod is already equipped
+    local currentTool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+    if currentTool then
+        FixRodOrientation()
+        MonitorChargingPhase()
+    end
 end
 
 local function safeInvoke(remote, ...)
@@ -552,6 +631,7 @@ local function DoSmartCycle()
     AnimationMonitor.currentState = "starting"
     
     -- Phase 1: Equip and prepare
+    FixRodOrientation() -- Fix rod orientation at start
     if equipRemote then 
         pcall(function() equipRemote:FireServer(1) end)
         task.wait(GetRealisticTiming("charging"))
@@ -559,6 +639,8 @@ local function DoSmartCycle()
     
     -- Phase 2: Charge rod (with animation-aware timing)
     AnimationMonitor.currentState = "charging"
+    FixRodOrientation() -- Fix during charging phase (critical!)
+    
     local usePerfect = math.random(1,100) <= Config.safeModeChance
     local timestamp = usePerfect and GetServerTime() or GetServerTime() + math.random()*0.5
     
@@ -566,11 +648,18 @@ local function DoSmartCycle()
         pcall(function() rodRemote:InvokeServer(timestamp) end)
     end
     
-    -- Wait for charging animation to complete
-    task.wait(GetRealisticTiming("charging"))
+    -- Fix orientation continuously during charging
+    local chargeStart = tick()
+    local chargeDuration = GetRealisticTiming("charging")
+    while tick() - chargeStart < chargeDuration do
+        FixRodOrientation() -- Keep fixing during charge animation
+        task.wait(0.02) -- Very frequent fixes during charging
+    end
     
     -- Phase 3: Cast (mini-game simulation)
-    AnimationMonitor.currentState = "casting" 
+    AnimationMonitor.currentState = "casting"
+    FixRodOrientation() -- Fix before casting
+    
     local x = usePerfect and -1.238 or (math.random(-1000,1000)/1000)
     local y = usePerfect and 0.969 or (math.random(0,1000)/1000)
     
@@ -587,6 +676,8 @@ local function DoSmartCycle()
     
     -- Phase 5: Complete fishing
     AnimationMonitor.currentState = "completing"
+    FixRodOrientation() -- Fix before completion
+    
     if finishRemote then 
         pcall(function() finishRemote:FireServer() end)
     end
