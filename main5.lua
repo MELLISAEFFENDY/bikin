@@ -76,6 +76,10 @@ local SmartEnchant = {
     }
 }
 
+-- Auto Teleport Configuration (Global)
+local ENCHANT_ALTAR_POSITION = CFrame.new(3237.61, -1302.33, 1398.04)
+local ALTAR_DISTANCE_THRESHOLD = 50 -- Maximum distance from altar to enchant
+
 -- Function to detect current enchantment from game UI
 local function DetectCurrentEnchant()
     -- Try to find enchanting UI elements
@@ -1318,7 +1322,7 @@ local function BuildUI()
     -- Auto-update dashboard every second when visible
     spawn(function()
         while true do
-            wait(1)
+            task.wait(1)
             if dashboardFrame.Visible then
                 updateDashboard()
             end
@@ -1912,9 +1916,6 @@ local function BuildUI()
     end
 
     -- Auto Teleport to Enchanting Altar Function
-    local ENCHANT_ALTAR_POSITION = CFrame.new(3237.61, -1302.33, 1398.04)
-    local ALTAR_DISTANCE_THRESHOLD = 50 -- Maximum distance from altar to enchant
-    
     local function CheckDistanceToAltar()
         if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             return false, "Character not found"
@@ -1945,7 +1946,7 @@ local function BuildUI()
         
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             LocalPlayer.Character.HumanoidRootPart.CFrame = ENCHANT_ALTAR_POSITION
-            wait(0.5) -- Wait for teleport to complete
+            task.wait(0.5) -- Wait for teleport to complete
             
             -- Verify teleport success
             local newIsNear, newDistance = CheckDistanceToAltar()
@@ -2112,14 +2113,14 @@ local function BuildUI()
         
         -- Step 3: Wait a bit then roll
         print("[AUTO-ENCHANT] Step 3: Waiting 2 seconds...")
-        wait(2)
+        task.wait(2)
         
         print("[AUTO-ENCHANT] Step 4: Rolling enchantment...")
         RollEnchant()
         
         -- Step 5: If Smart Target is enabled, check the result
         if SmartEnchant.enabled and SmartEnchant.targetEnchant then
-            wait(1) -- Wait for UI to update
+            task.wait(1) -- Wait for UI to update
             local currentEnchant = DetectCurrentEnchant()
             SmartEnchant.rollCount = SmartEnchant.rollCount + 1
             
@@ -2143,8 +2144,12 @@ local function BuildUI()
         
         print("[AUTO-ENCHANT] Enchanting sequence completed")
         local statusMsg = "Enchant sequence completed!"
-        if atAltar then statusMsg = statusMsg .. " (Auto-teleported)"
-        if stoneEquipped then statusMsg = statusMsg .. " (Auto-equipped)"
+        if atAltar then 
+            statusMsg = statusMsg .. " (Auto-teleported)"
+        end
+        if stoneEquipped then 
+            statusMsg = statusMsg .. " (Auto-equipped)"
+        end
         Notify("Auto Enchant", statusMsg)
     end
 
@@ -2187,9 +2192,9 @@ local function BuildUI()
             
             -- Activate altar and roll
             ActivateEnchantingAltar()
-            wait(2)
+            task.wait(2)
             RollEnchant()
-            wait(1) -- Wait for result
+            task.wait(1) -- Wait for result
             
             -- Check result
             local currentEnchant = DetectCurrentEnchant()
@@ -2207,7 +2212,7 @@ local function BuildUI()
                 if SmartEnchant.rollCount < SmartEnchant.maxRolls then
                     -- Brief pause before next roll
                     print("[SMART-TARGET] Preparing for next roll...")
-                    wait(2) -- Give time for UI updates
+                    task.wait(2) -- Give time for UI updates
                 end
             end
         end
@@ -2238,12 +2243,16 @@ local function BuildUI()
         
         -- Do the activation and roll
         ActivateEnchantingAltar()
-        wait(2)
+        task.wait(2)
         RollEnchant()
         
         local statusMsg = "✅ Completed!"
-        if atAltar then statusMsg = statusMsg .. " (Auto-teleported)"
-        if stoneEquipped then statusMsg = statusMsg .. " (Auto-equipped)"
+        if atAltar then 
+            statusMsg = statusMsg .. " (Auto-teleported)"
+        end
+        if stoneEquipped then 
+            statusMsg = statusMsg .. " (Auto-equipped)"
+        end
         Notify("Manual Enchant", statusMsg)
     end
 
@@ -2555,7 +2564,7 @@ local function BuildUI()
     -- Auto Weather Event Loop
     spawn(function()
         while true do
-            wait(30) -- Check every 30 seconds
+            task.wait(30) -- Check every 30 seconds
             if AdvancedFeatures.autoWeather and Config.enabled then
                 pcall(PurchaseWeatherEvent)
             end
@@ -2565,7 +2574,7 @@ local function BuildUI()
     -- Auto Enchanting Loop
     spawn(function()
         while true do
-            wait(60) -- Check every minute
+            task.wait(60) -- Check every minute
             if AdvancedFeatures.autoEnchant and Config.enabled then
                 pcall(AutoEnchantSequence)
             end
@@ -2575,7 +2584,7 @@ local function BuildUI()
     -- Auto Trading Loop
     spawn(function()
         while true do
-            wait(120) -- Check every 2 minutes
+            task.wait(120) -- Check every 2 minutes
             if AdvancedFeatures.autoTrade and Config.enabled then
                 pcall(InitiateTrade)
             end
