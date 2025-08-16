@@ -158,7 +158,58 @@ local equipRemote = ResolveRemote("RE/EquipToolFromHotbar")
 local fishCaughtRemote = ResolveRemote("RE/FishCaught")
 local autoFishStateRemote = ResolveRemote("RF/UpdateAutoFishingState")
 
--- Tool orientation event listeners
+-- Additional remotes for enhanced detection
+local baitSpawnedRemote = ResolveRemote("RE/BaitSpawned")
+local fishingStoppedRemote = ResolveRemote("RE/FishingStopped")
+local newFishNotificationRemote = ResolveRemote("RE/ObtainedNewFishNotification")
+local playFishingEffectRemote = ResolveRemote("RE/PlayFishingEffect")
+local fishingMinigameChangedRemote = ResolveRemote("RE/FishingMinigameChanged")
+
+-- Enhanced Fish Detection System menggunakan semua 20 remotes
+local FishDetection = {
+    lastCatchTime = 0,
+    recentCatches = {}
+}
+
+-- Event listeners untuk enhanced detection
+if newFishNotificationRemote then
+    newFishNotificationRemote.OnClientEvent:Connect(function(fishData)
+        if fishData and fishData.name then
+            LogFishCatch(fishData.name, Dashboard.sessionStats.currentLocation)
+            Notify("New Fish!", "🎣 Caught: " .. fishData.name)
+        end
+    end)
+end
+
+if baitSpawnedRemote then
+    baitSpawnedRemote.OnClientEvent:Connect(function()
+        -- Bait spawned - good time for rod orientation fix
+        task.wait(0.1)
+        FixRodOrientation()
+    end)
+end
+
+if fishingStoppedRemote then
+    fishingStoppedRemote.OnClientEvent:Connect(function()
+        -- Fishing stopped - reset animation state
+        AnimationMonitor.currentState = "idle"
+        AnimationMonitor.fishingSuccess = false
+    end)
+end
+
+if playFishingEffectRemote then
+    playFishingEffectRemote.OnClientEvent:Connect(function()
+        -- Visual effect played - likely successful action
+        AnimationMonitor.fishingSuccess = true
+    end)
+end
+
+if fishingMinigameChangedRemote then
+    fishingMinigameChangedRemote.OnClientEvent:Connect(function()
+        -- Mini-game state changed - fix rod orientation
+        FixRodOrientation()
+    end)
+end
 LocalPlayer.CharacterAdded:Connect(function(character)
     character.ChildAdded:Connect(function(child)
         if child:IsA("Tool") then
