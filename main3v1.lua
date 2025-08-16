@@ -79,7 +79,7 @@ local Dashboard = {
     rareFishCaught = {},
     locationStats = {},
     sessionStats = {
-        startTime = 0,
+        startTime = tick(),
         fishCount = 0,
         rareCount = 0,
         currentLocation = "Unknown"
@@ -126,6 +126,9 @@ end
 local function LogFishCatch(fishName, location)
     local currentTime = tick()
     local rarity = GetFishRarity(fishName)
+    
+    -- Debug: Print to confirm function is called
+    print("[Dashboard] Fish caught:", fishName, "Rarity:", rarity, "Location:", location or "Unknown")
     
     -- Log to main fish database
     table.insert(Dashboard.fishCaught, {
@@ -1549,6 +1552,9 @@ local function BuildUI()
     local function UpdateDashboard()
         if not dashboardFrame.Visible then return end
         
+        -- Debug: Print current stats
+        print("[Dashboard] Updating stats - Fish:", Dashboard.sessionStats.fishCount, "Rare:", Dashboard.sessionStats.rareCount)
+        
         -- Update session stats
         local currentTime = tick()
         local sessionDuration = currentTime - Dashboard.sessionStats.startTime
@@ -1568,8 +1574,8 @@ local function BuildUI()
         
         -- Update rarity bars
         local rarityCounts = {}
-        for _, rarity in pairs(FishRarity) do
-            rarityCounts[_] = 0
+        for rarityName, fishList in pairs(FishRarity) do
+            rarityCounts[rarityName] = 0
         end
         
         for _, fish in pairs(Dashboard.fishCaught) do
