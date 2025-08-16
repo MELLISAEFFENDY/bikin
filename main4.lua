@@ -1397,18 +1397,6 @@ local function BuildUI()
     local rollEnchantCorner = Instance.new("UICorner", rollEnchantBtn)
     rollEnchantCorner.CornerRadius = UDim.new(0, 6)
 
-    -- Debug button for listing remotes
-    local debugBtn = Instance.new("TextButton", enchantSection)
-    debugBtn.Size = UDim2.new(0, 80, 0, 20)
-    debugBtn.Position = UDim2.new(0, 250, 0, 90)
-    debugBtn.Text = "Debug"
-    debugBtn.Font = Enum.Font.Gotham
-    debugBtn.TextSize = 10
-    debugBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
-    debugBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    local debugCorner = Instance.new("UICorner", debugBtn)
-    debugCorner.CornerRadius = UDim.new(0, 4)
-
     -- Trading Section
     local tradeSection = Instance.new("Frame", advancedScroll)
     tradeSection.Size = UDim2.new(1, 0, 0, 150)
@@ -1716,31 +1704,6 @@ local function BuildUI()
         end
     end
 
-    -- Debug function to list all available remotes
-    local function ListAllRemotes()
-        print("=== [DEBUG] LISTING ALL AVAILABLE REMOTES ===")
-        local net = FindNet()
-        if net then
-            print("[DEBUG] Net found, listing children:")
-            for _, child in pairs(net:GetChildren()) do
-                print("Remote:", child.Name, "Type:", child.ClassName)
-                if child:IsA("Folder") then
-                    for _, subChild in pairs(child:GetChildren()) do
-                        print("  └─", subChild.Name, "Type:", subChild.ClassName)
-                    end
-                end
-            end
-        else
-            print("[DEBUG] Net not found! Check ReplicatedStorage structure")
-        end
-        
-        print("\n[DEBUG] Enchanting related remotes to look for:")
-        print("- Enchant, EnchantTable, EnchantingAltar")
-        print("- Roll, RollEnchant, EnchantRoll")
-        print("- Activate, Use, Start")
-        Notify("Debug", "Remote list printed to console (F9)")
-    end
-
     -- Event Handlers for Advanced Features
     weatherToggle.MouseButton1Click:Connect(function()
         AdvancedFeatures.autoWeather = not AdvancedFeatures.autoWeather
@@ -1759,7 +1722,6 @@ local function BuildUI()
     end)
 
     rollEnchantBtn.MouseButton1Click:Connect(RollEnchant)
-    debugBtn.MouseButton1Click:Connect(ListAllRemotes)
 
     tradeToggle.MouseButton1Click:Connect(function()
         AdvancedFeatures.autoTrade = not AdvancedFeatures.autoTrade
