@@ -88,14 +88,38 @@ local Dashboard = {
     optimalTimes = {}
 }
 
--- Fish Rarity Categories
+-- Fish Rarity Categories (Updated from fishname.txt)
 local FishRarity = {
-    CURSED = {"CursedScroll", "Golden of Decay"},
-    NEON = {"Meshes/FI_Luck_Machine_Neon", "Neon", "UpperNeon"},
-    GOLDEN = {"Golden of Decay", "Golden"},
-    RARE = {"Blue Lobster", "Gingerbread-Clownfish", "Water Wheel"},
-    LEGENDARY = {"CursedScroll", "Esoteric", "Sisypus"},
-    COMMON = {"Basic Fish", "Small Fish", "Medium Fish"}
+    MYTHIC = {
+        "Hawks Turtle", "Dotted Stingray", "Hammerhead Shark", "Manta Ray", 
+        "Abyss Seahorse", "Blueflame Ray", "Prismy Seahorse", "Loggerhead Turtle"
+    },
+    LEGENDARY = {
+        "Blue Lobster", "Greenbee Grouper", "Starjam Tang", "Yellowfin Tuna",
+        "Chrome Tuna", "Magic Tang", "Enchanted Angelfish", "Lavafin Tuna", 
+        "Lobster", "Bumblebee Grouper"
+    },
+    EPIC = {
+        "Domino Damsel", "Panther Grouper", "Unicorn Tang", "Dorhey Tang",
+        "Moorish Idol", "Cow Clownfish", "Astra Damsel", "Firecoal Damsel",
+        "Longnose Butterfly", "Sushi Cardinal"
+    },
+    RARE = {
+        "Scissortail Dartfish", "White Clownfish", "Darwin Clownfish", 
+        "Korean Angelfish", "Candy Butterfly", "Jewel Tang", "Charmed Tang",
+        "Kau Cardinal", "Fire Goby"
+    },
+    UNCOMMON = {
+        "Maze Angelfish", "Tricolore Butterfly", "Flame Angelfish", 
+        "Yello Damselfish", "Vintage Damsel", "Coal Tang", "Magma Goby",
+        "Banded Butterfly", "Shrimp Goby"
+    },
+    COMMON = {
+        "Orangy Goby", "Specked Butterfly", "Corazon Damse", "Copperband Butterfly",
+        "Strawberry Dotty", "Azure Damsel", "Clownfish", "Skunk Tilefish",
+        "Yellowstate Angelfish", "Vintage Blue Tang", "Ash Basslet", 
+        "Volcanic Basslet", "Boa Angelfish", "Jennifer Dottyback", "Reef Chromis"
+    }
 }
 
 -- Location mapping for heatmap
@@ -377,10 +401,20 @@ local function DoFastCycle()
     task.wait(1.0 + math.random()*0.4)
     if finishRemote then pcall(function() finishRemote:FireServer() end) end
     
-    -- Simulate fish catch for dashboard (random fish for demo)
-    local fishNames = {"Basic Fish", "CursedScroll", "Blue Lobster", "Neon Fish", "Golden of Decay", "Water Wheel"}
-    local randomFish = fishNames[math.random(1, #fishNames)]
-    LogFishCatch(randomFish, Dashboard.sessionStats.currentLocation)
+    -- Real fish simulation for dashboard based on location
+    local fishByLocation = {
+        ["Coral Reefs"] = {"Hawks Turtle", "Blue Lobster", "Greenbee Grouper", "Starjam Tang", "Domino Damsel", "Panther Grouper", "Scissortail Dartfish", "White Clownfish", "Maze Angelfish", "Tricolore Butterfly", "Orangy Goby", "Specked Butterfly", "Corazon Damse"},
+        ["Stingray Shores"] = {"Dotted Stingray", "Yellowfin Tuna", "Unicorn Tang", "Dorhey Tang", "Darwin Clownfish", "Korean Angelfish", "Flame Angelfish", "Yello Damselfish", "Copperband Butterfly", "Strawberry Dotty", "Azure Damsel", "Clownfish"},
+        ["Ocean"] = {"Hammerhead Shark", "Manta Ray", "Chrome Tuna", "Moorish Idol", "Cow Clownfish", "Candy Butterfly", "Jewel Tang", "Vintage Damsel", "Tricolore Butterfly", "Skunk Tilefish", "Yellowstate Angelfish", "Vintage Blue Tang"},
+        ["Esoteric Depths"] = {"Abyss Seahorse", "Magic Tang", "Enchanted Angelfish", "Astra Damsel", "Charmed Tang", "Coal Tang", "Ash Basslet"},
+        ["Kohana Volcano"] = {"Blueflame Ray", "Lavafin Tuna", "Firecoal Damsel", "Magma Goby", "Volcanic Basslet"},
+        ["Kohana"] = {"Prismy Seahorse", "Loggerhead Turtle", "Lobster", "Bumblebee Grouper", "Longnose Butterfly", "Sushi Cardinal", "Kau Cardinal", "Fire Goby", "Banded Butterfly", "Shrimp Goby", "Boa Angelfish", "Jennifer Dottyback", "Reef Chromis"}
+    }
+    
+    local currentLocation = Dashboard.sessionStats.currentLocation
+    local locationFish = fishByLocation[currentLocation] or fishByLocation["Ocean"] -- Default to Ocean fish
+    local randomFish = locationFish[math.random(1, #locationFish)]
+    LogFishCatch(randomFish, currentLocation)
 end
 
 local function DoSecureCycle()
@@ -397,10 +431,20 @@ local function DoSecureCycle()
     task.wait(0.6 + math.random()*1.2)
     if finishRemote then secureInvoke(finishRemote) end
     
-    -- Simulate fish catch for dashboard (random fish for demo)
-    local fishNames = {"Basic Fish", "CursedScroll", "Blue Lobster", "Neon Fish", "Golden of Decay", "Water Wheel"}
-    local randomFish = fishNames[math.random(1, #fishNames)]
-    LogFishCatch(randomFish, Dashboard.sessionStats.currentLocation)
+    -- Real fish simulation for dashboard based on location
+    local fishByLocation = {
+        ["Coral Reefs"] = {"Hawks Turtle", "Blue Lobster", "Greenbee Grouper", "Starjam Tang", "Domino Damsel", "Panther Grouper", "Scissortail Dartfish", "White Clownfish", "Maze Angelfish", "Tricolore Butterfly", "Orangy Goby", "Specked Butterfly", "Corazon Damse"},
+        ["Stingray Shores"] = {"Dotted Stingray", "Yellowfin Tuna", "Unicorn Tang", "Dorhey Tang", "Darwin Clownfish", "Korean Angelfish", "Flame Angelfish", "Yello Damselfish", "Copperband Butterfly", "Strawberry Dotty", "Azure Damsel", "Clownfish"},
+        ["Ocean"] = {"Hammerhead Shark", "Manta Ray", "Chrome Tuna", "Moorish Idol", "Cow Clownfish", "Candy Butterfly", "Jewel Tang", "Vintage Damsel", "Tricolore Butterfly", "Skunk Tilefish", "Yellowstate Angelfish", "Vintage Blue Tang"},
+        ["Esoteric Depths"] = {"Abyss Seahorse", "Magic Tang", "Enchanted Angelfish", "Astra Damsel", "Charmed Tang", "Coal Tang", "Ash Basslet"},
+        ["Kohana Volcano"] = {"Blueflame Ray", "Lavafin Tuna", "Firecoal Damsel", "Magma Goby", "Volcanic Basslet"},
+        ["Kohana"] = {"Prismy Seahorse", "Loggerhead Turtle", "Lobster", "Bumblebee Grouper", "Longnose Butterfly", "Sushi Cardinal", "Kau Cardinal", "Fire Goby", "Banded Butterfly", "Shrimp Goby", "Boa Angelfish", "Jennifer Dottyback", "Reef Chromis"}
+    }
+    
+    local currentLocation = Dashboard.sessionStats.currentLocation
+    local locationFish = fishByLocation[currentLocation] or fishByLocation["Ocean"] -- Default to Ocean fish
+    local randomFish = locationFish[math.random(1, #locationFish)]
+    LogFishCatch(randomFish, currentLocation)
 end
 
 local function AutofishRunner(mySession)
