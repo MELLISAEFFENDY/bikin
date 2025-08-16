@@ -25,6 +25,15 @@ local function Log(category, message)
     end
 end
 
+-- Safe string formatting function
+local function SafeFormat(template, ...)
+    local args = {...}
+    for i, arg in ipairs(args) do
+        args[i] = tostring(arg or "Unknown")
+    end
+    return string.format(template, unpack(args))
+end
+
 -- Notification system
 local function Notify(title, text)
     pcall(function()
@@ -567,7 +576,11 @@ Analysis Ready: YES]],
         local timestamp = os.date("%Y%m%d_%H%M%S")
         local filename = "FishIt_Advanced_Debug_" .. timestamp .. ".txt"
         
-        -- Buat data lengkap untuk file
+        -- Buat data lengkap untuk file dengan safe string handling
+        local safePlaceId = tostring(data.GamePlaceId or game.PlaceId or "Unknown")
+        local safeGameName = tostring(data.GameName or "Unknown Game")
+        local safeTimestamp = tostring(data.Timestamp or os.date("%Y-%m-%d %H:%M:%S"))
+        
         local fullData = string.format([[
 === FISH IT ADVANCED DEBUG EXPORT ===
 Game PlaceId: %s
@@ -578,25 +591,54 @@ Total Fishing Objects Found: %d
 Remote Calls Monitored: %d
 
 === COMPLETE REMOTES LIST ===
-]], data.GamePlaceId, data.GameName, data.Timestamp, #data.Remotes, #data.FishingObjects, #data.RemoteCalls)
+]], safePlaceId, safeGameName, safeTimestamp, #data.Remotes, #data.FishingObjects, #data.RemoteCalls)
         
-        -- Tambahkan semua remotes
+        -- Tambahkan semua remotes dengan safe string handling
         for i, remote in ipairs(data.Remotes) do
-            fullData = fullData .. string.format("[%d] %s (%s): %s\n", i, remote.Name, remote.Type, remote.FullName)
+            local safeName = tostring(remote.Name or "Unknown")
+            local safeType = tostring(remote.Type or "Unknown")
+            local safeFullName = tostring(remote.FullName or "Unknown Path")
+            fullData = fullData .. string.format("[%d] %s (%s): %s\n", i, safeName, safeType, safeFullName)
         end
         
         fullData = fullData .. "\n=== COMPLETE FISHING OBJECTS LIST ===\n"
         
-        -- Tambahkan semua fishing objects
+        -- Tambahkan semua fishing objects dengan safe string handling
         for i, obj in ipairs(data.FishingObjects) do
-            fullData = fullData .. string.format("[%d] %s (%s) in %s\n", i, obj.Object.Name, obj.ClassName, obj.Location)
+            local safeName = "Unknown"
+            local safeClassName = "Unknown"
+            local safeLocation = tostring(obj.Location or "Unknown")
+            
+            pcall(function()
+                if obj.Object and obj.Object.Name then
+                    safeName = tostring(obj.Object.Name)
+                end
+                if obj.ClassName then
+                    safeClassName = tostring(obj.ClassName)
+                end
+            end)
+            
+            fullData = fullData .. string.format("[%d] %s (%s) in %s\n", i, safeName, safeClassName, safeLocation)
         end
         
         fullData = fullData .. "\n=== REMOTE CALL LOGS ===\n"
         
-        -- Tambahkan remote call logs
+        -- Tambahkan remote call logs dengan safe string conversion
         for i, call in ipairs(data.RemoteCalls) do
-            fullData = fullData .. string.format("[%s] %s: %s\n", call.Time, call.RemoteName, call.Arguments)
+            local argsString = "No arguments"
+            if call.Arguments then
+                pcall(function()
+                    if type(call.Arguments) == "table" then
+                        argsString = table.concat(call.Arguments, ", ")
+                    else
+                        argsString = tostring(call.Arguments)
+                    end
+                end)
+            end
+            fullData = fullData .. string.format("[%s] %s: %s\n", 
+                tostring(call.Time or "Unknown"), 
+                tostring(call.RemoteName or "Unknown"), 
+                argsString)
         end
         
         fullData = fullData .. "\n=== DETAILED ANALYSIS ===\n"
