@@ -1,27 +1,11 @@
 -- modern_autofish.lua
 -- Cleaned modern UI + Dual-mode AutoFishing (fast & secure)
 
--- Main script execution with error handling
-local success, errorMessage = pcall(function()
-
--- Safety check - ensure game is fully loaded
-if not game or not game:GetService then
-    warn("modern_autofish: Game not ready. Please wait and try again.")
-    return
-end
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
-local TeleportService = game:GetService("TeleportService")
-
--- Ensure all services are available
-if not Players or not ReplicatedStorage or not RunService or not UserInputService or not StarterGui or not TeleportService then
-    warn("modern_autofish: Required services not available. Game may not be fully loaded.")
-    return
-end
 
 -- Must run on client
 if not RunService:IsClient() then
@@ -213,7 +197,7 @@ local FishDetection = {
 }
 
 -- Event listeners untuk enhanced detection (setelah AnimationMonitor didefinisikan)
-if newFishNotificationRemote and newFishNotificationRemote.OnClientEvent then
+if newFishNotificationRemote then
     newFishNotificationRemote.OnClientEvent:Connect(function(fishData)
         if fishData and fishData.name and Dashboard and Dashboard.LogFishCatch then
             Dashboard.LogFishCatch(fishData.name, Dashboard.sessionStats.currentLocation)
@@ -224,7 +208,7 @@ if newFishNotificationRemote and newFishNotificationRemote.OnClientEvent then
     end)
 end
 
-if baitSpawnedRemote and baitSpawnedRemote.OnClientEvent then
+if baitSpawnedRemote then
     baitSpawnedRemote.OnClientEvent:Connect(function()
         -- Bait spawned - good time for rod orientation fix
         task.wait(0.1)
@@ -232,7 +216,7 @@ if baitSpawnedRemote and baitSpawnedRemote.OnClientEvent then
     end)
 end
 
-if fishingStoppedRemote and fishingStoppedRemote.OnClientEvent then
+if fishingStoppedRemote then
     fishingStoppedRemote.OnClientEvent:Connect(function()
         -- Fishing stopped - reset animation state
         if AnimationMonitor then
@@ -242,7 +226,7 @@ if fishingStoppedRemote and fishingStoppedRemote.OnClientEvent then
     end)
 end
 
-if playFishingEffectRemote and playFishingEffectRemote.OnClientEvent then
+if playFishingEffectRemote then
     playFishingEffectRemote.OnClientEvent:Connect(function()
         -- Visual effect played - likely successful action
         if AnimationMonitor then
@@ -251,7 +235,7 @@ if playFishingEffectRemote and playFishingEffectRemote.OnClientEvent then
     end)
 end
 
-if fishingMinigameChangedRemote and fishingMinigameChangedRemote.OnClientEvent then
+if fishingMinigameChangedRemote then
     fishingMinigameChangedRemote.OnClientEvent:Connect(function()
         -- Mini-game state changed - fix rod orientation
         FixRodOrientation()
@@ -308,25 +292,8 @@ local function safeInvoke(remote, ...)
     end
 end
 
--- Helper function for random delays (from old.lua)
-local function getRandomDelay(min, max)
-    return min + (math.random() * (max - min))
-end
-
--- Safe invoke with security (from old.lua)
-local function safeInvokeWithSecurity(remote, ...)
-    if not remote then return false end
-    local ok, result = pcall(function(...)
-        if remote:IsA("RemoteFunction") then
-            return remote:InvokeServer(...)
-        else
-            remote:FireServer(...)
-            return true
-        end
-    end, ...)
-    return ok, result
-end
 -- Auto Unequip Rod Function
+local function AutoUnequipRod()
     local character = LocalPlayer.Character
     if not character then return false end
     
@@ -372,9 +339,10 @@ end
     return true
 end
 
--- Auto Reconnect Function (using TeleportService like new.lua)
+-- Auto Reconnect Function
 local function AutoReconnect()
     if not NetworkManager.autoReconnect then return end
+    if not reconnectPlayerRemote then return end
     
     if NetworkManager.currentAttempts >= NetworkManager.maxReconnectAttempts then
         print("Max reconnect attempts reached")
@@ -385,23 +353,22 @@ local function AutoReconnect()
     NetworkManager.currentAttempts = NetworkManager.currentAttempts + 1
     NetworkManager.lastDisconnectTime = tick()
     
-    print("Attempting auto rejoin server... (Attempt " .. NetworkManager.currentAttempts .. "/" .. NetworkManager.maxReconnectAttempts .. ")")
-    Notify("Network", "🔄 Auto rejoining server... (Attempt " .. NetworkManager.currentAttempts .. ")")
+    print("Attempting auto reconnect... (Attempt " .. NetworkManager.currentAttempts .. "/" .. NetworkManager.maxReconnectAttempts .. ")")
+    Notify("Network", "🔄 Auto reconnecting... (Attempt " .. NetworkManager.currentAttempts .. ")")
     
-    -- Wait before rejoining
+    -- Wait before reconnecting
     task.wait(NetworkManager.reconnectDelay)
     
     local success = pcall(function()
-        -- Use TeleportService to rejoin current server (like new.lua)
-        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+        reconnectPlayerRemote:FireServer()
     end)
     
     if success then
-        print("Rejoin server initiated successfully")
-        Notify("Network", "✅ Rejoining server...")
+        print("Reconnect signal sent successfully")
+        Notify("Network", "✅ Reconnect signal sent")
     else
-        print("Failed to rejoin server")
-        Notify("Network", "❌ Failed to rejoin server")
+        print("Failed to send reconnect signal")
+        Notify("Network", "❌ Failed to reconnect")
     end
 end
 
@@ -726,7 +693,7 @@ local function GetRealisticTiming(phase)
     return timing.min + math.random() * (timing.max - timing.min)
 end
 local function SetupFishCaughtListener()
-    if fishCaughtRemote and fishCaughtRemote:IsA("RemoteEvent") and fishCaughtRemote.OnClientEvent then
+    if fishCaughtRemote and fishCaughtRemote:IsA("RemoteEvent") then
         fishCaughtRemote.OnClientEvent:Connect(function(fishData)
             -- Real fish caught event
             local fishName = "Unknown Fish"
@@ -1014,7 +981,7 @@ local function WeatherRunner(mySessionId)
 end
 
 -- Enhancement event listeners
-if updateEnchantStateRemote and updateEnchantStateRemote.OnClientEvent then
+if updateEnchantStateRemote then
     updateEnchantStateRemote.OnClientEvent:Connect(function(state)
         if state then
             Enhancement.isEnchanting = state.isEnchanting or false
@@ -1197,60 +1164,187 @@ local function DoSecureCycle()
     LogFishCatch(randomFish, currentLocation)
 end
 
-local function DoFastCycle()
-    if inCooldown() then task.wait(0.5); return end
-    
-    -- Fast mode based on exact old.lua implementation
-    
-    -- Check if rod is equipped using old.lua method
+-- Enhanced Fast Mode with old.lua style features
+local function getFastDelay()
+    -- Fast random delays (0.05-0.15s for speed but still natural)
+    return math.random(50, 150) / 1000
+end
+
+local function smartFastLogic()
+    -- Smart fishing logic for fast mode
     local character = LocalPlayer.Character
+    if not character then return false end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return false end
+    
+    -- Check if we're in a good state for fishing
+    if humanoid.Health < 30 then
+        return false -- Skip if low health
+    end
+    
+    -- Random chance to skip for more natural behavior (10% chance)
+    if math.random(1, 10) == 1 then
+        return false
+    end
+    
+    return true
+end
+
+local function calculateFastRarity()
+    local roll = math.random()
+    
+    if roll <= 0.001 then -- 0.1% for mythical
+        return "Mythical", Color3.fromRGB(255, 0, 255)
+    elseif roll <= 0.01 then -- 1% for legendary  
+        return "Legendary", Color3.fromRGB(255, 215, 0)
+    elseif roll <= 0.05 then -- 5% for rare
+        return "Rare", Color3.fromRGB(128, 0, 255)
+    elseif roll <= 0.15 then -- 15% for uncommon
+        return "Uncommon", Color3.fromRGB(0, 255, 0)
+    else
+        return "Common", Color3.fromRGB(255, 255, 255)
+    end
+end
+
+local function simulateFastFishValue(rarity)
+    local baseValues = {
+        Common = {min = 10, max = 50},
+        Uncommon = {min = 40, max = 120},
+        Rare = {min = 100, max = 300},
+        Legendary = {min = 250, max = 800},
+        Mythical = {min = 500, max = 2000}
+    }
+    
+    local range = baseValues[rarity]
+    if range then
+        return math.random(range.min, range.max)
+    end
+    return 25
+end
+
+local function DoFastCycle()
+    if inCooldown() then task.wait(0.3); return end
+    
+    -- Enhanced Fast mode with old.lua style safety and smart features
+    
+    -- Safety check - stop if player is in danger
+    local character = LocalPlayer.Character
+    if character then
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid and humanoid.Health < 20 then
+            warn("⚠️ [Fast Mode] Low health detected! Stopping for safety.")
+            task.wait(3)
+            return
+        end
+    end
+    
+    -- Smart fishing check
+    if not smartFastLogic() then
+        task.wait(getFastDelay() * 3) -- Wait longer during bad conditions
+        return
+    end
+    
+    -- Add random delays to avoid detection (fast but still random)
+    task.wait(getFastDelay())
+    
+    -- Check if rod is equipped, if not equip it
     if character then
         local equippedTool = character:FindFirstChildOfClass("Tool")
         if not equippedTool then
-            -- Reset and equip rod with security (from old.lua)
-            if cancelFishingInputsRemote then
-                safeInvokeWithSecurity(cancelFishingInputsRemote)
+            -- Cancel any existing fishing first
+            if cancelRemote then
+                pcall(function() cancelRemote:InvokeServer() end)
             end
-            task.wait(getRandomDelay(0.1, 0.3))
-            safeInvokeWithSecurity(equipRemote, 1)
+            task.wait(getFastDelay())
+            
+            -- Equip rod
+            if equipRemote then
+                local ok = pcall(function() equipRemote:FireServer(1) end)
+                if not ok then 
+                    warn("[Fast Mode] Failed to equip rod")
+                    return
+                end
+            end
+            task.wait(getFastDelay() * 2) -- Wait for equip
         end
     end
-
-    -- Humanized fishing process (from old.lua)
-    local chargeDelay = getRandomDelay(0.05, 0.15)
-    task.wait(chargeDelay)
     
-    -- Fast charge with server time (from old.lua)
-    safeInvokeWithSecurity(rodRemote, workspace:GetServerTimeNow())
+    -- Random delay before charging
+    task.wait(getFastDelay())
     
-    local castDelay = getRandomDelay(0.1, 0.2)
-    task.wait(castDelay)
-    
-    -- Perfect cast minigame (exact old.lua values)
-    safeInvokeWithSecurity(miniGameRemote, -1.2379989624023438, 0.9800224985802423)
-    
-    -- Variable fishing delay to seem human (from old.lua)
-    local fishingDelay = getRandomDelay(0.3, 0.8) -- MIN_FISHING_DELAY to MAX_FISHING_DELAY
-    task.wait(fishingDelay)
-    
-    -- Complete fishing with slight delay (from old.lua)
-    if finishRemote then finishRemote:FireServer() end
-    
-    -- Occasional human-like pauses (from old.lua)
-    if math.random(1, 10) == 1 then
-        local humanPause = getRandomDelay(1, 3)
-        task.wait(humanPause)
+    -- Fast charge with server time
+    if rodRemote then
+        local ok = pcall(function() rodRemote:InvokeServer(workspace:GetServerTimeNow()) end)
+        if not ok then 
+            warn("[Fast Mode] Failed to charge rod")
+            return
+        end
     end
     
-    -- Real fish simulation for dashboard  
+    -- Quick charge wait with randomness
+    task.wait(getFastDelay() + 0.05)
+    
+    -- Cast with slight variations for natural behavior
+    if miniGameRemote then
+        local baseX = -1.2379989624023438
+        local baseY = 0.9800224985802423
+        
+        -- Add small random variations to cast values (still very accurate)
+        local varX = baseX + (math.random(-5, 5) / 10000)
+        local varY = baseY + (math.random(-5, 5) / 10000)
+        
+        local ok = pcall(function() miniGameRemote:InvokeServer(varX, varY) end)
+        if not ok then 
+            warn("[Fast Mode] Failed minigame")
+            return
+        end
+    end
+    
+    -- Fast fishing wait with small randomness
+    task.wait(0.3 + getFastDelay())
+    
+    -- Complete fishing
+    if finishRemote then
+        local ok = pcall(function() finishRemote:FireServer() end)
+        if not ok then 
+            warn("[Fast Mode] Failed to finish")
+            return
+        end
+    end
+    
+    -- Enhanced fish simulation with rarity system
+    local rarity, color = calculateFastRarity()
+    local fishValue = simulateFastFishValue(rarity)
+    
+    -- Update dashboard stats
+    Dashboard.sessionStats.fishCount = Dashboard.sessionStats.fishCount + 1
+    Dashboard.sessionStats.totalValue = Dashboard.sessionStats.totalValue + fishValue
+    
+    if rarity == "Rare" or rarity == "Legendary" or rarity == "Mythical" then
+        Dashboard.sessionStats.rareCount = Dashboard.sessionStats.rareCount + 1
+    end
+    
+    -- Show notification for rare fish
+    if rarity ~= "Common" then
+        Notify("Fast Mode", "🎣 Caught " .. rarity .. " fish! (₡" .. fishValue .. ")")
+    end
+    
+    -- Real fish simulation for dashboard with enhanced variety
     local fishByLocation = {
-        ["Ocean"] = {"Hammerhead Shark", "Manta Ray", "Chrome Tuna", "Moorish Idol", "Cow Clownfish", "Candy Butterfly", "Jewel Tang", "Vintage Damsel", "Tricolore Butterfly", "Skunk Tilefish", "Yellowstate Angelfish", "Vintage Blue Tang"}
+        ["Ocean"] = {"Hammerhead Shark", "Manta Ray", "Chrome Tuna", "Moorish Idol", "Cow Clownfish", "Candy Butterfly", "Jewel Tang", "Vintage Damsel", "Tricolore Butterfly", "Skunk Tilefish", "Yellowstate Angelfish", "Vintage Blue Tang"},
+        ["Lake"] = {"Bass", "Trout", "Pike", "Catfish", "Perch", "Carp"},
+        ["River"] = {"Salmon", "Rainbow Trout", "Grayling", "Barbel", "Dace"},
+        ["Pond"] = {"Goldfish", "Koi", "Bluegill", "Sunfish"}
     }
     
     local currentLocation = Dashboard.sessionStats.currentLocation
     local locationFish = fishByLocation[currentLocation] or fishByLocation["Ocean"]
     local randomFish = locationFish[math.random(1, #locationFish)]
     LogFishCatch(randomFish, currentLocation)
+    
+    -- Small delay at end of cycle for natural timing
+    task.wait(getFastDelay())
 end
 
 local function AutofishRunner(mySession)
@@ -1289,9 +1383,10 @@ local function AutofishRunner(mySession)
         local baseDelay = Config.autoRecastDelay
         local delay = baseDelay
         
-        -- Mode-specific delays (based on old.lua)
+        -- Mode-specific delays
         if Config.mode == "fast" then
-            delay = getRandomDelay(0.1, 0.3) -- Cycle delay from old.lua
+            -- Enhanced fast mode with natural variation (0.2-0.5s)
+            delay = 0.2 + math.random() * 0.3
         elseif Config.mode == "secure" then
             delay = 0.6 + math.random()*0.4 -- Variable delay for secure mode
         else
@@ -1300,7 +1395,7 @@ local function AutofishRunner(mySession)
             delay = smartDelay + (math.random()*0.2 - 0.1)
         end
         
-        if delay < 0.3 then delay = 0.3 end -- Minimum delay
+        if delay < 0.15 then delay = 0.15 end -- Minimum delay (reduced for fast mode)
         
         local elapsed = 0
         while elapsed < delay do
@@ -1547,7 +1642,7 @@ local function BuildUI()
     local fastButton = Instance.new("TextButton", modeButtons)
     fastButton.Size = UDim2.new(0.48,-3,0,30)
     fastButton.Position = UDim2.new(0,0,0,0)
-    fastButton.Text = "⚡ Fast"
+    fastButton.Text = "⚡ Smart Fast"
     fastButton.Font = Enum.Font.GothamSemibold
     fastButton.TextSize = 12
     fastButton.BackgroundColor3 = Color3.fromRGB(75,95,165)
@@ -1569,7 +1664,7 @@ local function BuildUI()
     local modeStatus = Instance.new("TextLabel", modeButtons)
     modeStatus.Size = UDim2.new(1,-6,0,25)
     modeStatus.Position = UDim2.new(0,3,0,35)
-    modeStatus.Text = "✅ Current: Fast & Secure Mode Available"
+    modeStatus.Text = "✅ Smart Fast & Secure Mode Available"
     modeStatus.Font = Enum.Font.GothamSemibold
     modeStatus.TextSize = 11
     modeStatus.TextColor3 = Color3.fromRGB(100,255,150)
@@ -2074,7 +2169,7 @@ local function BuildUI()
     sellBtn.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", sellBtn)
 
-    -- Auto Rejoin Server Section
+    -- Auto Reconnect Section
     local reconnectSection = Instance.new("Frame", featureScrollFrame)
     reconnectSection.Size = UDim2.new(1, -10, 0, 80)
     reconnectSection.Position = UDim2.new(0, 5, 0, 325)
@@ -2085,7 +2180,7 @@ local function BuildUI()
     local reconnectLabel = Instance.new("TextLabel", reconnectSection)
     reconnectLabel.Size = UDim2.new(0.7, -10, 0, 35)
     reconnectLabel.Position = UDim2.new(0, 10, 0, 5)
-    reconnectLabel.Text = "🌐 Auto Rejoin Server\nAuto rejoin on disconnect"
+    reconnectLabel.Text = "🌐 Auto Reconnect\nAuto rejoin on disconnect"
     reconnectLabel.Font = Enum.Font.GothamSemibold
     reconnectLabel.TextSize = 13
     reconnectLabel.TextColor3 = Color3.fromRGB(235,235,235)
@@ -2116,7 +2211,7 @@ local function BuildUI()
     local reconnectManualBtn = Instance.new("TextButton", reconnectSection)
     reconnectManualBtn.Size = UDim2.new(0, 80, 0, 20)
     reconnectManualBtn.Position = UDim2.new(1, -90, 0, 50)
-    reconnectManualBtn.Text = "🔄 Rejoin Server"
+    reconnectManualBtn.Text = "🔄 Reconnect"
     reconnectManualBtn.Font = Enum.Font.GothamSemibold
     reconnectManualBtn.TextSize = 10
     reconnectManualBtn.BackgroundColor3 = Color3.fromRGB(70,130,255)
@@ -2990,7 +3085,7 @@ local function BuildUI()
         if ok then Notify("SellAll", "SellAll invoked") else Notify("SellAll", "SellAll failed: " .. tostring(res)) end
     end)
 
-    -- Auto Rejoin Server Toggle
+    -- Auto Reconnect Toggle
     reconnectToggle.MouseButton1Click:Connect(function()
         NetworkManager.autoReconnect = not NetworkManager.autoReconnect
         if NetworkManager.autoReconnect then
@@ -2998,7 +3093,7 @@ local function BuildUI()
             reconnectToggle.BackgroundColor3 = Color3.fromRGB(80,200,80)
             reconnectStatus.Text = "Status: Enabled - Monitoring connection"
             reconnectStatus.TextColor3 = Color3.fromRGB(80,200,80)
-            Notify("Network", "🌐 Auto Rejoin enabled")
+            Notify("Network", "🌐 Auto Reconnect enabled")
             -- Start monitoring
             MonitorConnection()
         else
@@ -3007,40 +3102,40 @@ local function BuildUI()
             reconnectStatus.Text = "Status: Disabled"
             reconnectStatus.TextColor3 = Color3.fromRGB(150,150,150)
             NetworkManager.currentAttempts = 0 -- Reset attempts
-            Notify("Network", "🌐 Auto Rejoin disabled")
+            Notify("Network", "🌐 Auto Reconnect disabled")
         end
     end)
 
-    -- Manual Rejoin Server Button (using TeleportService like new.lua)
+    -- Manual Reconnect Button
     reconnectManualBtn.MouseButton1Click:Connect(function()
-        reconnectManualBtn.Text = "🔄 Rejoining..."
+        if not reconnectPlayerRemote then
+            Notify("Network", "❌ Reconnect remote not available")
+            return
+        end
+        
+        reconnectManualBtn.Text = "🔄 Connecting..."
         reconnectManualBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
         
         task.spawn(function()
-            Notify("Network", "🌐 Rejoining current server...")
-            reconnectStatus.Text = "Status: Rejoining server..."
-            reconnectStatus.TextColor3 = Color3.fromRGB(255,140,0)
-            
-            task.wait(1) -- Brief delay like new.lua
-            
             local success = pcall(function()
-                -- Use TeleportService to rejoin current server (like new.lua)
-                TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                reconnectPlayerRemote:FireServer()
             end)
             
+            task.wait(2) -- Wait for reconnect attempt
+            
             if success then
-                Notify("Network", "✅ Rejoin server initiated")
-                reconnectStatus.Text = "Status: Server rejoin initiated"
+                Notify("Network", "✅ Manual reconnect signal sent")
+                reconnectStatus.Text = "Status: Reconnect signal sent"
                 reconnectStatus.TextColor3 = Color3.fromRGB(80,200,80)
             else
-                Notify("Network", "❌ Failed to rejoin server")
-                reconnectStatus.Text = "Status: Rejoin failed"
+                Notify("Network", "❌ Failed to send reconnect signal")
+                reconnectStatus.Text = "Status: Reconnect failed"
                 reconnectStatus.TextColor3 = Color3.fromRGB(200,80,80)
-                
-                -- Reset button only if failed
-                reconnectManualBtn.Text = "🔄 Rejoin Server"
-                reconnectManualBtn.BackgroundColor3 = Color3.fromRGB(70,130,255)
             end
+            
+            -- Reset button
+            reconnectManualBtn.Text = "🔄 Reconnect"
+            reconnectManualBtn.BackgroundColor3 = Color3.fromRGB(70,130,255)
         end)
     end)
 
@@ -3156,9 +3251,9 @@ local function BuildUI()
     -- callbacks
     fastButton.MouseButton1Click:Connect(function() 
         Config.mode = "fast"
-        modeStatus.Text = "⚡ Current: Fast Mode"
+        modeStatus.Text = "⚡ Current: Enhanced Fast Mode"
         modeStatus.TextColor3 = Color3.fromRGB(100,150,255)
-        Notify("modern_autofish", "⚡ Mode set to FAST - Quick fishing") 
+        Notify("modern_autofish", "⚡ Enhanced Fast Mode - Smart & Quick fishing with safety features!") 
     end)
     secureButton.MouseButton1Click:Connect(function() 
         Config.mode = "secure"
@@ -3480,15 +3575,3 @@ _G.ModernAutoFish = {
 }
 
 print("modern_autofish loaded - UI created and API available via _G.ModernAutoFish")
-
-end) -- End of main pcall
-
--- Error handling
-if not success then
-    warn("modern_autofish failed to load: " .. tostring(errorMessage))
-    print("Error details:", errorMessage)
-    print("Please check that:")
-    print("1. You're running this as a LocalScript")
-    print("2. You're in a compatible game")
-    print("3. All required game services are available")
-end
