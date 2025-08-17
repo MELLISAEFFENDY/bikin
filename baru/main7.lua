@@ -1,12 +1,27 @@
 -- modern_autofish.lua
 -- Cleaned modern UI + Dual-mode AutoFishing (fast & secure)
 
+-- Main script execution with error handling
+local success, errorMessage = pcall(function()
+
+-- Safety check - ensure game is fully loaded
+if not game or not game:GetService then
+    warn("modern_autofish: Game not ready. Please wait and try again.")
+    return
+end
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
 local TeleportService = game:GetService("TeleportService")
+
+-- Ensure all services are available
+if not Players or not ReplicatedStorage or not RunService or not UserInputService or not StarterGui or not TeleportService then
+    warn("modern_autofish: Required services not available. Game may not be fully loaded.")
+    return
+end
 
 -- Must run on client
 if not RunService:IsClient() then
@@ -198,7 +213,7 @@ local FishDetection = {
 }
 
 -- Event listeners untuk enhanced detection (setelah AnimationMonitor didefinisikan)
-if newFishNotificationRemote then
+if newFishNotificationRemote and newFishNotificationRemote.OnClientEvent then
     newFishNotificationRemote.OnClientEvent:Connect(function(fishData)
         if fishData and fishData.name and Dashboard and Dashboard.LogFishCatch then
             Dashboard.LogFishCatch(fishData.name, Dashboard.sessionStats.currentLocation)
@@ -209,7 +224,7 @@ if newFishNotificationRemote then
     end)
 end
 
-if baitSpawnedRemote then
+if baitSpawnedRemote and baitSpawnedRemote.OnClientEvent then
     baitSpawnedRemote.OnClientEvent:Connect(function()
         -- Bait spawned - good time for rod orientation fix
         task.wait(0.1)
@@ -217,7 +232,7 @@ if baitSpawnedRemote then
     end)
 end
 
-if fishingStoppedRemote then
+if fishingStoppedRemote and fishingStoppedRemote.OnClientEvent then
     fishingStoppedRemote.OnClientEvent:Connect(function()
         -- Fishing stopped - reset animation state
         if AnimationMonitor then
@@ -227,7 +242,7 @@ if fishingStoppedRemote then
     end)
 end
 
-if playFishingEffectRemote then
+if playFishingEffectRemote and playFishingEffectRemote.OnClientEvent then
     playFishingEffectRemote.OnClientEvent:Connect(function()
         -- Visual effect played - likely successful action
         if AnimationMonitor then
@@ -236,7 +251,7 @@ if playFishingEffectRemote then
     end)
 end
 
-if fishingMinigameChangedRemote then
+if fishingMinigameChangedRemote and fishingMinigameChangedRemote.OnClientEvent then
     fishingMinigameChangedRemote.OnClientEvent:Connect(function()
         -- Mini-game state changed - fix rod orientation
         FixRodOrientation()
@@ -711,7 +726,7 @@ local function GetRealisticTiming(phase)
     return timing.min + math.random() * (timing.max - timing.min)
 end
 local function SetupFishCaughtListener()
-    if fishCaughtRemote and fishCaughtRemote:IsA("RemoteEvent") then
+    if fishCaughtRemote and fishCaughtRemote:IsA("RemoteEvent") and fishCaughtRemote.OnClientEvent then
         fishCaughtRemote.OnClientEvent:Connect(function(fishData)
             -- Real fish caught event
             local fishName = "Unknown Fish"
@@ -999,7 +1014,7 @@ local function WeatherRunner(mySessionId)
 end
 
 -- Enhancement event listeners
-if updateEnchantStateRemote then
+if updateEnchantStateRemote and updateEnchantStateRemote.OnClientEvent then
     updateEnchantStateRemote.OnClientEvent:Connect(function(state)
         if state then
             Enhancement.isEnchanting = state.isEnchanting or false
@@ -3465,3 +3480,15 @@ _G.ModernAutoFish = {
 }
 
 print("modern_autofish loaded - UI created and API available via _G.ModernAutoFish")
+
+end) -- End of main pcall
+
+-- Error handling
+if not success then
+    warn("modern_autofish failed to load: " .. tostring(errorMessage))
+    print("Error details:", errorMessage)
+    print("Please check that:")
+    print("1. You're running this as a LocalScript")
+    print("2. You're in a compatible game")
+    print("3. All required game services are available")
+end
