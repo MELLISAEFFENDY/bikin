@@ -456,6 +456,7 @@ local Dashboard = {
         startTime = tick(),
         fishCount = 0,
         rareCount = 0,
+        totalValue = 0,
         currentLocation = "Unknown"
     },
     heatmap = {},
@@ -1317,9 +1318,14 @@ local function DoFastCycle()
     local rarity, color = calculateFastRarity()
     local fishValue = simulateFastFishValue(rarity)
     
+    -- Safety check untuk dashboard stats
+    if not Dashboard.sessionStats.totalValue then
+        Dashboard.sessionStats.totalValue = 0
+    end
+    
     -- Update dashboard stats
     Dashboard.sessionStats.fishCount = Dashboard.sessionStats.fishCount + 1
-    Dashboard.sessionStats.totalValue = Dashboard.sessionStats.totalValue + fishValue
+    Dashboard.sessionStats.totalValue = Dashboard.sessionStats.totalValue + (fishValue or 0)
     
     if rarity == "Rare" or rarity == "Legendary" or rarity == "Mythical" then
         Dashboard.sessionStats.rareCount = Dashboard.sessionStats.rareCount + 1
@@ -1351,6 +1357,7 @@ local function AutofishRunner(mySession)
     Dashboard.sessionStats.startTime = tick()
     Dashboard.sessionStats.fishCount = 0
     Dashboard.sessionStats.rareCount = 0
+    Dashboard.sessionStats.totalValue = 0  -- Initialize totalValue
     
     -- Start animation monitoring
     AnimationMonitor.isMonitoring = true
