@@ -1,5 +1,6 @@
 -- modern_autofish.lua
 -- Cleaned modern UI + Dual-mode AutoFishing (fast & secure)
+-- Added new feature: Auto Mode by Spinner_xxx
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -405,13 +406,13 @@ local Config = {
     mode = "smart",  -- Default to smart mode
     autoRecastDelay = 0.6,
     safeModeChance = 70,
-    secure_max_actions_per_minute = 120,
+    secure_max_actions_per_minute = 12000000,
     secure_detection_cooldown = 5,
     enabled = false,
     antiAfkEnabled = false,
     enhancementEnabled = false,
     autoReconnectEnabled = false,
-    autoModeEnabled = false
+    autoModeEnabled = false -- New state for Auto Mode
 }
 
 -- Network & Connection System
@@ -995,6 +996,28 @@ end
 
 local Security = { actionsThisMinute = 0, lastMinuteReset = tick(), isInCooldown = false, suspicion = 0 }
 local sessionId = 0
+local autoModeSessionId = 0 -- New session ID for Auto Mode
+
+-- New: Auto Mode Runner
+local function AutoModeRunner(mySessionId)
+    Notify("Auto Mode", "🔥 Auto Mode Started! Looping FishingCompleted.")
+    while Config.autoModeEnabled and autoModeSessionId == mySessionId do
+        if finishRemote then
+            pcall(function()
+                finishRemote:FireServer()
+            end)
+        else
+            warn("Auto Mode: finishRemote not found!")
+            Config.autoModeEnabled = false -- Stop if remote is missing
+            break
+        end
+        task.wait(1) -- Wait for 1 second
+    end
+    if autoModeSessionId == mySessionId then -- Only notify if it's the same session stopping
+        Notify("Auto Mode", "🔥 Auto Mode Stopped.")
+    end
+end
+
 
 local function inCooldown()
     local now = tick()
@@ -1354,20 +1377,6 @@ local function DoFastCycle()
     task.wait(getFastDelay())
 end
 
-local autoModeSessionId = 0
-local function AutoModeRunner(mySessionId)
-    Notify("Auto Mode", "Auto Mode started")
-    while Config.autoModeEnabled and autoModeSessionId == mySessionId do
-        if finishRemote then
-            pcall(function() finishRemote:FireServer() end)
-        else
-            Notify("Auto Mode", "finishRemote not found!")
-        end
-        task.wait(1)
-    end
-    Notify("Auto Mode", "Auto Mode stopped")
-end
-
 local function AutofishRunner(mySession)
     Dashboard.sessionStats.startTime = tick()
     Dashboard.sessionStats.fishCount = 0
@@ -1502,6 +1511,8 @@ local function BuildUI()
         -- Clean shutdown of all systems
         Config.enabled = false
         sessionId = sessionId + 1
+        Config.autoModeEnabled = false
+        autoModeSessionId = autoModeSessionId + 1
         
         -- Stop Anti-AFK system
         if AntiAFK then
@@ -1605,19 +1616,19 @@ local function BuildUI()
     Instance.new("UICorner", sidebar)
 
     -- Tab buttons in sidebar
-    local mainTabBtn = Instance.new("TextButton", sidebar)
-    mainTabBtn.Size = UDim2.new(1, -10, 0, 40)
-    mainTabBtn.Position = UDim2.new(0, 5, 0, 10)
-    mainTabBtn.Text = "🎣 Main"
-    mainTabBtn.Font = Enum.Font.GothamSemibold
-    mainTabBtn.TextSize = 14
-    mainTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
-    mainTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
-    mainTabBtn.TextXAlignment = Enum.TextXAlignment.Left
-    local mainTabCorner = Instance.new("UICorner", mainTabBtn)
-    mainTabCorner.CornerRadius = UDim.new(0, 6)
-    local mainTabPadding = Instance.new("UIPadding", mainTabBtn)
-    mainTabPadding.PaddingLeft = UDim.new(0, 10)
+    local fishingAITabBtn = Instance.new("TextButton", sidebar)
+    fishingAITabBtn.Size = UDim2.new(1, -10, 0, 40)
+    fishingAITabBtn.Position = UDim2.new(0, 5, 0, 10)
+    fishingAITabBtn.Text = "🤖 Fishing AI"
+    fishingAITabBtn.Font = Enum.Font.GothamSemibold
+    fishingAITabBtn.TextSize = 14
+    fishingAITabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
+    fishingAITabBtn.TextColor3 = Color3.fromRGB(235,235,235)
+    fishingAITabBtn.TextXAlignment = Enum.TextXAlignment.Left
+    local fishingAITabCorner = Instance.new("UICorner", fishingAITabBtn)
+    fishingAITabCorner.CornerRadius = UDim.new(0, 6)
+    local fishingAITabPadding = Instance.new("UIPadding", fishingAITabBtn)
+    fishingAITabPadding.PaddingLeft = UDim.new(0, 10)
 
     local teleportTabBtn = Instance.new("TextButton", sidebar)
     teleportTabBtn.Size = UDim2.new(1, -10, 0, 40)
@@ -1661,23 +1672,9 @@ local function BuildUI()
     local featureTabPadding = Instance.new("UIPadding", featureTabBtn)
     featureTabPadding.PaddingLeft = UDim.new(0, 10)
 
-    local fishingAITabBtn = Instance.new("TextButton", sidebar)
-    fishingAITabBtn.Size = UDim2.new(1, -10, 0, 40)
-    fishingAITabBtn.Position = UDim2.new(0, 5, 0, 210)
-    fishingAITabBtn.Text = "🤖 Fishing AI"
-    fishingAITabBtn.Font = Enum.Font.GothamSemibold
-    fishingAITabBtn.TextSize = 14
-    fishingAITabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-    fishingAITabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-    fishingAITabBtn.TextXAlignment = Enum.TextXAlignment.Left
-    local fishingAITabCorner = Instance.new("UICorner", fishingAITabBtn)
-    fishingAITabCorner.CornerRadius = UDim.new(0, 6)
-    local fishingAITabPadding = Instance.new("UIPadding", fishingAITabBtn)
-    fishingAITabPadding.PaddingLeft = UDim.new(0, 10)
-
     local dashboardTabBtn = Instance.new("TextButton", sidebar)
     dashboardTabBtn.Size = UDim2.new(1, -10, 0, 40)
-    dashboardTabBtn.Position = UDim2.new(0, 5, 0, 260)
+    dashboardTabBtn.Position = UDim2.new(0, 5, 0, 210)
     dashboardTabBtn.Text = "📊 Dashboard"
     dashboardTabBtn.Font = Enum.Font.GothamSemibold
     dashboardTabBtn.TextSize = 14
@@ -1695,174 +1692,252 @@ local function BuildUI()
     contentContainer.Position = UDim2.new(0, 140, 0, 45)
     contentContainer.BackgroundTransparency = 1
 
-    -- content area (Main tab)
-    local content = Instance.new("Frame", contentContainer)
-    content.Size = UDim2.new(1, 0, 1, -85)
-    content.Position = UDim2.new(0, 0, 0, 0)
-    content.BackgroundTransparency = 1
+    -- Fishing AI Tab Content (Now the main content)
+    local fishingAIFrame = Instance.new("Frame", contentContainer)
+    fishingAIFrame.Size = UDim2.new(1, 0, 1, -85)
+    fishingAIFrame.Position = UDim2.new(0, 0, 0, 0)
+    fishingAIFrame.BackgroundTransparency = 1
 
     -- Title for current tab
-    local contentTitle = Instance.new("TextLabel", content)
+    local contentTitle = Instance.new("TextLabel", fishingAIFrame)
     contentTitle.Size = UDim2.new(1, 0, 0, 24)
-    contentTitle.Text = "AutoFish Controls"
+    contentTitle.Text = "Smart AI Fishing Configuration"
     contentTitle.Font = Enum.Font.GothamBold
     contentTitle.TextSize = 16
     contentTitle.TextColor3 = Color3.fromRGB(235,235,235)
     contentTitle.BackgroundTransparency = 1
     contentTitle.TextXAlignment = Enum.TextXAlignment.Left
 
-    local leftCol = Instance.new("Frame", content)
-    leftCol.Size = UDim2.new(0.5, -6, 1, -30)
-    leftCol.Position = UDim2.new(0, 0, 0, 30)
-    leftCol.BackgroundTransparency = 1
+    -- Create scrollable frame for Fishing AI content
+    local fishingAIScrollFrame = Instance.new("ScrollingFrame", fishingAIFrame)
+    fishingAIScrollFrame.Size = UDim2.new(1, 0, 1, -30)
+    fishingAIScrollFrame.Position = UDim2.new(0, 0, 0, 30)
+    fishingAIScrollFrame.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    fishingAIScrollFrame.BorderSizePixel = 0
+    fishingAIScrollFrame.ScrollBarThickness = 6
+    fishingAIScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80,80,80)
+    Instance.new("UICorner", fishingAIScrollFrame)
 
-    local rightCol = Instance.new("Frame", content)
-    rightCol.Size = UDim2.new(0.5, -6, 1, -30)
-    rightCol.Position = UDim2.new(0.5, 6, 0, 30)
-    rightCol.BackgroundTransparency = 1
+    -- Secure Mode Section (moved from Main tab)
+    local secureModeSection = Instance.new("Frame", fishingAIScrollFrame)
+    secureModeSection.Size = UDim2.new(1, -10, 0, 120)
+    secureModeSection.Position = UDim2.new(0, 5, 0, 5)
+    secureModeSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
+    secureModeSection.BorderSizePixel = 0
+    Instance.new("UICorner", secureModeSection)
 
-    -- left: mode
-    local modeLabel = Instance.new("TextLabel", leftCol)
-    modeLabel.Size = UDim2.new(1,0,0,18)
-    modeLabel.Text = "Fishing Mode"
-    modeLabel.BackgroundTransparency = 1
-    modeLabel.Font = Enum.Font.GothamSemibold
-    modeLabel.TextColor3 = Color3.fromRGB(200,200,200)
-    modeLabel.TextSize = 14
-    modeLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local modeButtons = Instance.new("Frame", leftCol)
-    modeButtons.Size = UDim2.new(1,-12,0,70)
-    modeButtons.Position = UDim2.new(0,6,0,24)
-    modeButtons.BackgroundTransparency = 1
-    
-    local fastButton = Instance.new("TextButton", modeButtons)
-    fastButton.Size = UDim2.new(0.48,-3,0,30)
-    fastButton.Position = UDim2.new(0,0,0,0)
-    fastButton.Text = "⚡ Smart Fast"
-    fastButton.Font = Enum.Font.GothamSemibold
-    fastButton.TextSize = 12
-    fastButton.BackgroundColor3 = Color3.fromRGB(75,95,165)
-    fastButton.TextColor3 = Color3.fromRGB(255,255,255)
-    local fastCorner = Instance.new("UICorner", fastButton)
-    fastCorner.CornerRadius = UDim.new(0,6)
-    
-    local secureButton = Instance.new("TextButton", modeButtons)
-    secureButton.Size = UDim2.new(0.48,-3,0,30)
-    secureButton.Position = UDim2.new(0.52,3,0,0)
-    secureButton.Text = "🔒 Secure"
+    local secureModeLabel = Instance.new("TextLabel", secureModeSection)
+    secureModeLabel.Size = UDim2.new(1, -20, 0, 25)
+    secureModeLabel.Position = UDim2.new(0, 10, 0, 5)
+    secureModeLabel.Text = "🔒 Secure Fishing Mode"
+    secureModeLabel.Font = Enum.Font.GothamBold
+    secureModeLabel.TextSize = 14
+    secureModeLabel.TextColor3 = Color3.fromRGB(100,255,150)
+    secureModeLabel.BackgroundTransparency = 1
+    secureModeLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local secureButton = Instance.new("TextButton", secureModeSection)
+    secureButton.Size = UDim2.new(0.48, -5, 0, 35)
+    secureButton.Position = UDim2.new(0, 10, 0, 35)
+    secureButton.Text = "🔒 Start Secure"
     secureButton.Font = Enum.Font.GothamSemibold
     secureButton.TextSize = 12
     secureButton.BackgroundColor3 = Color3.fromRGB(74,155,88)
     secureButton.TextColor3 = Color3.fromRGB(255,255,255)
     local secureCorner = Instance.new("UICorner", secureButton)
     secureCorner.CornerRadius = UDim.new(0,6)
-    
-    local modeStatus = Instance.new("TextLabel", modeButtons)
-    modeStatus.Size = UDim2.new(1,-6,0,25)
-    modeStatus.Position = UDim2.new(0,3,0,35)
-    modeStatus.Text = "✅ Smart Fast & Secure Mode Available"
+
+    local secureStopButton = Instance.new("TextButton", secureModeSection)
+    secureStopButton.Size = UDim2.new(0.48, -5, 0, 35)
+    secureStopButton.Position = UDim2.new(0.52, 5, 0, 35)
+    secureStopButton.Text = "🛑 Stop Secure"
+    secureStopButton.Font = Enum.Font.GothamSemibold
+    secureStopButton.TextSize = 12
+    secureStopButton.BackgroundColor3 = Color3.fromRGB(190,60,60)
+    secureStopButton.TextColor3 = Color3.fromRGB(255,255,255)
+    local secureStopCorner = Instance.new("UICorner", secureStopButton)
+    secureStopCorner.CornerRadius = UDim.new(0,6)
+
+    local modeStatus = Instance.new("TextLabel", secureModeSection)
+    modeStatus.Size = UDim2.new(1, -20, 0, 25)
+    modeStatus.Position = UDim2.new(0, 10, 0, 80)
+    modeStatus.Text = "🔒 Secure Mode Ready - Safe & Reliable Fishing"
     modeStatus.Font = Enum.Font.GothamSemibold
-    modeStatus.TextSize = 11
+    modeStatus.TextSize = 12
     modeStatus.TextColor3 = Color3.fromRGB(100,255,150)
     modeStatus.BackgroundTransparency = 1
     modeStatus.TextXAlignment = Enum.TextXAlignment.Center
 
-    -- right: numeric controls
-    local delayLabel = Instance.new("TextLabel", rightCol)
-    delayLabel.Size = UDim2.new(1,0,0,18)
-    delayLabel.Text = string.format("⏱️ Recast Delay: %.2fs", Config.autoRecastDelay)
-    delayLabel.BackgroundTransparency = 1
-    delayLabel.Font = Enum.Font.GothamSemibold
-    delayLabel.TextColor3 = Color3.fromRGB(180,180,200)
-    delayLabel.TextSize = 14
-    delayLabel.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local delayControls = Instance.new("Frame", rightCol)
-    delayControls.Size = UDim2.new(1,0,0,32)
-    delayControls.Position = UDim2.new(0,0,0,24)
-    delayControls.BackgroundColor3 = Color3.fromRGB(40,40,46)
-    delayControls.BorderSizePixel = 0
-    Instance.new("UICorner", delayControls)
-    
-    local delayMinus = Instance.new("TextButton", delayControls)
-    delayMinus.Size = UDim2.new(0,35,1,-4)
-    delayMinus.Position = UDim2.new(0,2,0,2)
-    delayMinus.Text = "−"
-    delayMinus.Font = Enum.Font.GothamSemibold
-    delayMinus.BackgroundColor3 = Color3.fromRGB(220,60,60)
-    delayMinus.TextColor3 = Color3.fromRGB(255,255,255)
-    delayMinus.TextSize = 16
-    Instance.new("UICorner", delayMinus)
-    
-    local delayDisplay = Instance.new("TextLabel", delayControls)
-    delayDisplay.Size = UDim2.new(1,-74,1,-4)
-    delayDisplay.Position = UDim2.new(0,37,0,2)
-    delayDisplay.Text = string.format("%.2fs", Config.autoRecastDelay)
-    delayDisplay.Font = Enum.Font.GothamSemibold
-    delayDisplay.TextSize = 12
-    delayDisplay.BackgroundColor3 = Color3.fromRGB(50,50,56)
-    delayDisplay.TextColor3 = Color3.fromRGB(255,255,255)
-    delayDisplay.TextXAlignment = Enum.TextXAlignment.Center
-    Instance.new("UICorner", delayDisplay)
-    
-    local delayPlus = Instance.new("TextButton", delayControls)
-    delayPlus.Size = UDim2.new(0,35,1,-4)
-    delayPlus.Position = UDim2.new(1,-37,0,2)
-    delayPlus.Text = "+"
-    delayPlus.Font = Enum.Font.GothamSemibold
-    delayPlus.BackgroundColor3 = Color3.fromRGB(60,160,60)
-    delayPlus.TextColor3 = Color3.fromRGB(255,255,255)
-    delayPlus.TextSize = 16
-    Instance.new("UICorner", delayPlus)
+    -- Smart AI Mode Selection Section  
+    local aiModeSection = Instance.new("Frame", fishingAIScrollFrame)
+    aiModeSection.Size = UDim2.new(1, -10, 0, 120)
+    aiModeSection.Position = UDim2.new(0, 5, 0, 135)
+    aiModeSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
+    aiModeSection.BorderSizePixel = 0
+    Instance.new("UICorner", aiModeSection)
 
-    local chanceLabel = Instance.new("TextLabel", rightCol)
-    chanceLabel.Size = UDim2.new(1,0,0,18)
-    chanceLabel.Position = UDim2.new(0,0,0,70)
-    chanceLabel.Text = string.format("🎯 Safe Perfect %%: %d", Config.safeModeChance)
-    chanceLabel.BackgroundTransparency = 1
-    chanceLabel.Font = Enum.Font.GothamSemibold
-    chanceLabel.TextColor3 = Color3.fromRGB(180,180,200)
-    chanceLabel.TextSize = 14
-    chanceLabel.TextXAlignment = Enum.TextXAlignment.Left
+    local aiModeLabel = Instance.new("TextLabel", aiModeSection)
+    aiModeLabel.Size = UDim2.new(1, -20, 0, 25)
+    aiModeLabel.Position = UDim2.new(0, 10, 0, 5)
+    aiModeLabel.Text = "🧠 Smart AI Fishing Modes"
+    aiModeLabel.Font = Enum.Font.GothamBold
+    aiModeLabel.TextSize = 14
+    aiModeLabel.TextColor3 = Color3.fromRGB(255,140,0)
+    aiModeLabel.BackgroundTransparency = 1
+    aiModeLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local smartButtonAI = Instance.new("TextButton", aiModeSection)
+    smartButtonAI.Size = UDim2.new(0.48, -5, 0, 35)
+    smartButtonAI.Position = UDim2.new(0, 10, 0, 35)
+    smartButtonAI.Text = "🧠 Start Smart AI"
+    smartButtonAI.Font = Enum.Font.GothamSemibold
+    smartButtonAI.TextSize = 12
+    smartButtonAI.BackgroundColor3 = Color3.fromRGB(255,140,0)
+    smartButtonAI.TextColor3 = Color3.fromRGB(255,255,255)
+    local smartCornerAI = Instance.new("UICorner", smartButtonAI)
+    smartCornerAI.CornerRadius = UDim.new(0,6)
+
+    local stopButtonAI = Instance.new("TextButton", aiModeSection)
+    stopButtonAI.Size = UDim2.new(0.48, -5, 0, 35)
+    stopButtonAI.Position = UDim2.new(0.52, 5, 0, 35)
+    stopButtonAI.Text = "🛑 Stop Smart AI"
+    stopButtonAI.Font = Enum.Font.GothamSemibold
+    stopButtonAI.TextSize = 12
+    stopButtonAI.BackgroundColor3 = Color3.fromRGB(190,60,60)
+    stopButtonAI.TextColor3 = Color3.fromRGB(255,255,255)
+    local stopCornerAI = Instance.new("UICorner", stopButtonAI)
+    stopCornerAI.CornerRadius = UDim.new(0,6)
+
+    local aiStatusLabel = Instance.new("TextLabel", aiModeSection)
+    aiStatusLabel.Size = UDim2.new(1, -20, 0, 25)
+    aiStatusLabel.Position = UDim2.new(0, 10, 0, 80)
+    aiStatusLabel.Text = "⏸️ Smart AI Ready (Click Start to begin)"
+    aiStatusLabel.Font = Enum.Font.GothamSemibold
+    aiStatusLabel.TextSize = 12
+    aiStatusLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    aiStatusLabel.BackgroundTransparency = 1
+    aiStatusLabel.TextXAlignment = Enum.TextXAlignment.Center
     
-    local chanceControls = Instance.new("Frame", rightCol)
-    chanceControls.Size = UDim2.new(1,0,0,32)
-    chanceControls.Position = UDim2.new(0,0,0,94)
-    chanceControls.BackgroundColor3 = Color3.fromRGB(40,40,46)
-    chanceControls.BorderSizePixel = 0
-    Instance.new("UICorner", chanceControls)
-    
-    local chanceMinus = Instance.new("TextButton", chanceControls)
-    chanceMinus.Size = UDim2.new(0,35,1,-4)
-    chanceMinus.Position = UDim2.new(0,2,0,2)
-    chanceMinus.Text = "−"
-    chanceMinus.Font = Enum.Font.GothamSemibold
-    chanceMinus.BackgroundColor3 = Color3.fromRGB(220,60,60)
-    chanceMinus.TextColor3 = Color3.fromRGB(255,255,255)
-    chanceMinus.TextSize = 16
-    Instance.new("UICorner", chanceMinus)
-    
-    local chanceDisplay = Instance.new("TextLabel", chanceControls)
-    chanceDisplay.Size = UDim2.new(1,-74,1,-4)
-    chanceDisplay.Position = UDim2.new(0,37,0,2)
-    chanceDisplay.Text = string.format("%d%%", Config.safeModeChance)
-    chanceDisplay.Font = Enum.Font.GothamSemibold
-    chanceDisplay.TextSize = 12
-    chanceDisplay.BackgroundColor3 = Color3.fromRGB(50,50,56)
-    chanceDisplay.TextColor3 = Color3.fromRGB(255,255,255)
-    chanceDisplay.TextXAlignment = Enum.TextXAlignment.Center
-    Instance.new("UICorner", chanceDisplay)
-    
-    local chancePlus = Instance.new("TextButton", chanceControls)
-    chancePlus.Size = UDim2.new(0,35,1,-4)
-    chancePlus.Position = UDim2.new(1,-37,0,2)
-    chancePlus.Text = "+"
-    chancePlus.Font = Enum.Font.GothamSemibold
-    chancePlus.BackgroundColor3 = Color3.fromRGB(60,160,60)
-    chancePlus.TextColor3 = Color3.fromRGB(255,255,255)
-    chancePlus.TextSize = 16
-    Instance.new("UICorner", chancePlus)
+    -- New: Auto Mode Section
+    local autoModeSection = Instance.new("Frame", fishingAIScrollFrame)
+    autoModeSection.Size = UDim2.new(1, -10, 0, 120)
+    autoModeSection.Position = UDim2.new(0, 5, 0, 265) -- Positioned after Smart AI
+    autoModeSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
+    autoModeSection.BorderSizePixel = 0
+    Instance.new("UICorner", autoModeSection)
+
+    local autoModeTitle = Instance.new("TextLabel", autoModeSection)
+    autoModeTitle.Size = UDim2.new(1, -20, 0, 25)
+    autoModeTitle.Position = UDim2.new(0, 10, 0, 5)
+    autoModeTitle.Text = "🔥 Auto Mode (Loop Finish)"
+    autoModeTitle.Font = Enum.Font.GothamBold
+    autoModeTitle.TextSize = 14
+    autoModeTitle.TextColor3 = Color3.fromRGB(255, 80, 80)
+    autoModeTitle.BackgroundTransparency = 1
+    autoModeTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local autoModeStartButton = Instance.new("TextButton", autoModeSection)
+    autoModeStartButton.Size = UDim2.new(0.48, -5, 0, 35)
+    autoModeStartButton.Position = UDim2.new(0, 10, 0, 35)
+    autoModeStartButton.Text = "🔥 Start Auto"
+    autoModeStartButton.Font = Enum.Font.GothamSemibold
+    autoModeStartButton.TextSize = 12
+    autoModeStartButton.BackgroundColor3 = Color3.fromRGB(220, 70, 70)
+    autoModeStartButton.TextColor3 = Color3.fromRGB(255,255,255)
+    local autoModeStartCorner = Instance.new("UICorner", autoModeStartButton)
+    autoModeStartCorner.CornerRadius = UDim.new(0,6)
+
+    local autoModeStopButton = Instance.new("TextButton", autoModeSection)
+    autoModeStopButton.Size = UDim2.new(0.48, -5, 0, 35)
+    autoModeStopButton.Position = UDim2.new(0.52, 5, 0, 35)
+    autoModeStopButton.Text = "🛑 Stop Auto"
+    autoModeStopButton.Font = Enum.Font.GothamSemibold
+    autoModeStopButton.TextSize = 12
+    autoModeStopButton.BackgroundColor3 = Color3.fromRGB(190,60,60)
+    autoModeStopButton.TextColor3 = Color3.fromRGB(255,255,255)
+    local autoModeStopCorner = Instance.new("UICorner", autoModeStopButton)
+    autoModeStopCorner.CornerRadius = UDim.new(0,6)
+
+    local autoModeStatus = Instance.new("TextLabel", autoModeSection)
+    autoModeStatus.Size = UDim2.new(1, -20, 0, 25)
+    autoModeStatus.Position = UDim2.new(0, 10, 0, 80)
+    autoModeStatus.Text = "🔥 Auto Mode Ready"
+    autoModeStatus.Font = Enum.Font.GothamSemibold
+    autoModeStatus.TextSize = 12
+    autoModeStatus.TextColor3 = Color3.fromRGB(220, 70, 70)
+    autoModeStatus.BackgroundTransparency = 1
+    autoModeStatus.TextXAlignment = Enum.TextXAlignment.Center
+
+    -- AntiAFK Section in Fishing AI Tab
+    local antiAfkSection = Instance.new("Frame", fishingAIScrollFrame)
+    antiAfkSection.Size = UDim2.new(1, -10, 0, 60)
+    antiAfkSection.Position = UDim2.new(0, 5, 0, 395) -- Adjusted position
+    antiAfkSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
+    antiAfkSection.BorderSizePixel = 0
+    Instance.new("UICorner", antiAfkSection)
+
+    local antiAfkTitle = Instance.new("TextLabel", antiAfkSection)
+    antiAfkTitle.Size = UDim2.new(1, -20, 0, 20)
+    antiAfkTitle.Position = UDim2.new(0, 10, 0, 5)
+    antiAfkTitle.Text = "🛡️ AntiAFK Protection"
+    antiAfkTitle.Font = Enum.Font.GothamBold
+    antiAfkTitle.TextSize = 14
+    antiAfkTitle.TextColor3 = Color3.fromRGB(100,200,255)
+    antiAfkTitle.BackgroundTransparency = 1
+    antiAfkTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local antiAfkLabel = Instance.new("TextLabel", antiAfkSection)
+    antiAfkLabel.Size = UDim2.new(0.65, -10, 0, 25)
+    antiAfkLabel.Position = UDim2.new(0, 15, 0, 30)
+    antiAfkLabel.Text = "🛡️ AntiAFK Protection: Disabled"
+    antiAfkLabel.Font = Enum.Font.GothamSemibold
+    antiAfkLabel.TextSize = 12
+    antiAfkLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    antiAfkLabel.BackgroundTransparency = 1
+    antiAfkLabel.TextXAlignment = Enum.TextXAlignment.Left
+    antiAfkLabel.TextYAlignment = Enum.TextYAlignment.Center
+
+    local antiAfkToggle = Instance.new("TextButton", antiAfkSection)
+    antiAfkToggle.Size = UDim2.new(0, 70, 0, 24)
+    antiAfkToggle.Position = UDim2.new(1, -80, 0, 31)
+    antiAfkToggle.Text = "🔴 OFF"
+    antiAfkToggle.Font = Enum.Font.GothamBold
+    antiAfkToggle.TextSize = 11
+    antiAfkToggle.BackgroundColor3 = Color3.fromRGB(160,60,60)
+    antiAfkToggle.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", antiAfkToggle)
+
+    -- Future Features Section (placeholder for upcoming features)
+    local futureSection = Instance.new("Frame", fishingAIScrollFrame)
+    futureSection.Size = UDim2.new(1, -10, 0, 80)
+    futureSection.Position = UDim2.new(0, 5, 0, 465) -- Adjusted position
+    futureSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
+    futureSection.BorderSizePixel = 0
+    Instance.new("UICorner", futureSection)
+
+    local futureLabel = Instance.new("TextLabel", futureSection)
+    futureLabel.Size = UDim2.new(1, -20, 0, 25)
+    futureLabel.Position = UDim2.new(0, 10, 0, 5)
+    futureLabel.Text = "🚀 Future Features"
+    futureLabel.Font = Enum.Font.GothamBold
+    futureLabel.TextSize = 14
+    futureLabel.TextColor3 = Color3.fromRGB(150,150,255)
+    futureLabel.BackgroundTransparency = 1
+    futureLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local futureInfo = Instance.new("TextLabel", futureSection)
+    futureInfo.Size = UDim2.new(1, -20, 0, 40)
+    futureInfo.Position = UDim2.new(0, 10, 0, 30)
+    futureInfo.Text = "💡 Space reserved for upcoming fishing enhancements,\nauto-sell improvements, and advanced AI features!"
+    futureInfo.Font = Enum.Font.GothamSemibold
+    futureInfo.TextSize = 11
+    futureInfo.TextColor3 = Color3.fromRGB(180,180,180)
+    futureInfo.BackgroundTransparency = 1
+    futureInfo.TextXAlignment = Enum.TextXAlignment.Left
+    futureInfo.TextYAlignment = Enum.TextYAlignment.Top
+
+    -- Set canvas size for fishing AI scroll (current content + space for future)
+    fishingAIScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 580) -- Increased canvas size
 
     -- Teleport Tab Content
     local teleportFrame = Instance.new("Frame", contentContainer)
@@ -2772,111 +2847,6 @@ local function BuildUI()
         applyFeaturesToCharacter()
     end)
 
-    -- Fishing AI Tab Content
-    local fishingAIFrame = Instance.new("Frame", contentContainer)
-    fishingAIFrame.Size = UDim2.new(1, 0, 1, -10)
-    fishingAIFrame.Position = UDim2.new(0, 0, 0, 0)
-    fishingAIFrame.BackgroundTransparency = 1
-    fishingAIFrame.Visible = false
-
-    local fishingAITitle = Instance.new("TextLabel", fishingAIFrame)
-    fishingAITitle.Size = UDim2.new(1, 0, 0, 24)
-    fishingAITitle.Text = "Smart AI Fishing Configuration"
-    fishingAITitle.Font = Enum.Font.GothamBold
-    fishingAITitle.TextSize = 16
-    fishingAITitle.TextColor3 = Color3.fromRGB(235,235,235)
-    fishingAITitle.BackgroundTransparency = 1
-    fishingAITitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    -- Smart AI Mode Selection Section
-    local aiModeSection = Instance.new("Frame", fishingAIFrame)
-    aiModeSection.Size = UDim2.new(1, 0, 0, 120)
-    aiModeSection.Position = UDim2.new(0, 0, 0, 35)
-    aiModeSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
-    aiModeSection.BorderSizePixel = 0
-    Instance.new("UICorner", aiModeSection)
-
-    local aiModeLabel = Instance.new("TextLabel", aiModeSection)
-    aiModeLabel.Size = UDim2.new(1, -20, 0, 25)
-    aiModeLabel.Position = UDim2.new(0, 10, 0, 5)
-    aiModeLabel.Text = "🧠 Smart AI Fishing Modes"
-    aiModeLabel.Font = Enum.Font.GothamBold
-    aiModeLabel.TextSize = 14
-    aiModeLabel.TextColor3 = Color3.fromRGB(255,140,0)
-    aiModeLabel.BackgroundTransparency = 1
-    aiModeLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-    local smartButtonAI = Instance.new("TextButton", aiModeSection)
-    smartButtonAI.Size = UDim2.new(0.48, -5, 0, 35)
-    smartButtonAI.Position = UDim2.new(0, 10, 0, 35)
-    smartButtonAI.Text = "🧠 Start Smart AI"
-    smartButtonAI.Font = Enum.Font.GothamSemibold
-    smartButtonAI.TextSize = 12
-    smartButtonAI.BackgroundColor3 = Color3.fromRGB(255,140,0)
-    smartButtonAI.TextColor3 = Color3.fromRGB(255,255,255)
-    local smartCornerAI = Instance.new("UICorner", smartButtonAI)
-    smartCornerAI.CornerRadius = UDim.new(0,6)
-
-    local stopButtonAI = Instance.new("TextButton", aiModeSection)
-    stopButtonAI.Size = UDim2.new(0.48, -5, 0, 35)
-    stopButtonAI.Position = UDim2.new(0.52, 5, 0, 35)
-    stopButtonAI.Text = "🛑 Stop Smart AI"
-    stopButtonAI.Font = Enum.Font.GothamSemibold
-    stopButtonAI.TextSize = 12
-    stopButtonAI.BackgroundColor3 = Color3.fromRGB(190,60,60)
-    stopButtonAI.TextColor3 = Color3.fromRGB(255,255,255)
-    local stopCornerAI = Instance.new("UICorner", stopButtonAI)
-    stopCornerAI.CornerRadius = UDim.new(0,6)
-
-    local aiStatusLabel = Instance.new("TextLabel", aiModeSection)
-    aiStatusLabel.Size = UDim2.new(1, -20, 0, 25)
-    aiStatusLabel.Position = UDim2.new(0, 10, 0, 80)
-    aiStatusLabel.Text = "⏸️ Smart AI Ready (Click Start to begin)"
-    aiStatusLabel.Font = Enum.Font.GothamSemibold
-    aiStatusLabel.TextSize = 12
-    aiStatusLabel.TextColor3 = Color3.fromRGB(200,200,200)
-    aiStatusLabel.BackgroundTransparency = 1
-    aiStatusLabel.TextXAlignment = Enum.TextXAlignment.Center
-
-    -- AntiAFK Section in Fishing AI Tab
-    local antiAfkSection = Instance.new("Frame", fishingAIFrame)
-    antiAfkSection.Size = UDim2.new(1, 0, 0, 60)
-    antiAfkSection.Position = UDim2.new(0, 0, 0, 165)
-    antiAfkSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
-    antiAfkSection.BorderSizePixel = 0
-    Instance.new("UICorner", antiAfkSection)
-
-    local antiAfkTitle = Instance.new("TextLabel", antiAfkSection)
-    antiAfkTitle.Size = UDim2.new(1, -20, 0, 20)
-    antiAfkTitle.Position = UDim2.new(0, 10, 0, 5)
-    antiAfkTitle.Text = "🛡️ AntiAFK Protection"
-    antiAfkTitle.Font = Enum.Font.GothamBold
-    antiAfkTitle.TextSize = 14
-    antiAfkTitle.TextColor3 = Color3.fromRGB(100,200,255)
-    antiAfkTitle.BackgroundTransparency = 1
-    antiAfkTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    local antiAfkLabel = Instance.new("TextLabel", antiAfkSection)
-    antiAfkLabel.Size = UDim2.new(0.65, -10, 0, 25)
-    antiAfkLabel.Position = UDim2.new(0, 15, 0, 30)
-    antiAfkLabel.Text = "🛡️ AntiAFK Protection: Disabled"
-    antiAfkLabel.Font = Enum.Font.GothamSemibold
-    antiAfkLabel.TextSize = 12
-    antiAfkLabel.TextColor3 = Color3.fromRGB(200,200,200)
-    antiAfkLabel.BackgroundTransparency = 1
-    antiAfkLabel.TextXAlignment = Enum.TextXAlignment.Left
-    antiAfkLabel.TextYAlignment = Enum.TextYAlignment.Center
-
-    local antiAfkToggle = Instance.new("TextButton", antiAfkSection)
-    antiAfkToggle.Size = UDim2.new(0, 70, 0, 24)
-    antiAfkToggle.Position = UDim2.new(1, -80, 0, 31)
-    antiAfkToggle.Text = "🔴 OFF"
-    antiAfkToggle.Font = Enum.Font.GothamBold
-    antiAfkToggle.TextSize = 11
-    antiAfkToggle.BackgroundColor3 = Color3.fromRGB(160,60,60)
-    antiAfkToggle.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", antiAfkToggle)
-
     -- Dashboard Tab Content
     local dashboardFrame = Instance.new("Frame", contentContainer)
     dashboardFrame.Size = UDim2.new(1, 0, 1, -10)
@@ -2991,8 +2961,8 @@ local function BuildUI()
 
     -- Rarity bars (Updated for real fish data)
     local rarityTypes = {
-        {name = "MYTHIC", color = Color3.fromRGB(255,50,50), icon = "�"},
-        {name = "LEGENDARY", color = Color3.fromRGB(255,100,255), icon = "�"},
+        {name = "MYTHIC", color = Color3.fromRGB(255,50,50), icon = "🔥"},
+        {name = "LEGENDARY", color = Color3.fromRGB(255,100,255), icon = "✨"},
         {name = "EPIC", color = Color3.fromRGB(150,50,200), icon = "💜"},
         {name = "RARE", color = Color3.fromRGB(100,150,255), icon = "⭐"},
         {name = "UNCOMMON", color = Color3.fromRGB(0,255,200), icon = "💎"},
@@ -3129,35 +3099,27 @@ local function BuildUI()
     -- Set canvas size for dashboard scroll
     dashboardScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 720)
 
-    -- Start/Stop buttons at bottom of content container (only visible in Main tab)
-    local actions = Instance.new("Frame", contentContainer)
-    actions.Size = UDim2.new(1, 0, 0, 38)
-    actions.Position = UDim2.new(0, 0, 1, -80)
-    actions.BackgroundTransparency = 1
-    local startBtn = Instance.new("TextButton", actions)
-    startBtn.Size = UDim2.new(0.5, -6, 1, 0)
-    startBtn.Position = UDim2.new(0, 0, 0, 0)
-    startBtn.Text = "Start"
-    startBtn.BackgroundColor3 = Color3.fromRGB(70,170,90)
-    startBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    startBtn.Font = Enum.Font.GothamSemibold
-    startBtn.TextSize = 14
-    local startCorner = Instance.new("UICorner", startBtn); startCorner.CornerRadius = UDim.new(0,8)
-    local stopBtn = Instance.new("TextButton", actions)
-    stopBtn.Size = UDim2.new(0.5, -6, 1, 0)
-    stopBtn.Position = UDim2.new(0.5, 6, 0, 0)
-    stopBtn.Text = "Stop"
-    stopBtn.BackgroundColor3 = Color3.fromRGB(190,60,60)
-    stopBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    stopBtn.Font = Enum.Font.GothamSemibold
-    stopBtn.TextSize = 14
-    local stopCorner = Instance.new("UICorner", stopBtn); stopCorner.CornerRadius = UDim.new(0,8)
-
     -- floating toggle
     -- Floating toggle: keep margin so it doesn't overlap header on small screens
-    local floatBtn = Instance.new("TextButton", screenGui); floatBtn.Name = "FloatToggle"; floatBtn.Size = UDim2.new(0,44,0,44); floatBtn.Position = UDim2.new(0,12,0,12); floatBtn.Text = "≡"; Instance.new("UICorner", floatBtn)
-    floatBtn.BackgroundColor3 = Color3.fromRGB(40,40,46); floatBtn.Font = Enum.Font.GothamBold; floatBtn.TextSize = 20; floatBtn.TextColor3 = Color3.fromRGB(235,235,235)
-    floatBtn.MouseButton1Click:Connect(function() panel.Visible = not panel.Visible end)
+    local floatBtn = Instance.new("TextButton", screenGui); floatBtn.Name = "FloatToggle"; floatBtn.Size = UDim2.new(0,50,0,50); floatBtn.Position = UDim2.new(0,15,0,15); floatBtn.Text = "🎣"; Instance.new("UICorner", floatBtn)
+    floatBtn.BackgroundColor3 = Color3.fromRGB(45,45,52); floatBtn.Font = Enum.Font.GothamBold; floatBtn.TextSize = 20; floatBtn.TextColor3 = Color3.fromRGB(100,200,255)
+    floatBtn.Visible = false  -- Initially hidden
+    
+    -- Hover effects for floating button
+    floatBtn.MouseEnter:Connect(function()
+        floatBtn.BackgroundColor3 = Color3.fromRGB(60,120,180)
+        floatBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    end)
+    floatBtn.MouseLeave:Connect(function()
+        floatBtn.BackgroundColor3 = Color3.fromRGB(45,45,52)
+        floatBtn.TextColor3 = Color3.fromRGB(100,200,255)
+    end)
+    
+    floatBtn.MouseButton1Click:Connect(function() 
+        panel.Visible = true  -- Show main panel
+        floatBtn.Visible = false  -- Hide floating button
+        Notify("modern_autofish", "Restored from floating mode")
+    end)
 
     -- Teleport functions
     local function TeleportTo(position)
@@ -3237,55 +3199,46 @@ local function BuildUI()
     end)
 
     -- Robust tab switching: collect tabs and provide SwitchTo
-    local Tabs = { Main = content, Teleport = teleportFrame, Player = playerFrame, Feature = featureFrame, FishingAI = fishingAIFrame, Dashboard = dashboardFrame }
+    local Tabs = { FishingAI = fishingAIFrame, Teleport = teleportFrame, Player = playerFrame, Feature = featureFrame, Dashboard = dashboardFrame }
     local function SwitchTo(name)
         for k, v in pairs(Tabs) do
             v.Visible = (k == name)
         end
         
-        -- Show/hide action buttons based on tab
-        actions.Visible = (name == "Main")
-        
         -- Update tab colors and content title
-        if name == "Main" then
-            mainTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
-            mainTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
+        if name == "FishingAI" then
+            fishingAITabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
+            fishingAITabBtn.TextColor3 = Color3.fromRGB(235,235,235)
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             playerTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            fishingAITabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            fishingAITabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            contentTitle.Text = "AutoFish Controls"
+            contentTitle.Text = "Smart AI Fishing Configuration"
         elseif name == "Teleport" then
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             teleportTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
-            mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            fishingAITabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            fishingAITabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             playerTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            fishingAITabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            fishingAITabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Island Locations"
         elseif name == "Player" then
             playerTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             playerTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
-            mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            fishingAITabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            fishingAITabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            fishingAITabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            fishingAITabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Player Teleport"
@@ -3293,94 +3246,72 @@ local function BuildUI()
         elseif name == "Feature" then
             featureTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             featureTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
-            mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            fishingAITabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            fishingAITabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             playerTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            fishingAITabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            fishingAITabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Character Features"
-        elseif name == "FishingAI" then
-            fishingAITabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
-            fishingAITabBtn.TextColor3 = Color3.fromRGB(235,235,235)
-            mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            playerTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            contentTitle.Text = "Smart AI Configuration"
         else -- Dashboard
             dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             dashboardTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
-            mainTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            mainTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            fishingAITabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            fishingAITabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             playerTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            fishingAITabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            fishingAITabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Fishing Analytics"
         end
     end
 
-    mainTabBtn.MouseButton1Click:Connect(function() SwitchTo("Main") end)
+    fishingAITabBtn.MouseButton1Click:Connect(function() SwitchTo("FishingAI") end)
     teleportTabBtn.MouseButton1Click:Connect(function() SwitchTo("Teleport") end)
     playerTabBtn.MouseButton1Click:Connect(function() SwitchTo("Player") end)
     featureTabBtn.MouseButton1Click:Connect(function() SwitchTo("Feature") end)
-    fishingAITabBtn.MouseButton1Click:Connect(function() SwitchTo("FishingAI") end)
     dashboardTabBtn.MouseButton1Click:Connect(function() SwitchTo("Dashboard") end)
 
-    -- Start with Main visible
-    SwitchTo("Main")
+    -- Start with FishingAI visible (replaces Main)
+    SwitchTo("FishingAI")
 
-    -- callbacks
-    fastButton.MouseButton1Click:Connect(function() 
-        Config.mode = "fast"
-        modeStatus.Text = "⚡ Current: Enhanced Fast Mode"
-        modeStatus.TextColor3 = Color3.fromRGB(100,150,255)
-        Notify("modern_autofish", "⚡ Enhanced Fast Mode - Smart & Quick fishing with safety features!") 
-    end)
+    -- Secure mode button callback
     secureButton.MouseButton1Click:Connect(function() 
         Config.mode = "secure"
-        modeStatus.Text = "🔒 Current: Secure Mode"
+        modeStatus.Text = "🔒 Current: Secure Mode Active"
         modeStatus.TextColor3 = Color3.fromRGB(100,255,150)
-        Notify("modern_autofish", "🔒 Mode set to SECURE - Safe fishing") 
+        Notify("modern_autofish", "🔒 Secure Mode activated - Safe & reliable fishing!") 
     end)
 
-    -- Auto Mode toggle
-    autoModeToggle.MouseButton1Click:Connect(function()
-        Config.autoModeEnabled = not Config.autoModeEnabled
-        
-        if Config.autoModeEnabled then
-            autoModeToggle.Text = "🟢 ON"
-            autoModeToggle.BackgroundColor3 = Color3.fromRGB(70,170,90)
-            autoModeLabel.Text = "🔁 Auto Mode: Enabled"
-            autoModeLabel.TextColor3 = Color3.fromRGB(100,255,150)
-            
-            autoModeSessionId = autoModeSessionId + 1
-            task.spawn(function() AutoModeRunner(autoModeSessionId) end)
-            Notify("Auto Mode", "Auto Mode started")
-        else
-            autoModeToggle.Text = "🔴 OFF"
-            autoModeToggle.BackgroundColor3 = Color3.fromRGB(160,60,60)
-            autoModeLabel.Text = "🔁 Auto Mode: Disabled"
-            autoModeLabel.TextColor3 = Color3.fromRGB(200,200,200)
-            
-            autoModeSessionId = autoModeSessionId + 1
-            Notify("Auto Mode", "Auto Mode stopped")
-        end
+    -- Secure stop button callback
+    secureStopButton.MouseButton1Click:Connect(function()
+        Config.enabled = false
+        sessionId = sessionId + 1
+        modeStatus.Text = "🔒 Secure Mode Ready - Safe & Reliable Fishing"
+        modeStatus.TextColor3 = Color3.fromRGB(100,255,150)
+        Notify("modern_autofish", "🛑 Secure Mode stopped")
+    end)
+
+    -- New: Auto Mode button callbacks
+    autoModeStartButton.MouseButton1Click:Connect(function()
+        if Config.autoModeEnabled then return end -- Prevent multiple loops
+        Config.autoModeEnabled = true
+        autoModeSessionId = autoModeSessionId + 1
+        autoModeStatus.Text = "🔥 Auto Mode Running..."
+        autoModeStatus.TextColor3 = Color3.fromRGB(100, 255, 150)
+        task.spawn(function() AutoModeRunner(autoModeSessionId) end)
+    end)
+
+    autoModeStopButton.MouseButton1Click:Connect(function()
+        if not Config.autoModeEnabled then return end
+        Config.autoModeEnabled = false
+        autoModeSessionId = autoModeSessionId + 1 -- Invalidate current loop
+        autoModeStatus.Text = "🔥 Auto Mode Ready"
+        autoModeStatus.TextColor3 = Color3.fromRGB(220, 70, 70)
     end)
 
     -- AntiAFK toggle
@@ -3443,16 +3374,16 @@ local function BuildUI()
         Notify("modern_autofish", "🛑 Smart AI stopped and rod unequipped!")
     end)
 
-    local origPanelSize = panel.Size; local minimized = false
+    -- Minimize to floating mode
     minimizeBtn.MouseButton1Click:Connect(function()
-        minimized = not minimized
-        sidebar.Visible = not minimized
-        contentContainer.Visible = not minimized
-        panel.Size = minimized and UDim2.new(0,480,0,50) or origPanelSize
+        panel.Visible = false  -- Hide main panel
+        floatBtn.Visible = true  -- Show floating button
+        Notify("modern_autofish", "Minimized to floating mode")
     end)
 
     closeBtn.MouseButton1Click:Connect(function()
         Config.enabled = false; sessionId = sessionId + 1
+        Config.autoModeEnabled = false; autoModeSessionId = autoModeSessionId + 1
         AntiAFK.enabled = false; AntiAFK.sessionId = AntiAFK.sessionId + 1
         -- Send fishing stopped signal to server when closing
         if fishingStoppedRemote then
@@ -3464,44 +3395,34 @@ local function BuildUI()
         if screenGui and screenGui.Parent then screenGui:Destroy() end
     end)
 
-    startBtn.MouseButton1Click:Connect(function()
-        if Config.enabled then Notify("modern_autofish", "Already running") return end
-        Config.enabled = true; sessionId = sessionId + 1; task.spawn(function() AutofishRunner(sessionId) end)
+    -- Secure mode button callbacks
+    secureButton.MouseButton1Click:Connect(function() 
+        Config.mode = "secure"
+        Config.enabled = true
+        sessionId = sessionId + 1
+        modeStatus.Text = "🔒 Secure Mode Running..."
+        modeStatus.TextColor3 = Color3.fromRGB(100,255,150)
+        task.spawn(function() AutofishRunner(sessionId) end)
+        Notify("modern_autofish", "🔒 Secure Mode started - Safe & reliable fishing!") 
     end)
-    stopBtn.MouseButton1Click:Connect(function() 
-        Config.enabled = false; sessionId = sessionId + 1 
+
+    secureStopButton.MouseButton1Click:Connect(function()
+        Config.enabled = false
+        sessionId = sessionId + 1
         -- Send fishing stopped signal to server
         if fishingStoppedRemote then
             pcall(function() fishingStoppedRemote:FireServer() end)
         end
         -- Auto unequip rod when stopping
         AutoUnequipRod()
-        Notify("modern_autofish", "Fishing stopped and rod unequipped")
+        modeStatus.Text = "🔒 Secure Mode Ready - Safe & Reliable Fishing"
+        modeStatus.TextColor3 = Color3.fromRGB(100,255,150)
+        Notify("modern_autofish", "🛑 Secure Mode stopped and rod unequipped")
     end)
 
-    delayMinus.MouseButton1Click:Connect(function()
-        Config.autoRecastDelay = math.max(0.05, Config.autoRecastDelay - 0.1)
-        delayLabel.Text = string.format("⏱️ Recast Delay: %.2fs", Config.autoRecastDelay)
-        delayDisplay.Text = string.format("%.2fs", Config.autoRecastDelay)
-    end)
-    delayPlus.MouseButton1Click:Connect(function()
-        Config.autoRecastDelay = Config.autoRecastDelay + 0.1
-        delayLabel.Text = string.format("⏱️ Recast Delay: %.2fs", Config.autoRecastDelay)
-        delayDisplay.Text = string.format("%.2fs", Config.autoRecastDelay)
-    end)
+    -- Note: Old start/stop and control buttons removed - now using Secure mode buttons in Fishing AI tab
 
-    chanceMinus.MouseButton1Click:Connect(function()
-        Config.safeModeChance = math.max(0, Config.safeModeChance - 5)
-        chanceLabel.Text = string.format("🎯 Safe Perfect %%: %d", Config.safeModeChance)
-        chanceDisplay.Text = string.format("%d%%", Config.safeModeChance)
-    end)
-    chancePlus.MouseButton1Click:Connect(function()
-        Config.safeModeChance = math.min(100, Config.safeModeChance + 5)
-        chanceLabel.Text = string.format("🎯 Safe Perfect %%: %d", Config.safeModeChance)
-        chanceDisplay.Text = string.format("%d%%", Config.safeModeChance)
-    end)
-
-    Notify("modern_autofish", "UI ready - Select mode and press Start")
+    Notify("modern_autofish", "UI ready - Secure Mode available in Fishing AI tab")
 
     -- Dashboard Update Functions
     local function UpdateDashboard()
