@@ -1682,11 +1682,21 @@ local function BuildUI()
     contentTitle.BackgroundTransparency = 1
     contentTitle.TextXAlignment = Enum.TextXAlignment.Left
 
+    -- Create scrollable frame for Fishing AI content
+    local fishingAIScrollFrame = Instance.new("ScrollingFrame", fishingAIFrame)
+    fishingAIScrollFrame.Size = UDim2.new(1, 0, 1, -30)
+    fishingAIScrollFrame.Position = UDim2.new(0, 0, 0, 30)
+    fishingAIScrollFrame.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    fishingAIScrollFrame.BorderSizePixel = 0
+    fishingAIScrollFrame.ScrollBarThickness = 6
+    fishingAIScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80,80,80)
+    Instance.new("UICorner", fishingAIScrollFrame)
+
     -- Secure Mode Section (moved from Main tab)
-    local secureModeSection = Instance.new("Frame", fishingAIFrame)
-    secureModeSection.Size = UDim2.new(1, 0, 0, 120)
-    secureModeSection.Position = UDim2.new(0, 0, 0, 35)
-    secureModeSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    local secureModeSection = Instance.new("Frame", fishingAIScrollFrame)
+    secureModeSection.Size = UDim2.new(1, -10, 0, 120)
+    secureModeSection.Position = UDim2.new(0, 5, 0, 5)
+    secureModeSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
     secureModeSection.BorderSizePixel = 0
     Instance.new("UICorner", secureModeSection)
 
@@ -1733,10 +1743,10 @@ local function BuildUI()
     modeStatus.TextXAlignment = Enum.TextXAlignment.Center
 
     -- Smart AI Mode Selection Section  
-    local aiModeSection = Instance.new("Frame", fishingAIFrame)
-    aiModeSection.Size = UDim2.new(1, 0, 0, 120)
-    aiModeSection.Position = UDim2.new(0, 0, 0, 165)
-    aiModeSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    local aiModeSection = Instance.new("Frame", fishingAIScrollFrame)
+    aiModeSection.Size = UDim2.new(1, -10, 0, 120)
+    aiModeSection.Position = UDim2.new(0, 5, 0, 135)
+    aiModeSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
     aiModeSection.BorderSizePixel = 0
     Instance.new("UICorner", aiModeSection)
 
@@ -1783,10 +1793,10 @@ local function BuildUI()
     aiStatusLabel.TextXAlignment = Enum.TextXAlignment.Center
 
     -- AntiAFK Section in Fishing AI Tab
-    local antiAfkSection = Instance.new("Frame", fishingAIFrame)
-    antiAfkSection.Size = UDim2.new(1, 0, 0, 60)
-    antiAfkSection.Position = UDim2.new(0, 0, 0, 295)
-    antiAfkSection.BackgroundColor3 = Color3.fromRGB(35,35,42)
+    local antiAfkSection = Instance.new("Frame", fishingAIScrollFrame)
+    antiAfkSection.Size = UDim2.new(1, -10, 0, 60)
+    antiAfkSection.Position = UDim2.new(0, 5, 0, 265)
+    antiAfkSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
     antiAfkSection.BorderSizePixel = 0
     Instance.new("UICorner", antiAfkSection)
 
@@ -1820,6 +1830,38 @@ local function BuildUI()
     antiAfkToggle.BackgroundColor3 = Color3.fromRGB(160,60,60)
     antiAfkToggle.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", antiAfkToggle)
+
+    -- Future Features Section (placeholder for upcoming features)
+    local futureSection = Instance.new("Frame", fishingAIScrollFrame)
+    futureSection.Size = UDim2.new(1, -10, 0, 80)
+    futureSection.Position = UDim2.new(0, 5, 0, 335)
+    futureSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
+    futureSection.BorderSizePixel = 0
+    Instance.new("UICorner", futureSection)
+
+    local futureLabel = Instance.new("TextLabel", futureSection)
+    futureLabel.Size = UDim2.new(1, -20, 0, 25)
+    futureLabel.Position = UDim2.new(0, 10, 0, 5)
+    futureLabel.Text = "🚀 Future Features"
+    futureLabel.Font = Enum.Font.GothamBold
+    futureLabel.TextSize = 14
+    futureLabel.TextColor3 = Color3.fromRGB(150,150,255)
+    futureLabel.BackgroundTransparency = 1
+    futureLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local futureInfo = Instance.new("TextLabel", futureSection)
+    futureInfo.Size = UDim2.new(1, -20, 0, 40)
+    futureInfo.Position = UDim2.new(0, 10, 0, 30)
+    futureInfo.Text = "💡 Space reserved for upcoming fishing enhancements,\nauto-sell improvements, and advanced AI features!"
+    futureInfo.Font = Enum.Font.GothamSemibold
+    futureInfo.TextSize = 11
+    futureInfo.TextColor3 = Color3.fromRGB(180,180,180)
+    futureInfo.BackgroundTransparency = 1
+    futureInfo.TextXAlignment = Enum.TextXAlignment.Left
+    futureInfo.TextYAlignment = Enum.TextYAlignment.Top
+
+    -- Set canvas size for fishing AI scroll (current content + space for future)
+    fishingAIScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 450)
 
     -- Teleport Tab Content
     local teleportFrame = Instance.new("Frame", contentContainer)
@@ -2983,9 +3025,25 @@ local function BuildUI()
 
     -- floating toggle
     -- Floating toggle: keep margin so it doesn't overlap header on small screens
-    local floatBtn = Instance.new("TextButton", screenGui); floatBtn.Name = "FloatToggle"; floatBtn.Size = UDim2.new(0,44,0,44); floatBtn.Position = UDim2.new(0,12,0,12); floatBtn.Text = "≡"; Instance.new("UICorner", floatBtn)
-    floatBtn.BackgroundColor3 = Color3.fromRGB(40,40,46); floatBtn.Font = Enum.Font.GothamBold; floatBtn.TextSize = 20; floatBtn.TextColor3 = Color3.fromRGB(235,235,235)
-    floatBtn.MouseButton1Click:Connect(function() panel.Visible = not panel.Visible end)
+    local floatBtn = Instance.new("TextButton", screenGui); floatBtn.Name = "FloatToggle"; floatBtn.Size = UDim2.new(0,50,0,50); floatBtn.Position = UDim2.new(0,15,0,15); floatBtn.Text = "🎣"; Instance.new("UICorner", floatBtn)
+    floatBtn.BackgroundColor3 = Color3.fromRGB(45,45,52); floatBtn.Font = Enum.Font.GothamBold; floatBtn.TextSize = 20; floatBtn.TextColor3 = Color3.fromRGB(100,200,255)
+    floatBtn.Visible = false  -- Initially hidden
+    
+    -- Hover effects for floating button
+    floatBtn.MouseEnter:Connect(function()
+        floatBtn.BackgroundColor3 = Color3.fromRGB(60,120,180)
+        floatBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    end)
+    floatBtn.MouseLeave:Connect(function()
+        floatBtn.BackgroundColor3 = Color3.fromRGB(45,45,52)
+        floatBtn.TextColor3 = Color3.fromRGB(100,200,255)
+    end)
+    
+    floatBtn.MouseButton1Click:Connect(function() 
+        panel.Visible = true  -- Show main panel
+        floatBtn.Visible = false  -- Hide floating button
+        Notify("modern_autofish", "Restored from floating mode")
+    end)
 
     -- Teleport functions
     local function TeleportTo(position)
@@ -3222,12 +3280,11 @@ local function BuildUI()
         Notify("modern_autofish", "🛑 Smart AI stopped and rod unequipped!")
     end)
 
-    local origPanelSize = panel.Size; local minimized = false
+    -- Minimize to floating mode
     minimizeBtn.MouseButton1Click:Connect(function()
-        minimized = not minimized
-        sidebar.Visible = not minimized
-        contentContainer.Visible = not minimized
-        panel.Size = minimized and UDim2.new(0,480,0,50) or origPanelSize
+        panel.Visible = false  -- Hide main panel
+        floatBtn.Visible = true  -- Show floating button
+        Notify("modern_autofish", "Minimized to floating mode")
     end)
 
     closeBtn.MouseButton1Click:Connect(function()
