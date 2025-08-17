@@ -1450,11 +1450,11 @@ local function BuildUI()
     title.TextColor3 = Color3.fromRGB(235,235,235)
     title.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Button container with responsive padding
+    -- Button container with responsive padding (expanded for reload button)
     local btnContainer = Instance.new("Frame", header)
-    btnContainer.Size = UDim2.new(0, 80, 1, 0)
+    btnContainer.Size = UDim2.new(0, 120, 1, 0)  -- Increased width for 3 buttons
     -- place container near right edge but keep a small margin so it's not flush
-    btnContainer.Position = UDim2.new(1, -85, 0, 0)
+    btnContainer.Position = UDim2.new(1, -125, 0, 0)  -- Adjusted position
     btnContainer.BackgroundTransparency = 1
 
     -- Minimize: keep a small left padding inside container so it isn't flush
@@ -1466,6 +1466,81 @@ local function BuildUI()
     minimizeBtn.TextSize = 16
     minimizeBtn.BackgroundColor3 = Color3.fromRGB(60,60,66); minimizeBtn.TextColor3 = Color3.fromRGB(230,230,230)
     Instance.new("UICorner", minimizeBtn)
+
+    -- Reload/Rejoin Button: positioned between minimize and close
+    local reloadBtn = Instance.new("TextButton", btnContainer)
+    reloadBtn.Size = UDim2.new(0, 32, 0, 26)
+    reloadBtn.Position = UDim2.new(0, 42, 0.5, -13)  -- Middle position
+    reloadBtn.Text = "🔄"
+    reloadBtn.Font = Enum.Font.GothamBold
+    reloadBtn.TextSize = 14
+    reloadBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 200)  -- Blue color
+    reloadBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", reloadBtn)
+    
+    -- Reload button functionality
+    reloadBtn.MouseButton1Click:Connect(function()
+        -- Show confirmation and reload
+        Notify("🔄 Reloading...", "Restarting script in 2 seconds...")
+        task.wait(2)
+        
+        -- Clean shutdown of all systems
+        Config.enabled = false
+        sessionId = sessionId + 1
+        
+        -- Stop Anti-AFK system
+        if AntiAFK then
+            AntiAFK.enabled = false
+            AntiAFK.sessionId = (AntiAFK.sessionId or 0) + 1
+        end
+        
+        -- Stop Enhancement system
+        if Enhancement then
+            Enhancement.enabled = false
+            Enhancement.sessionId = (Enhancement.sessionId or 0) + 1
+        end
+        
+        -- Stop Weather system
+        if Weather then
+            Weather.enabled = false
+            Weather.sessionId = (Weather.sessionId or 0) + 1
+        end
+        
+        -- Send fishing stopped signal to server if exists
+        if fishingStoppedRemote then
+            pcall(function() fishingStoppedRemote:FireServer() end)
+        end
+        
+        -- Auto unequip rod when reloading
+        if AutoUnequipRod then
+            pcall(function() AutoUnequipRod() end)
+        end
+        
+        -- Destroy UI
+        if screenGui and screenGui.Parent then
+            screenGui:Destroy()
+        end
+        
+        -- Small delay before rejoin
+        task.wait(0.5)
+        
+        -- Show final notification
+        Notify("🔄 Rejoining...", "Joining server now...")
+        
+        -- Rejoin server
+        local TeleportService = game:GetService("TeleportService")
+        pcall(function()
+            TeleportService:Teleport(game.PlaceId, LocalPlayer)
+        end)
+    end)
+    
+    -- Hover effect for reload button
+    reloadBtn.MouseEnter:Connect(function()
+        reloadBtn.BackgroundColor3 = Color3.fromRGB(90, 150, 220)
+    end)
+    reloadBtn.MouseLeave:Connect(function()
+        reloadBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 200)
+    end)
 
     -- Close: anchored to right of container with right padding
     local closeBtn = Instance.new("TextButton", btnContainer)
