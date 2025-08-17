@@ -57,6 +57,94 @@ local function getFishingUI()
     return nil
 end
 
+-- Remote Detection and Integration
+local RemoteHandler = {
+    fishingRemotes = {},
+    sellRemotes = {},
+    useRemotes = true,
+    remoteMethod = "hybrid" -- "ui", "remote", "hybrid"
+}
+
+-- Scan for Fish It RemoteEvents
+local function scanForRemotes()
+    print("🔍 Scanning for Fish It RemoteEvents...")
+    
+    -- Check ReplicatedStorage for remotes
+    if ReplicatedStorage then
+        for _, remote in pairs(ReplicatedStorage:GetDescendants()) do
+            if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+                local name = remote.Name:lower()
+                
+                -- Fishing related remotes
+                if name:find("fish") or name:find("cast") or name:find("reel") or name:find("catch") then
+                    table.insert(RemoteHandler.fishingRemotes, remote)
+                    print("🎣 Found fishing remote: " .. remote.Name)
+                end
+                
+                -- Selling related remotes
+                if name:find("sell") or name:find("shop") or name:find("merchant") or name:find("trade") then
+                    table.insert(RemoteHandler.sellRemotes, remote)
+                    print("💰 Found selling remote: " .. remote.Name)
+                end
+            end
+        end
+    end
+    
+    -- Check StarterGui for remotes
+    local starterGui = game:GetService("StarterGui")
+    for _, remote in pairs(starterGui:GetDescendants()) do
+        if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+            local name = remote.Name:lower()
+            if name:find("fish") or name:find("sell") then
+                print("📡 Found GUI remote: " .. remote.Name)
+            end
+        end
+    end
+    
+    print("📊 Remote scan complete:")
+    print("  • Fishing remotes found: " .. #RemoteHandler.fishingRemotes)
+    print("  • Selling remotes found: " .. #RemoteHandler.sellRemotes)
+end
+
+-- Try remote-based fishing action
+local function tryRemoteFishing(action)
+    if not RemoteHandler.useRemotes then return false end
+    
+    for _, remote in pairs(RemoteHandler.fishingRemotes) do
+        pcall(function()
+            if remote:IsA("RemoteEvent") then
+                remote:FireServer(action)
+                print("🎯 Fired remote: " .. remote.Name .. " with action: " .. action)
+            elseif remote:IsA("RemoteFunction") then
+                remote:InvokeServer(action)
+                print("🎯 Invoked remote: " .. remote.Name .. " with action: " .. action)
+            end
+        end)
+    end
+    
+    return #RemoteHandler.fishingRemotes > 0
+end
+
+-- Try remote-based selling
+local function tryRemoteSelling()
+    if not RemoteHandler.useRemotes then return false end
+    
+    for _, remote in pairs(RemoteHandler.sellRemotes) do
+        pcall(function()
+            if remote:IsA("RemoteEvent") then
+                remote:FireServer("sell_all")
+                print("💰 Fired sell remote: " .. remote.Name)
+            elseif remote:IsA("RemoteFunction") then
+                remote:InvokeServer("sell_all")
+                print("💰 Invoked sell remote: " .. remote.Name)
+            end
+        end)
+        task.wait(0.5)
+    end
+    
+    return #RemoteHandler.sellRemotes > 0
+end
+
 -- Check if we're in fishing mode
 local function isFishingActive()
     local fishingUI = getFishingUI()
@@ -127,67 +215,110 @@ local function Notify(title, message, duration)
     print(string.format("[AutoFish Fish It] %s: %s", title, message))
 end
 
--- Perform mouse click
+-- Perform mouse click with remote backup
 local function performClick()
+    -- Method 1: Try remote first if available
+    if RemoteHandler.remoteMethod == "remote" or RemoteHandler.remoteMethod == "hybrid" then
+        if tryRemoteFishing("click") then
+            return true
+        end
+    end
+    
+    -- Method 2: Fallback to VirtualInput
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
     task.wait(0.01)
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    return true
 end
 
--- Charge up fishing rod
+-- Enhanced charge fishing with remote support
 local function chargeFishing()
     if AutoFish.charging then return end
     
     AutoFish.charging = true
     print("🔋 Charging fishing rod...")
     
-    -- Hold down mouse button to charge
+    -- Method 1: Try remote-based charging
+    if RemoteHandler.remoteMethod == "remote" or RemoteHandler.remoteMethod == "hybrid" then
+        if tryRemoteFishing("charge_start") then
+            local chargeTime = AutoFish.mode == "Fast" and 1.5 or AutoFish.mode == "Turbo" and 1 or 2
+            task.wait(chargeTime)
+            tryRemoteFishing("charge_end")
+            AutoFish.charging = false
+            print("⚡ Fishing rod charged via remote!")
+            return
+        end
+    end
+    
+    -- Method 2: Fallback to mouse hold
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 1)
     
-    -- Charge for specified time based on mode
     local chargeTime = AutoFish.mode == "Fast" and 1.5 or AutoFish.mode == "Turbo" and 1 or 2
     task.wait(chargeTime)
     
-    -- Release mouse button
     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 1)
     
     AutoFish.charging = false
-    print("⚡ Fishing rod charged!")
+    print("⚡ Fishing rod charged via input!")
 end
 
--- Fast clicking for Fish It
+-- Enhanced fast clicking with remote support
 local function fastClick()
     if AutoFish.clicking then return end
     
     AutoFish.clicking = true
     print("🖱️ Fast clicking activated!")
     
-    -- Calculate click speed based on mode
-    local clicksPerSecond = AutoFish.mode == "Turbo" and 30 or AutoFish.mode == "Fast" and 25 or 20
-    local clickDelay = 1 / clicksPerSecond
-    
-    -- Click rapidly for up to 10 seconds or until fishing state changes
-    local startTime = tick()
-    while AutoFish.clicking and (tick() - startTime) < 10 do
-        if not needsFastClicking() then
-            break
-        end
+    -- Method 1: Try remote-based rapid clicking
+    if RemoteHandler.remoteMethod == "remote" or RemoteHandler.remoteMethod == "hybrid" then
+        local clicksPerSecond = AutoFish.mode == "Turbo" and 30 or AutoFish.mode == "Fast" and 25 or 20
         
-        performClick()
-        task.wait(clickDelay)
+        local startTime = tick()
+        while AutoFish.clicking and (tick() - startTime) < 10 do
+            if not needsFastClicking() then break end
+            
+            -- Try remote click first
+            if not tryRemoteFishing("rapid_click") then
+                -- Fallback to regular click
+                performClick()
+            end
+            
+            task.wait(1 / clicksPerSecond)
+        end
+    else
+        -- Method 2: Regular fast clicking
+        local clicksPerSecond = AutoFish.mode == "Turbo" and 30 or AutoFish.mode == "Fast" and 25 or 20
+        local clickDelay = 1 / clicksPerSecond
+        
+        local startTime = tick()
+        while AutoFish.clicking and (tick() - startTime) < 10 do
+            if not needsFastClicking() then break end
+            
+            performClick()
+            task.wait(clickDelay)
+        end
     end
     
     AutoFish.clicking = false
     print("✋ Fast clicking stopped")
 end
 
--- Auto-sell fish
+-- Enhanced auto-sell with remote support
 local function autoSellFish()
     if not AutoFish.autoSell then return end
     
     print("💰 Looking for fish merchant...")
     
-    -- Look for sell/shop UI or merchant
+    -- Method 1: Try remote-based selling first
+    if RemoteHandler.remoteMethod == "remote" or RemoteHandler.remoteMethod == "hybrid" then
+        if tryRemoteSelling() then
+            Stats.totalSold = Stats.totalSold + 1
+            print("💰 Fish sold via remote!")
+            return true
+        end
+    end
+    
+    -- Method 2: UI-based selling
     local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
     if playerGui then
         for _, gui in pairs(playerGui:GetChildren()) do
@@ -196,7 +327,7 @@ local function autoSellFish()
                 for _, element in pairs(gui:GetDescendants()) do
                     if element:IsA("TextButton") and element.Text:lower():find("sell") then
                         element:Fire()
-                        print("💰 Fish sold!")
+                        print("💰 Fish sold via UI!")
                         Stats.totalSold = Stats.totalSold + 1
                         return true
                     end
@@ -205,7 +336,7 @@ local function autoSellFish()
         end
     end
     
-    -- Look for merchant NPC in workspace
+    -- Method 3: NPC-based selling
     for _, npc in pairs(workspace:GetDescendants()) do
         if npc.Name:lower():find("merchant") or npc.Name:lower():find("shop") then
             if npc:IsA("Model") and npc:FindFirstChild("HumanoidRootPart") then
@@ -587,9 +718,21 @@ speedLabel.BackgroundTransparency = 1
 speedLabel.TextXAlignment = Enum.TextXAlignment.Left
 speedLabel.Parent = settingsSection
 
+-- Remote method toggle
+local remoteMethodToggle = Instance.new("TextButton")
+remoteMethodToggle.Size = UDim2.new(0, 160, 0, 25)
+remoteMethodToggle.Position = UDim2.new(0, 180, 0, 75)
+remoteMethodToggle.Text = "🔧 Method: Hybrid"
+remoteMethodToggle.Font = Enum.Font.GothamSemibold
+remoteMethodToggle.TextSize = 11
+remoteMethodToggle.BackgroundColor3 = Color3.fromRGB(100, 150, 200)
+remoteMethodToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+remoteMethodToggle.Parent = settingsSection
+Instance.new("UICorner", remoteMethodToggle)
+
 local speedSlider = Instance.new("Frame")
-speedSlider.Size = UDim2.new(0, 200, 0, 6)
-speedSlider.Position = UDim2.new(0, 140, 0, 85)
+speedSlider.Size = UDim2.new(0, 120, 0, 6)
+speedSlider.Position = UDim2.new(0, 10, 0, 95)
 speedSlider.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
 speedSlider.BorderSizePixel = 0
 speedSlider.Parent = settingsSection
@@ -702,6 +845,39 @@ antiAFKToggle.MouseButton1Click:Connect(function()
     antiAFKToggle.BackgroundColor3 = AutoFish.antiAFK and Color3.fromRGB(80, 180, 100) or Color3.fromRGB(120, 120, 120)
 end)
 
+-- Remote method toggle handler
+remoteMethodToggle.MouseButton1Click:Connect(function()
+    local methods = {"UI", "Remote", "Hybrid"}
+    local currentIndex = 1
+    
+    for i, method in ipairs(methods) do
+        if RemoteHandler.remoteMethod:lower() == method:lower() then
+            currentIndex = i
+            break
+        end
+    end
+    
+    currentIndex = currentIndex % #methods + 1
+    RemoteHandler.remoteMethod = methods[currentIndex]:lower()
+    remoteMethodToggle.Text = "🔧 Method: " .. methods[currentIndex]
+    
+    -- Update color based on method
+    local colors = {
+        UI = Color3.fromRGB(150, 100, 200),      -- Purple for UI only
+        Remote = Color3.fromRGB(200, 100, 100),  -- Red for Remote only  
+        Hybrid = Color3.fromRGB(100, 150, 200)   -- Blue for Hybrid
+    }
+    remoteMethodToggle.BackgroundColor3 = colors[methods[currentIndex]]
+    
+    local descriptions = {
+        UI = "Uses only UI interaction and input simulation",
+        Remote = "Uses only RemoteEvent/Function calls",
+        Hybrid = "Tries Remote first, falls back to UI"
+    }
+    
+    Notify("AutoFish", "Method: " .. methods[currentIndex] .. " - " .. descriptions[methods[currentIndex]])
+end)
+
 -- Emergency buttons
 emergencyStopBtn.MouseButton1Click:Connect(function()
     AutoFish.enabled = false
@@ -804,14 +980,31 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     end
 end)
 
--- Initial setup
+-- Initial setup and remote scanning
 print("🐟 AutoFish for Fish It loaded!")
 print("📋 Fish It Features:")
 print("  • Automatic charge and fast click")
 print("  • Optimized for Fish It's mechanics")
 print("  • Three speed modes (Normal/Fast/Turbo)")
+print("  • Remote + UI hybrid support")
 print("  • Auto-sell functionality")
 print("  • Anti-AFK system")
 print("  • Real-time statistics")
 print("🎮 Controls: F1=Start/Stop, F3=Sell Fish, F12=Emergency Stop")
+
+-- Scan for remotes
+task.spawn(function()
+    task.wait(2) -- Wait for game to load
+    scanForRemotes()
+    
+    if #RemoteHandler.fishingRemotes > 0 or #RemoteHandler.sellRemotes > 0 then
+        Notify("AutoFish", "🔧 Found " .. (#RemoteHandler.fishingRemotes + #RemoteHandler.sellRemotes) .. " remotes! Using hybrid mode.")
+    else
+        Notify("AutoFish", "🎮 No remotes found, using UI mode.")
+        RemoteHandler.remoteMethod = "ui"
+        remoteMethodToggle.Text = "🔧 Method: UI"
+        remoteMethodToggle.BackgroundColor3 = Color3.fromRGB(150, 100, 200)
+    end
+end)
+
 Notify("AutoFish", "🐟 AutoFish for Fish It loaded! Ready to fish!")
