@@ -2,7 +2,7 @@
 -- Quick demo script to showcase the Movement Testing UI
 
 -- Load the UI
-loadstring(readfile("movement_testing_ui.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/MELLISAEFFENDY/bikin/refs/heads/main/test/move.lua"))()
 
 print("🎮 Movement Testing UI Demo Started!")
 print("📋 UI Features Overview:")
