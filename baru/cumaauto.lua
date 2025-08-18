@@ -20,7 +20,7 @@ local CancelFishing = Net["RF/CancelFishingInputs"]
 local autoFishing = false
 
 local function randomWait()
-    return math.random(50, 100) / 1000
+    return math.random(100, 400) / 1000
 end
 
 local function notify(msg)
@@ -71,7 +71,7 @@ function toggleFishing(state)
         end)
         if not ok then warn("[ERROR] RequestFishing: "..tostring(err)) end
 
-        task.wait(0.1+ randomWait())
+        task.wait(0.01)
         ok, err = pcall(function()
             print("[DEBUG] FishingComplete")
             FishingComplete:FireServer()
