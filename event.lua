@@ -17,27 +17,6 @@
 
 print("XSAN: Loading Admin Event Detector...")
 
--- Initialize and show startup message
-local function InitializeDetector()
-    Notify("🔧 XSAN Event Detector", 
-        "🚀 Admin Event Detector Loaded!\n\n" ..
-        "📡 Monitoring for:\n" ..
-        "• 🕳️ Black Hole Events\n" ..
-        "• 🦈 Ghost Shark Hunt\n" ..
-        "• 🪱 Worm Hunt Events\n" ..
-        "• 👻 Ghost Worm Events\n" ..
-        "• ☄️ Meteor Rain\n" ..
-        "• 🐙 Kraken Events\n" ..
-        "• And more...\n\n" ..
-        "⚡ Auto-scanning active!",
-        8
-    )
-    print("XSAN: Event detector initialized with enhanced detection for Black Hole, Ghost Shark Hunt, and Worm Hunt")
-end
-
--- Start initialization
-InitializeDetector()
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -57,6 +36,24 @@ local function Notify(title, text, duration)
         })
     end)
     print("XSAN EVENT:", title, "-", text)
+end
+
+-- Initialize and show startup message
+local function InitializeDetector()
+    Notify("🔧 XSAN Event Detector", 
+        "🚀 Admin Event Detector Loaded!\n\n" ..
+        "📡 Monitoring for:\n" ..
+        "• 🕳️ Black Hole Events\n" ..
+        "• 🦈 Ghost Shark Hunt\n" ..
+        "• 🪱 Worm Hunt Events\n" ..
+        "• 👻 Ghost Worm Events\n" ..
+        "• ☄️ Meteor Rain\n" ..
+        "• 🐙 Kraken Events\n" ..
+        "• And more...\n\n" ..
+        "⚡ Auto-scanning active!",
+        8
+    )
+    print("XSAN: Event detector initialized with enhanced detection for Black Hole, Ghost Shark Hunt, and Worm Hunt")
 end
 
 -- Safe Teleport Function
@@ -537,6 +534,9 @@ local function StartAutoScan()
         end
     end)
 end
+
+-- Start initialization after all functions are defined
+InitializeDetector()
 
 -- Export Functions
 return {
