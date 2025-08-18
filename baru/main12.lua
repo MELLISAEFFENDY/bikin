@@ -2,7 +2,7 @@
 -- Cleaned modern UI + Dual-mode AutoFishing (fast & secure)
 -- Added new feature: Auto Mode by Spinner_xxx
 -- v11 Update: Added Smart Auto Sell features
--- v12 Update: Added Auto Sell by total fish count
+-- v12 Update: Added Auto Sell by total fish count & Fixed Inventory Detection
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -1013,56 +1013,49 @@ if updateEnchantStateRemote then
 end
 
 -- NEW: Auto Sell Functions
+-- FIX: Get a reference to the running InventoryController
+local InventoryController
+pcall(function()
+    local controllers = ReplicatedStorage:WaitForChild("Controllers")
+    InventoryController = require(controllers:WaitForChild("InventoryController"))
+end)
+
 local function GetInventoryStatus()
-    -- This is a best-effort attempt to find the inventory.
-    -- It relies on the common 'Trove' system used in many games.
-    local playerTrove = LocalPlayer:FindFirstChild("Trove", true)
-    if playerTrove and playerTrove:IsA("ModuleScript") then
-        local ok, troveData = pcall(function() return require(playerTrove) end)
-        if ok and troveData.get and troveData.getMax then
-            local items = troveData:get()
-            local maxItems = troveData:getMax()
-            if type(items) == "table" and type(maxItems) == "number" then
-                return #items, maxItems
-            end
-        end
+    if not InventoryController or not InventoryController.GetInventory then
+        return nil, nil -- Cannot find controller or function
     end
     
-    -- Fallback if Trove is not found (this part needs game-specific adaptation)
-    local inventory = LocalPlayer:FindFirstChild("Inventory")
-    if inventory then
-        local items = inventory:GetChildren()
-        local maxItems = inventory:FindFirstChild("MaxCapacity") and inventory.MaxCapacity.Value or 100 -- Guess
-        return #items, maxItems
+    local ok, data = pcall(function()
+        return InventoryController:GetInventory()
+    end)
+    
+    if ok and data and data.Items and data.Capacity then
+        return #data.Items, data.Capacity
     end
-
-    return nil, nil -- Cannot determine inventory
+    
+    return nil, nil
 end
 
 local function SellItemsByRarity()
     if AutoSell.isSelling then return end
+    if not InventoryController or not InventoryController.GetInventory then
+        Notify("Auto Sell", "❌ InventoryController not found!")
+        return
+    end
+    
     AutoSell.isSelling = true
     Notify("Auto Sell", "💰 Starting auto sell...")
 
     local itemsToSell = {}
-    local playerTroveModule = LocalPlayer:FindFirstChild("PlayerTrove", true)
+    local ok, inventoryData = pcall(function() return InventoryController:GetInventory() end)
 
-    if not playerTroveModule then
-        Notify("Auto Sell", "❌ Inventory (Trove) not found!")
-        AutoSell.isSelling = false
-        return
-    end
-
-    local trove = require(playerTroveModule)
-    local inventoryItems = trove:Get("Inventory")
-
-    if not inventoryItems then
+    if not ok or not inventoryData or not inventoryData.Items then
         Notify("Auto Sell", "❌ Could not get items from inventory!")
         AutoSell.isSelling = false
         return
     end
 
-    for _, item in pairs(inventoryItems) do
+    for _, item in pairs(inventoryData.Items) do
         if item and item.Name then
             local rarity = GetFishRarity(item.Name)
             if (AutoSell.sellCommon and rarity == "COMMON") or
@@ -1084,8 +1077,8 @@ local function SellItemsByRarity()
     for _, itemToSell in pairs(itemsToSell) do
         if not AutoSell.enabled then break end -- Stop if disabled mid-process
         if sellItemRemote then
-            local ok, res = safeInvoke(sellItemRemote, itemToSell)
-            if ok then
+            local success, _ = safeInvoke(sellItemRemote, itemToSell)
+            if success then
                 soldCount = soldCount + 1
             end
             task.wait(0.1) -- Small delay to prevent spam
@@ -1104,7 +1097,7 @@ local function AutoSellRunner(mySessionId)
 
         -- Check 1: By Inventory Percentage
         local currentItems, maxItems = GetInventoryStatus()
-        if currentItems and maxItems then
+        if currentItems and maxItems and maxItems > 0 then
             local percentage = (currentItems / maxItems) * 100
             if percentage >= AutoSell.sellAtPercent then
                 shouldSell = true
@@ -3648,236 +3641,4 @@ local function BuildUI()
         Config.autoModeEnabled = false; autoModeSessionId = autoModeSessionId + 1
         AntiAFK.enabled = false; AntiAFK.sessionId = AntiAFK.sessionId + 1
         AutoSell.enabled = false; AutoSell.sessionId = AutoSell.sessionId + 1
-        -- Send fishing stopped signal to server when closing
-        if fishingStoppedRemote then
-            pcall(function() fishingStoppedRemote:FireServer() end)
-        end
-        -- Auto unequip rod when closing
-        AutoUnequipRod()
-        Notify("modern_autofish", "ModernAutoFish closed and rod unequipped")
-        if screenGui and screenGui.Parent then screenGui:Destroy() end
-    end)
-
-    -- Secure mode button callbacks
-    secureButton.MouseButton1Click:Connect(function() 
-        Config.mode = "secure"
-        Config.enabled = true
-        sessionId = sessionId + 1
-        modeStatus.Text = "🔒 Secure Mode Running..."
-        modeStatus.TextColor3 = Color3.fromRGB(100,255,150)
-        task.spawn(function() AutofishRunner(sessionId) end)
-        Notify("modern_autofish", "🔒 Secure Mode started - Safe & reliable fishing!") 
-    end)
-
-    secureStopButton.MouseButton1Click:Connect(function()
-        Config.enabled = false
-        sessionId = sessionId + 1
-        -- Send fishing stopped signal to server
-        if fishingStoppedRemote then
-            pcall(function() fishingStoppedRemote:FireServer() end)
-        end
-        -- Auto unequip rod when stopping
-        AutoUnequipRod()
-        modeStatus.Text = "🔒 Secure Mode Ready - Safe & Reliable Fishing"
-        modeStatus.TextColor3 = Color3.fromRGB(100,255,150)
-        Notify("modern_autofish", "🛑 Secure Mode stopped and rod unequipped")
-    end)
-
-    -- Note: Old start/stop and control buttons removed - now using Secure mode buttons in Fishing AI tab
-
-    Notify("modern_autofish", "UI ready - Secure Mode available in Fishing AI tab")
-
-    -- Dashboard Update Functions
-    local function UpdateDashboard()
-        if not dashboardFrame.Visible then return end
-        
-        -- Debug: Print current stats
-        print("[Dashboard] Updating stats - Fish:", Dashboard.sessionStats.fishCount, "Rare:", Dashboard.sessionStats.rareCount)
-        
-        -- Update session stats
-        local currentTime = tick()
-        local sessionDuration = currentTime - Dashboard.sessionStats.startTime
-        local minutes = math.floor(sessionDuration / 60)
-        local seconds = math.floor(sessionDuration % 60)
-        
-        sessionFishCount.Text = "🎣 Total Fish: " .. Dashboard.sessionStats.fishCount
-        sessionRareCount.Text = "✨ Rare Fish: " .. Dashboard.sessionStats.rareCount
-        sessionTime.Text = string.format("⏱️ Session: %dm %ds", minutes, seconds)
-        sessionLocation.Text = "🗺️ Location: " .. Dashboard.sessionStats.currentLocation
-        
-        -- Calculate efficiency
-        local rareRate = Dashboard.sessionStats.fishCount > 0 and 
-                        math.floor((Dashboard.sessionStats.rareCount / Dashboard.sessionStats.fishCount) * 100) or 0
-        local fishPerMin = sessionDuration > 0 and (Dashboard.sessionStats.fishCount / (sessionDuration / 60)) or 0
-        sessionEfficiency.Text = string.format("🎯 Rare Rate: %d%% | ⚡ Fish/Min: %.1f", rareRate, fishPerMin)
-        
-        -- Update rarity bars
-        local rarityCounts = {}
-        for rarityName, fishList in pairs(FishRarity) do
-            rarityCounts[rarityName] = 0
-        end
-        
-        for _, fish in pairs(Dashboard.fishCaught) do
-            rarityCounts[fish.rarity] = (rarityCounts[fish.rarity] or 0) + 1
-        end
-        
-        local maxCount = math.max(1, Dashboard.sessionStats.fishCount)
-        for rarityName, bar in pairs(rarityBars) do
-            local count = rarityCounts[rarityName] or 0
-            local percentage = count / maxCount
-            bar.fill.Size = UDim2.new(percentage, 0, 1, 0)
-            bar.count.Text = tostring(count)
-        end
-        
-        -- Update location efficiency list
-        for _, child in pairs(locationList:GetChildren()) do
-            if child:IsA("Frame") then child:Destroy() end
-        end
-        
-        local yPos = 5
-        for location, stats in pairs(Dashboard.locationStats) do
-            local efficiency = GetLocationEfficiency(location)
-            local locationFrame = Instance.new("Frame", locationList)
-            locationFrame.Size = UDim2.new(1, -10, 0, 25)
-            locationFrame.Position = UDim2.new(0, 5, 0, yPos)
-            locationFrame.BackgroundColor3 = Color3.fromRGB(50,50,60)
-            locationFrame.BorderSizePixel = 0
-            Instance.new("UICorner", locationFrame)
-            
-            local locationLabel = Instance.new("TextLabel", locationFrame)
-            locationLabel.Size = UDim2.new(0.6, -10, 1, 0)
-            locationLabel.Position = UDim2.new(0, 5, 0, 0)
-            locationLabel.Text = "🏝️ " .. location
-            locationLabel.Font = Enum.Font.GothamSemibold
-            locationLabel.TextSize = 10
-            locationLabel.TextColor3 = Color3.fromRGB(255,255,255)
-            locationLabel.BackgroundTransparency = 1
-            locationLabel.TextXAlignment = Enum.TextXAlignment.Left
-            
-            local efficiencyLabel = Instance.new("TextLabel", locationFrame)
-            efficiencyLabel.Size = UDim2.new(0.4, -10, 1, 0)
-            efficiencyLabel.Position = UDim2.new(0.6, 5, 0, 0)
-            efficiencyLabel.Text = string.format("%d%% (%d/%d)", efficiency, stats.rare, stats.total)
-            efficiencyLabel.Font = Enum.Font.GothamBold
-            efficiencyLabel.TextSize = 10
-            local effColor = efficiency > 15 and Color3.fromRGB(100,255,100) or 
-                           efficiency > 5 and Color3.fromRGB(255,255,100) or Color3.fromRGB(255,100,100)
-            efficiencyLabel.TextColor3 = effColor
-            efficiencyLabel.BackgroundTransparency = 1
-            efficiencyLabel.TextXAlignment = Enum.TextXAlignment.Right
-            
-            yPos = yPos + 30
-        end
-        locationList.CanvasSize = UDim2.new(0, 0, 0, yPos)
-        
-        -- Update optimal times
-        local bestHour, bestPercent = GetBestFishingTime()
-        if bestPercent > 0 then
-            bestTimeLabel.Text = string.format("🏆 Best Time: %02d:00 (%d%% rare rate)", bestHour, bestPercent)
-        else
-            bestTimeLabel.Text = "🏆 Best Time: Not enough data"
-        end
-        
-        currentTimeLabel.Text = "🕐 Current Hour: " .. os.date("%H:00")
-        
-        -- Update time bars
-        for hour, bar in pairs(timeBars) do
-            local data = Dashboard.optimalTimes[hour]
-            if data and data.total > 0 then
-                local efficiency = data.rare / data.total
-                local height = math.max(2, efficiency * 50)
-                bar.Size = UDim2.new(0, 8, 0, height)
-                bar.Position = UDim2.new(hour/24, 2, 1, -15 - height + 2)
-                local color = efficiency > 0.2 and Color3.fromRGB(100,255,100) or 
-                             efficiency > 0.1 and Color3.fromRGB(255,255,100) or Color3.fromRGB(255,100,100)
-                bar.BackgroundColor3 = color
-            end
-        end
-    end
-
-    -- Auto-update dashboard every 2 seconds
-    local function DashboardUpdater()
-        while true do
-            if dashboardFrame and dashboardFrame.Visible then
-                pcall(UpdateDashboard)
-            end
-            task.wait(2)
-        end
-    end
-    task.spawn(DashboardUpdater)
-
-    -- Update current location when teleporting
-    for islandName, cframe in pairs(islandLocations) do
-        -- Find existing teleport button and wrap its click function
-        for _, btn in pairs(buttons) do
-            if btn.Text == islandName then
-                local originalClick = btn.MouseButton1Click
-                btn.MouseButton1Click:Connect(function()
-                    Dashboard.sessionStats.currentLocation = islandName:gsub("🏝️", ""):gsub("🦈 ", ""):gsub("🎣 ", ""):gsub("❄️ ", ""):gsub("🌋 ", ""):gsub("🌴 ", ""):gsub("🗿 ", ""):gsub("⚙️ ", "")
-                end)
-                break
-            end
-        end
-    end
-end
-
--- Build UI and ready
-BuildUI()
-
--- Setup real fish event listener
-SetupFishCaughtListener()
-
--- Start location tracker
-task.spawn(LocationTracker)
-
--- Expose quick API on _G for convenience
-_G.ModernAutoFish = {
-    Start = function() if not Config.enabled then Config.enabled = true; sessionId = sessionId + 1; task.spawn(function() AutofishRunner(sessionId) end) end end,
-    Stop = function() Config.enabled = false; sessionId = sessionId + 1 end,
-    SetMode = function(m) if m == "fast" or m == "secure" then Config.mode = m end end,
-    ToggleAntiAFK = function() 
-        AntiAFK.enabled = not AntiAFK.enabled
-        if AntiAFK.enabled then
-            AntiAFK.sessionId = AntiAFK.sessionId + 1
-            task.spawn(function() AntiAfkRunner(AntiAFK.sessionId) end)
-        else
-            AntiAFK.sessionId = AntiAFK.sessionId + 1
-        end
-    end,
-    
-    -- Dashboard API
-    LogFish = LogFishCatch,
-    GetStats = function() return Dashboard end,
-    ClearStats = function() 
-        Dashboard.fishCaught = {}
-        Dashboard.rareFishCaught = {}
-        Dashboard.locationStats = {}
-        Dashboard.heatmap = {}
-        Dashboard.optimalTimes = {}
-        Dashboard.sessionStats.fishCount = 0
-        Dashboard.sessionStats.rareCount = 0
-        Dashboard.sessionStats.startTime = tick()
-    end,
-    SetLocation = function(loc) Dashboard.sessionStats.currentLocation = loc end,
-    
-    Config = Config,
-    AntiAFK = AntiAFK,
-    Dashboard = Dashboard,
-    Enhancement = Enhancement,
-    AutoSell = AutoSell,
-    
-    -- Enhancement API
-    StartEnhancement = function() 
-        Enhancement.enabled = true
-        Enhancement.sessionId = (Enhancement.sessionId or 0) + 1
-        task.spawn(function() EnhancementRunner(Enhancement.sessionId) end)
-    end,
-    StopEnhancement = function() 
-        Enhancement.enabled = false
-        Enhancement.sessionId = (Enhancement.sessionId or 0) + 1
-    end,
-    ActivateAltar = ActivateEnchantingAltar,
-    RollEnchant = RollEnchant
-}
-
-print("modern_autofish loaded - UI created and API available via _G.ModernAutoFish")
+        -- Send fishing stop
