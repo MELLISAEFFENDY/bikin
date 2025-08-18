@@ -49,7 +49,7 @@ function toggleFishing(state)
         ChargeRod:InvokeServer(workspace:GetServerTimeNow())
         task.wait(randomWait())
         RequestFishing:InvokeServer(-1.23, 0.98)
-        task.wait(0.4 + randomWait())
+        task.wait(0.1)
         FishingComplete:FireServer()
     end
 end
