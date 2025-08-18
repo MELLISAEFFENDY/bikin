@@ -20,261 +20,209 @@ if not LocalPlayer then
     return
 end
 
--- Hook AutoFishingController System (Conflict Prevention)
-local OfficialControllerHook = {
+local Mouse = Players.LocalPlayer:GetMouse()
+
+-- Auto AFK Enhancement System for Official Auto Mode
+local AutoAFKSystem = {
     enabled = false,
-    originalController = nil,
-    isHooked = false,
-    conflictDetected = false,
-    lastSyncTime = 0,
-    syncInterval = 5, -- Sync every 5 seconds
+    monitoring = false,
+    perfectCastEnabled = true,
+    perfectMinigameEnabled = true,
+    instantFinishEnabled = true,
+    lastEnhanceTime = 0,
     
-    -- Method to check for conflicts
-    checkConflict = function()
-        local success, controller = pcall(function()
-            return ReplicatedStorage:FindFirstChild("Controllers") and 
-                   ReplicatedStorage.Controllers:FindFirstChild("AutoFishingController")
-        end)
+    -- Perfect Cast Enhancement
+    perfectCast = function()
+        if not AutoAFKSystem.perfectCastEnabled then return end
         
-        if success and controller then
-            return true -- Conflict detected
-        end
-        return false -- No conflict
-    end
-}
-
--- Enhanced Location Detection System (Accurate Zone/Island Data)
-local LocationDetection = {
-    currentZone = "Unknown",
-    lastDetectionTime = 0,
-    detectionInterval = 2, -- Check every 2 seconds
-    
-    -- Accurate zone/island data from log analysis
-    zoneData = {
-        ["Coral Reefs"] = {
-            parts = {"Workspace.Zones.Coral Reefs", "Workspace.Islands.Coral Reefs"},
-            coordinates = {
-                min = Vector3.new(-3100, 300, 2100),
-                max = Vector3.new(-2900, 400, 2300)
-            },
-            efficiency = 13.8,
-            rareChance = 0.145,
-            specialItems = {"Coral Coral", "Floatation_Device"}
-        },
-        ["Tropical Grove"] = {
-            parts = {"Workspace.Zones.Tropical Grove", "Workspace.Islands.Tropical Grove"},
-            coordinates = {
-                min = Vector3.new(-2200, 150, 3600),
-                max = Vector3.new(-2000, 250, 3800)
-            },
-            efficiency = 14.2,
-            rareChance = 0.152,
-            specialItems = {"Blue Lobster", "CursedScroll"}
-        },
-        ["Ocean"] = {
-            parts = {"Workspace.Zones.Ocean"},
-            coordinates = {
-                min = Vector3.new(-1000, 0, 1000),
-                max = Vector3.new(1000, 100, 4000)
-            },
-            efficiency = 12.5,
-            rareChance = 0.125,
-            specialItems = {"Ocean"}
-        },
-        ["Kohana"] = {
-            parts = {"Workspace.Islands.Kohana"},
-            coordinates = {
-                min = Vector3.new(-700, 180, 650),
-                max = Vector3.new(-600, 280, 750)
-            },
-            efficiency = 13.9,
-            rareChance = 0.148,
-            specialItems = {"Blue Lobster", "Kohana Coral"}
-        },
-        ["Stingray Shores"] = {
-            parts = {"Workspace.Zones.Stingray Shores", "Workspace.Islands.Stingray Shores"},
-            coordinates = {
-                min = Vector3.new(0, 220, 2900),
-                max = Vector3.new(100, 320, 3100)
-            },
-            efficiency = 14.1,
-            rareChance = 0.149,
-            specialItems = {"StingraySand", "Stingray Coral"}
-        },
-        ["Lost Isle"] = {
-            parts = {"Workspace.Islands.Lost Isle"},
-            coordinates = {
-                min = Vector3.new(-3700, 200, -1400),
-                max = Vector3.new(-3500, 300, -1200)
-            },
-            efficiency = 15.1,
-            rareChance = 0.165,
-            specialItems = {"Fishing Rod Ruins", "Undersea Terrain"}
-        },
-        ["Winter Fest"] = {
-            parts = {"Workspace.Islands.Winter Fest"},
-            coordinates = {
-                min = Vector3.new(1900, 0, 2900),
-                max = Vector3.new(2100, 100, 3100)
-            },
-            efficiency = 13.5,
-            rareChance = 0.142,
-            specialItems = {"Coral"}
-        },
-        ["Crystal Island"] = {
-            parts = {"Workspace.Islands.Crystal Island"},
-            coordinates = {
-                min = Vector3.new(3100, -1350, 1300),
-                max = Vector3.new(3400, -1250, 1500)
-            },
-            efficiency = 15.8,
-            rareChance = 0.175,
-            specialItems = {"Coral"}
-        }
-    }
-}
-
--- Hook into Official AutoFishingController
-local function HookAutoFishingController()
-    if OfficialControllerHook.isHooked then return end
-    
-    local autoFishController = ReplicatedStorage:FindFirstChild("Controllers")
-    if autoFishController then
-        autoFishController = autoFishController:FindFirstChild("AutoFishingController")
-    end
-    
-    if autoFishController then
-        OfficialControllerHook.originalController = autoFishController
-        OfficialControllerHook.isHooked = true
+        local character = LocalPlayer.Character
+        if not character then return end
         
-        -- Monitor for conflicts
-        task.spawn(function()
-            while OfficialControllerHook.isHooked do
-                task.wait(OfficialControllerHook.syncInterval)
-                
-                -- Check if official autofishing is running
-                local isOfficialActive = false
-                if autoFishController:FindFirstChild("enabled") then
-                    isOfficialActive = autoFishController.enabled.Value
-                elseif autoFishController:FindFirstChild("Active") then
-                    isOfficialActive = autoFishController.Active.Value
+        local tool = character:FindFirstChildOfClass("Tool")
+        if tool and tool.Name:find("Rod") then
+            local success, err = pcall(function()
+                if tool:FindFirstChild("events") then
+                    local events = tool.events
+                    if events:FindFirstChild("cast") then
+                        -- Perfect cast parameters (95% power, optimal direction)
+                        events.cast:FireServer(95, math.random(80, 100))
+                    end
                 end
-                
-                -- Conflict prevention logic
-                if isOfficialActive and Config.enabled then
-                    OfficialControllerHook.conflictDetected = true
-                    warn("AutoFishing Conflict Detected! Disabling our system to prevent issues.")
-                    Config.enabled = false
-                    Notify("Conflict Prevention", "🛡️ Official AutoFishing detected - Our system disabled")
-                elseif OfficialControllerHook.conflictDetected and not isOfficialActive then
-                    OfficialControllerHook.conflictDetected = false
-                    Notify("Conflict Resolution", "✅ Official AutoFishing stopped - Safe to re-enable")
-                end
-                
-                OfficialControllerHook.lastSyncTime = tick()
+            end)
+            
+            if not success then
+                print("[Auto AFK] Cast enhancement error:", err)
             end
-        end)
-        
-        print("🎣 AutoFishingController Hook: Successfully hooked to official controller")
-    else
-        print("🎣 AutoFishingController Hook: Official controller not found (safe to proceed)")
-    end
-end
-
--- Enhanced Location Detection based on Coordinates
-local function DetectCurrentLocationEnhanced()
-    local now = tick()
-    if now - LocationDetection.lastDetectionTime < LocationDetection.detectionInterval then
-        return LocationDetection.currentZone
-    end
-    
-    LocationDetection.lastDetectionTime = now
-    
-    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        return LocationDetection.currentZone
-    end
-    
-    local playerPos = LocalPlayer.Character.HumanoidRootPart.Position
-    local detectedZone = "Unknown"
-    
-    -- Check coordinates against zone data
-    for zoneName, zoneInfo in pairs(LocationDetection.zoneData) do
-        local minPos = zoneInfo.coordinates.min
-        local maxPos = zoneInfo.coordinates.max
-        
-        if playerPos.X >= minPos.X and playerPos.X <= maxPos.X and
-           playerPos.Y >= minPos.Y and playerPos.Y <= maxPos.Y and
-           playerPos.Z >= minPos.Z and playerPos.Z <= maxPos.Z then
-            detectedZone = zoneName
-            break
         end
-    end
+    end,
     
-    -- Fallback: Check workspace parts if coordinate detection fails
-    if detectedZone == "Unknown" then
-        for zoneName, zoneInfo in pairs(LocationDetection.zoneData) do
-            for _, partPath in pairs(zoneInfo.parts) do
-                local success, part = pcall(function()
-                    local pathParts = partPath:split(".")
-                    local current = workspace
-                    for _, pathPart in pairs(pathParts) do
-                        if pathPart ~= "Workspace" then
-                            current = current:FindFirstChild(pathPart)
-                            if not current then break end
+    -- Perfect Minigame Auto-Complete
+    perfectMinigame = function()
+        if not AutoAFKSystem.perfectMinigameEnabled then return end
+        
+        local playerGui = LocalPlayer.PlayerGui
+        local fishingGui = playerGui:FindFirstChild("fishing")
+        
+        if fishingGui then
+            local success, err = pcall(function()
+                -- Check for minigame elements
+                local bar = fishingGui:FindFirstChild("bar")
+                local safezone = fishingGui:FindFirstChild("safezone") 
+                local playerbar = fishingGui:FindFirstChild("playerbar")
+                
+                if bar and safezone and playerbar then
+                    -- Perfect timing calculation
+                    local perfectZone = safezone.AbsolutePosition.X + (safezone.AbsoluteSize.X / 2)
+                    local currentPos = playerbar.AbsolutePosition.X
+                    
+                    -- Auto-perfect input when in optimal zone
+                    if math.abs(perfectZone - currentPos) < 10 then
+                        Mouse.Button1Down:Fire()
+                        task.wait(0.05)
+                        Mouse.Button1Up:Fire()
+                    end
+                end
+                
+                -- Check for reel minigame
+                local reel = fishingGui:FindFirstChild("reel")
+                if reel and reel.Visible then
+                    local reelButton = reel:FindFirstChild("button")
+                    if reelButton then
+                        reelButton.MouseButton1Click:Fire()
+                    end
+                end
+            end)
+            
+            if not success then
+                print("[Auto AFK] Minigame enhancement error:", err)
+            end
+        end
+    end,
+    
+    -- Instant Finish Enhancement
+    instantFinish = function()
+        if not AutoAFKSystem.instantFinishEnabled then return end
+        
+        local success, err = pcall(function()
+            local character = LocalPlayer.Character
+            if character then
+                local humanoid = character:FindFirstChild("Humanoid")
+                if humanoid then
+                    local animator = humanoid:FindFirstChild("Animator")
+                    if animator then
+                        for _, track in pairs(animator:GetPlayingAnimationTracks()) do
+                            if track.Name:lower():find("fish") then
+                                -- Speed up fishing animations for instant finish feel
+                                track.Speed = 2.5
+                            end
                         end
                     end
-                    return current
-                end)
-                
-                if success and part then
-                    -- Check distance to part
-                    local distance = (playerPos - part.Position).Magnitude
-                    if distance < 100 then -- Within 100 studs
-                        detectedZone = zoneName
-                        break
-                    end
                 end
             end
-            if detectedZone ~= "Unknown" then break end
-        end
-    end
-    
-    -- Update current zone if changed
-    if detectedZone ~= LocationDetection.currentZone then
-        LocationDetection.currentZone = detectedZone
+        end)
         
-        -- Update efficiency data if zone is known
-        if LocationDetection.zoneData[detectedZone] then
-            local zoneInfo = LocationDetection.zoneData[detectedZone]
-            print(string.format("🗺️ Location: %s (Efficiency: %.1f%%, Rare Chance: %.1f%%)", 
-                detectedZone, zoneInfo.efficiency, zoneInfo.rareChance * 100))
+        if not success then
+            print("[Auto AFK] Instant finish error:", err)
         end
-    end
+    end,
     
-    return detectedZone
-end
-
--- Get location efficiency data
-local function GetLocationEfficiency(locationName)
-    if LocationDetection.zoneData[locationName] then
-        return LocationDetection.zoneData[locationName].efficiency -- Already in percentage
+    -- Main monitoring loop
+    monitor = function()
+        while AutoAFKSystem.monitoring do
+            task.wait(0.1) -- High frequency for responsiveness
+            
+            if AutoAFKSystem.enabled then
+                local currentTime = tick()
+                
+                -- Enhance every 100ms to prevent spam
+                if currentTime - AutoAFKSystem.lastEnhanceTime > 0.1 then
+                    AutoAFKSystem.perfectCast()
+                    AutoAFKSystem.perfectMinigame()
+                    AutoAFKSystem.instantFinish()
+                    AutoAFKSystem.lastEnhanceTime = currentTime
+                end
+            end
+        end
+    end,
+    
+    -- Start Auto AFK enhancement
+    start = function()
+        AutoAFKSystem.enabled = true
+        if not AutoAFKSystem.monitoring then
+            AutoAFKSystem.monitoring = true
+            task.spawn(AutoAFKSystem.monitor)
+        end
+        
+        StarterGui:SetCore("SendNotification", {
+            Title = "🚀 Auto AFK";
+            Text = "Official Auto Mode Enhanced!\n✅ Perfect Cast ✅ Perfect Minigame ✅ Instant Finish";
+            Duration = 5;
+        })
+        
+        print("[Auto AFK] Enhancement system started!")
+    end,
+    
+    -- Stop Auto AFK enhancement
+    stop = function()
+        AutoAFKSystem.enabled = false
+        
+        StarterGui:SetCore("SendNotification", {
+            Title = "🛑 Auto AFK";
+            Text = "Enhancement system stopped";
+            Duration = 3;
+        })
+        
+        print("[Auto AFK] Enhancement system stopped")
+    end,
+    
+    -- Toggle individual features
+    togglePerfectCast = function()
+        AutoAFKSystem.perfectCastEnabled = not AutoAFKSystem.perfectCastEnabled
+        return AutoAFKSystem.perfectCastEnabled
+    end,
+    
+    togglePerfectMinigame = function()
+        AutoAFKSystem.perfectMinigameEnabled = not AutoAFKSystem.perfectMinigameEnabled
+        return AutoAFKSystem.perfectMinigameEnabled
+    end,
+    
+    toggleInstantFinish = function()
+        AutoAFKSystem.instantFinishEnabled = not AutoAFKSystem.instantFinishEnabled
+        return AutoAFKSystem.instantFinishEnabled
     end
-    return 10 -- Default 10% efficiency for unknown locations
-end
+}
 
--- Get location rare chance data
-local function GetLocationRareChance(locationName)
-    if LocationDetection.zoneData[locationName] then
-        return math.floor(LocationDetection.zoneData[locationName].rareChance * 100) -- Convert to percentage
+-- Official Auto Detection System
+local OfficialAutoDetector = {
+    isOfficialActive = function()
+        local success, result = pcall(function()
+            -- Check for official auto controllers
+            local controllers = ReplicatedStorage:FindFirstChild("Controllers")
+            if controllers and controllers:FindFirstChild("AutoFishingController") then
+                return true
+            end
+            
+            -- Check for auto fishing GUI indicators
+            local playerGui = LocalPlayer.PlayerGui
+            local autoGui = playerGui:FindFirstChild("AutoFishing") or 
+                           playerGui:FindFirstChild("AutoFish") or
+                           playerGui:FindFirstChild("auto_fishing")
+            
+            if autoGui and autoGui.Enabled then return true end
+            
+            -- Check for auto fishing tool indicators
+            local character = LocalPlayer.Character
+            if character then
+                local tool = character:FindFirstChildOfClass("Tool")
+                if tool and tool:GetAttribute("AutoFishing") then return true end
+            end
+            
+            return false
+        end)
+        
+        return success and result
     end
-    return 10 -- Default 10% rare chance for unknown locations
-end
-
--- Initialize hooks and detection
-task.spawn(function()
-    task.wait(2) -- Wait for game to load
-    HookAutoFishingController()
-end)
+}
 
 -- Rod Orientation Fix
 local RodFix = {
@@ -1025,15 +973,7 @@ local Dashboard = {
         currentLocation = "Unknown"
     },
     heatmap = {},
-    optimalTimes = {},
-    
-    -- UI References for analytics
-    ui = {
-        currentLocationAnalytics = nil,
-        coordinatesDisplay = nil,
-        locationHistory = nil,
-        conflictStatus = nil
-    }
+    optimalTimes = {}
 }
 
 -- Fish Rarity Categories (Updated from fishname.txt)
@@ -1207,32 +1147,14 @@ local function DetectCurrentLocation()
     end
 end
 
--- Update current location every few seconds with enhanced detection
+-- Update current location every few seconds
 local function LocationTracker()
     while true do
-        -- Use enhanced location detection first, fallback to original
-        local newLocation = DetectCurrentLocationEnhanced()
-        if not newLocation or newLocation == "Unknown Area" then
-            newLocation = DetectCurrentLocation()
-        end
-        
+        local newLocation = DetectCurrentLocation()
         if newLocation ~= Dashboard.sessionStats.currentLocation then
             Dashboard.sessionStats.currentLocation = newLocation
-            
-            -- Update location stats with enhanced data
-            local efficiency = GetLocationEfficiency(newLocation)
-            local rareChance = GetLocationRareChance(newLocation)
-            
             print("[Dashboard] Location changed to:", newLocation)
-            if efficiency > 0 then
-                print("[Dashboard] Efficiency:", efficiency .. "%", "Rare Chance:", rareChance .. "%")
-            end
-            
-            -- Update session tracking with location analytics
-            Dashboard.sessionStats.locationHistory = Dashboard.sessionStats.locationHistory or {}
-            Dashboard.sessionStats.locationHistory[newLocation] = (Dashboard.sessionStats.locationHistory[newLocation] or 0) + 1
         end
-        
         task.wait(3) -- Check every 3 seconds
     end
 end
@@ -1319,6 +1241,12 @@ local function SetupFishCaughtListener()
     end
 end
 
+local function GetLocationEfficiency(location)
+    local stats = Dashboard.locationStats[location]
+    if not stats or stats.total == 0 then return 0 end
+    return math.floor((stats.rare / stats.total) * 100)
+end
+
 local function GetBestFishingTime()
     local bestHour = 0
     local bestRatio = 0
@@ -1334,7 +1262,13 @@ local function GetBestFishingTime()
     return bestHour, math.floor(bestRatio * 100)
 end
 
-local function GetBestFishingTimeUpdated()
+local function GetLocationEfficiency(location)
+    local stats = Dashboard.locationStats[location]
+    if not stats or stats.total == 0 then return 0 end
+    return math.floor((stats.rare / stats.total) * 100)
+end
+
+local function GetBestFishingTime()
     local bestHour = 0
     local bestRatio = 0
     for hour, data in pairs(Dashboard.optimalTimes) do
@@ -2207,13 +2141,6 @@ local function AutofishRunner(mySession)
     Dashboard.sessionStats.rareCount = 0
     Dashboard.sessionStats.totalValue = 0  -- Initialize totalValue
     
-    -- Check for conflicts with official AutoFishingController
-    if OfficialControllerHook and OfficialControllerHook.checkConflict() then
-        Notify("modern_autofish", "Official AutoFishing detected - Disabling to prevent conflicts")
-        Config.enabled = false
-        return
-    end
-    
     -- Start animation monitoring
     AnimationMonitor.isMonitoring = true
     MonitorCharacterAnimations()
@@ -2223,13 +2150,6 @@ local function AutofishRunner(mySession)
     
     Notify("modern_autofish", "Smart AutoFishing started (mode: " .. Config.mode .. ")")
     while Config.enabled and sessionId == mySession do
-        -- Check for conflicts during execution
-        if OfficialControllerHook and OfficialControllerHook.checkConflict() then
-            Notify("modern_autofish", "Conflict detected - Stopping AutoFish")
-            Config.enabled = false
-            break
-        end
-        
         local ok, err = pcall(function()
             -- Fix rod orientation before each cycle
             FixRodOrientation()
@@ -2741,11 +2661,110 @@ local function BuildUI()
     Instance.new("UICorner", antiAfkToggle)
 
     -- ====================================================================
+    -- AUTO AFK SECTION - OFFICIAL AUTO MODE ENHANCEMENT
+    -- ====================================================================
+    local autoAFKSection = Instance.new("Frame", fishingAIScrollFrame)
+    autoAFKSection.Size = UDim2.new(1, -10, 0, 180)
+    autoAFKSection.Position = UDim2.new(0, 5, 0, 465) -- After AntiAFK
+    autoAFKSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
+    autoAFKSection.BorderSizePixel = 0
+    Instance.new("UICorner", autoAFKSection)
+
+    local autoAFKTitle = Instance.new("TextLabel", autoAFKSection)
+    autoAFKTitle.Size = UDim2.new(1, -20, 0, 25)
+    autoAFKTitle.Position = UDim2.new(0, 10, 0, 5)
+    autoAFKTitle.Text = "🚀 Auto AFK - Official Auto Enhancement"
+    autoAFKTitle.Font = Enum.Font.GothamBold
+    autoAFKTitle.TextSize = 14
+    autoAFKTitle.TextColor3 = Color3.fromRGB(100, 200, 255)
+    autoAFKTitle.BackgroundTransparency = 1
+    autoAFKTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+    local autoAFKDesc = Instance.new("TextLabel", autoAFKSection)
+    autoAFKDesc.Size = UDim2.new(1, -20, 0, 30)
+    autoAFKDesc.Position = UDim2.new(0, 10, 0, 35)
+    autoAFKDesc.Text = "Enhances official auto mode with perfect cast, perfect minigame, and instant finish for maximum AFK efficiency."
+    autoAFKDesc.Font = Enum.Font.Gotham
+    autoAFKDesc.TextSize = 11
+    autoAFKDesc.TextColor3 = Color3.fromRGB(200, 200, 200)
+    autoAFKDesc.BackgroundTransparency = 1
+    autoAFKDesc.TextXAlignment = Enum.TextXAlignment.Left
+    autoAFKDesc.TextWrapped = true
+
+    -- Main Auto AFK Toggle
+    local autoAFKToggle = Instance.new("TextButton", autoAFKSection)
+    autoAFKToggle.Size = UDim2.new(1, -20, 0, 30)
+    autoAFKToggle.Position = UDim2.new(0, 10, 0, 70)
+    autoAFKToggle.Text = "🚀 Start Auto AFK Enhancement"
+    autoAFKToggle.Font = Enum.Font.GothamSemibold
+    autoAFKToggle.TextSize = 12
+    autoAFKToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    autoAFKToggle.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
+    autoAFKToggle.BorderSizePixel = 0
+    Instance.new("UICorner", autoAFKToggle).CornerRadius = UDim.new(0, 6)
+
+    -- Feature Toggles (3 buttons in a row)
+    local perfectCastToggle = Instance.new("TextButton", autoAFKSection)
+    perfectCastToggle.Size = UDim2.new(0.31, -3, 0, 22)
+    perfectCastToggle.Position = UDim2.new(0, 10, 0, 110)
+    perfectCastToggle.Text = "✅ Perfect Cast"
+    perfectCastToggle.Font = Enum.Font.Gotham
+    perfectCastToggle.TextSize = 9
+    perfectCastToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    perfectCastToggle.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+    perfectCastToggle.BorderSizePixel = 0
+    Instance.new("UICorner", perfectCastToggle).CornerRadius = UDim.new(0, 4)
+
+    local perfectMinigameToggle = Instance.new("TextButton", autoAFKSection)
+    perfectMinigameToggle.Size = UDim2.new(0.31, -3, 0, 22)
+    perfectMinigameToggle.Position = UDim2.new(0.34, 0, 0, 110)
+    perfectMinigameToggle.Text = "✅ Perfect Minigame"
+    perfectMinigameToggle.Font = Enum.Font.Gotham
+    perfectMinigameToggle.TextSize = 9
+    perfectMinigameToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    perfectMinigameToggle.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+    perfectMinigameToggle.BorderSizePixel = 0
+    Instance.new("UICorner", perfectMinigameToggle).CornerRadius = UDim.new(0, 4)
+
+    local instantFinishToggle = Instance.new("TextButton", autoAFKSection)
+    instantFinishToggle.Size = UDim2.new(0.31, -3, 0, 22)
+    instantFinishToggle.Position = UDim2.new(0.68, 0, 0, 110)
+    instantFinishToggle.Text = "✅ Instant Finish"
+    instantFinishToggle.Font = Enum.Font.Gotham
+    instantFinishToggle.TextSize = 9
+    instantFinishToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    instantFinishToggle.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+    instantFinishToggle.BorderSizePixel = 0
+    Instance.new("UICorner", instantFinishToggle).CornerRadius = UDim.new(0, 4)
+
+    -- Status Display
+    local autoAFKStatus = Instance.new("TextLabel", autoAFKSection)
+    autoAFKStatus.Size = UDim2.new(1, -20, 0, 20)
+    autoAFKStatus.Position = UDim2.new(0, 10, 0, 140)
+    autoAFKStatus.Text = "📊 Status: Ready to enhance official auto mode"
+    autoAFKStatus.Font = Enum.Font.Gotham
+    autoAFKStatus.TextSize = 10
+    autoAFKStatus.TextColor3 = Color3.fromRGB(150, 150, 150)
+    autoAFKStatus.BackgroundTransparency = 1
+    autoAFKStatus.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- Auto Detection Display
+    local autoAFKDetection = Instance.new("TextLabel", autoAFKSection)
+    autoAFKDetection.Size = UDim2.new(1, -20, 0, 15)
+    autoAFKDetection.Position = UDim2.new(0, 10, 0, 160)
+    autoAFKDetection.Text = "🔍 Official Auto: Not Detected"
+    autoAFKDetection.Font = Enum.Font.Gotham
+    autoAFKDetection.TextSize = 9
+    autoAFKDetection.TextColor3 = Color3.fromRGB(255, 200, 100)
+    autoAFKDetection.BackgroundTransparency = 1
+    autoAFKDetection.TextXAlignment = Enum.TextXAlignment.Left
+
+    -- ====================================================================
     -- AUTO SELL SECTION - ADVANCED VERSION
     -- ====================================================================
     local autoSellSection = Instance.new("Frame", fishingAIScrollFrame)
     autoSellSection.Size = UDim2.new(1, -10, 0, 200)
-    autoSellSection.Position = UDim2.new(0, 5, 0, 465) -- After AntiAFK
+    autoSellSection.Position = UDim2.new(0, 5, 0, 655) -- After Auto AFK (465 + 180 + 10 margin)
     autoSellSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
     autoSellSection.BorderSizePixel = 0
     Instance.new("UICorner", autoSellSection)
@@ -3002,7 +3021,7 @@ local function BuildUI()
     futureInfo.TextYAlignment = Enum.TextYAlignment.Top
 
     -- Set canvas size for fishing AI scroll (current content + space for future)
-    fishingAIScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 780) -- Increased for AutoSell section
+    fishingAIScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 960) -- Increased for Auto AFK + AutoSell sections
 
     -- Teleport Tab Content
     local teleportFrame = Instance.new("Frame", contentContainer)
@@ -4210,6 +4229,80 @@ local function BuildUI()
         Notify("Enhancement", "🛑 Enhancement stopped")
     end)
 
+    -- ====================================================================
+    -- AUTO AFK EVENT HANDLERS
+    -- ====================================================================
+    
+    -- Main Auto AFK Toggle
+    autoAFKToggle.MouseButton1Click:Connect(function()
+        if AutoAFKSystem.enabled then
+            AutoAFKSystem.stop()
+            autoAFKToggle.Text = "🚀 Start Auto AFK Enhancement"
+            autoAFKToggle.BackgroundColor3 = Color3.fromRGB(60, 120, 60)
+            autoAFKStatus.Text = "📊 Status: Auto AFK enhancement stopped"
+        else
+            AutoAFKSystem.start()
+            autoAFKToggle.Text = "🛑 Stop Auto AFK Enhancement"
+            autoAFKToggle.BackgroundColor3 = Color3.fromRGB(120, 60, 60)
+            autoAFKStatus.Text = "📊 Status: Auto AFK enhancement active!"
+        end
+    end)
+    
+    -- Perfect Cast Toggle
+    perfectCastToggle.MouseButton1Click:Connect(function()
+        local enabled = AutoAFKSystem.togglePerfectCast()
+        if enabled then
+            perfectCastToggle.Text = "✅ Perfect Cast"
+            perfectCastToggle.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+        else
+            perfectCastToggle.Text = "❌ Perfect Cast"
+            perfectCastToggle.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+        end
+        Notify("Auto AFK", "Perfect Cast: " .. (enabled and "Enabled" or "Disabled"))
+    end)
+    
+    -- Perfect Minigame Toggle
+    perfectMinigameToggle.MouseButton1Click:Connect(function()
+        local enabled = AutoAFKSystem.togglePerfectMinigame()
+        if enabled then
+            perfectMinigameToggle.Text = "✅ Perfect Minigame"
+            perfectMinigameToggle.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+        else
+            perfectMinigameToggle.Text = "❌ Perfect Minigame"
+            perfectMinigameToggle.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+        end
+        Notify("Auto AFK", "Perfect Minigame: " .. (enabled and "Enabled" or "Disabled"))
+    end)
+    
+    -- Instant Finish Toggle
+    instantFinishToggle.MouseButton1Click:Connect(function()
+        local enabled = AutoAFKSystem.toggleInstantFinish()
+        if enabled then
+            instantFinishToggle.Text = "✅ Instant Finish"
+            instantFinishToggle.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+        else
+            instantFinishToggle.Text = "❌ Instant Finish"
+            instantFinishToggle.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+        end
+        Notify("Auto AFK", "Instant Finish: " .. (enabled and "Enabled" or "Disabled"))
+    end)
+    
+    -- Auto Detection Loop for Auto AFK
+    task.spawn(function()
+        while true do
+            task.wait(2)
+            local isOfficialActive = OfficialAutoDetector.isOfficialActive()
+            
+            if isOfficialActive then
+                autoAFKDetection.Text = "🔍 Official Auto: ✅ DETECTED - Ready to enhance!"
+                autoAFKDetection.TextColor3 = Color3.fromRGB(100, 255, 100)
+            else
+                autoAFKDetection.Text = "🔍 Official Auto: ❌ Not detected"
+                autoAFKDetection.TextColor3 = Color3.fromRGB(255, 200, 100)
+            end
+        end
+    end)
+
     -- Movement Enhancement Button Callbacks
     floatToggleBtn.MouseButton1Click:Connect(function()
         if MovementEnhancement.floatEnabled then
@@ -4549,73 +4642,10 @@ local function BuildUI()
         rarityBars[rarity.name] = {fill = rarityFill, count = rarityCount}
     end
 
-    -- Location Analytics Section (NEW)
-    local locationSection = Instance.new("Frame", dashboardScrollFrame)
-    locationSection.Size = UDim2.new(1, -10, 0, 160)
-    locationSection.Position = UDim2.new(0, 5, 0, 325)
-    locationSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
-    locationSection.BorderSizePixel = 0
-    Instance.new("UICorner", locationSection)
-
-    local locationTitle = Instance.new("TextLabel", locationSection)
-    locationTitle.Size = UDim2.new(1, -20, 0, 25)
-    locationTitle.Position = UDim2.new(0, 10, 0, 5)
-    locationTitle.Text = "🌊 Location Analytics & Efficiency"
-    locationTitle.Font = Enum.Font.GothamBold
-    locationTitle.TextSize = 14
-    locationTitle.TextColor3 = Color3.fromRGB(100,200,255)
-    locationTitle.BackgroundTransparency = 1
-    locationTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    local currentLocationAnalytics = Instance.new("TextLabel", locationSection)
-    currentLocationAnalytics.Size = UDim2.new(1, -20, 0, 20)
-    currentLocationAnalytics.Position = UDim2.new(0, 10, 0, 35)
-    currentLocationAnalytics.Text = "📍 Current: Unknown | Efficiency: 0% | Rare: 0%"
-    currentLocationAnalytics.Font = Enum.Font.GothamSemibold
-    currentLocationAnalytics.TextSize = 12
-    currentLocationAnalytics.TextColor3 = Color3.fromRGB(150,255,150)
-    currentLocationAnalytics.BackgroundTransparency = 1
-    currentLocationAnalytics.TextXAlignment = Enum.TextXAlignment.Left
-    Dashboard.ui.currentLocationAnalytics = currentLocationAnalytics
-
-    local coordinatesDisplay = Instance.new("TextLabel", locationSection)
-    coordinatesDisplay.Size = UDim2.new(1, -20, 0, 20)
-    coordinatesDisplay.Position = UDim2.new(0, 10, 0, 60)
-    coordinatesDisplay.Text = "🎯 Coordinates: X: 0, Y: 0, Z: 0"
-    coordinatesDisplay.Font = Enum.Font.GothamSemibold
-    coordinatesDisplay.TextSize = 12
-    coordinatesDisplay.TextColor3 = Color3.fromRGB(200,200,200)
-    coordinatesDisplay.BackgroundTransparency = 1
-    coordinatesDisplay.TextXAlignment = Enum.TextXAlignment.Left
-    Dashboard.ui.coordinatesDisplay = coordinatesDisplay
-
-    local locationHistory = Instance.new("TextLabel", locationSection)
-    locationHistory.Size = UDim2.new(1, -20, 0, 40)
-    locationHistory.Position = UDim2.new(0, 10, 0, 85)
-    locationHistory.Text = "📊 Session Locations: None visited yet"
-    locationHistory.Font = Enum.Font.GothamSemibold
-    locationHistory.TextSize = 11
-    locationHistory.TextColor3 = Color3.fromRGB(255,200,150)
-    locationHistory.BackgroundTransparency = 1
-    locationHistory.TextXAlignment = Enum.TextXAlignment.Left
-    locationHistory.TextWrapped = true
-    Dashboard.ui.locationHistory = locationHistory
-
-    local conflictStatus = Instance.new("TextLabel", locationSection)
-    conflictStatus.Size = UDim2.new(1, -20, 0, 20)
-    conflictStatus.Position = UDim2.new(0, 10, 0, 130)
-    conflictStatus.Text = "⚡ Conflict Detection: Active - No conflicts"
-    conflictStatus.Font = Enum.Font.GothamSemibold
-    conflictStatus.TextSize = 11
-    conflictStatus.TextColor3 = Color3.fromRGB(100,255,100)
-    conflictStatus.BackgroundTransparency = 1
-    conflictStatus.TextXAlignment = Enum.TextXAlignment.Left
-    Dashboard.ui.conflictStatus = conflictStatus
-
     -- Location Heatmap Section
     local heatmapSection = Instance.new("Frame", dashboardScrollFrame)
     heatmapSection.Size = UDim2.new(1, -10, 0, 200)
-    heatmapSection.Position = UDim2.new(0, 5, 0, 495)
+    heatmapSection.Position = UDim2.new(0, 5, 0, 325)
     heatmapSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
     heatmapSection.BorderSizePixel = 0
     Instance.new("UICorner", heatmapSection)
@@ -4643,7 +4673,7 @@ local function BuildUI()
     -- Optimal Times Section
     local timesSection = Instance.new("Frame", dashboardScrollFrame)
     timesSection.Size = UDim2.new(1, -10, 0, 160)
-    timesSection.Position = UDim2.new(0, 5, 0, 705)
+    timesSection.Position = UDim2.new(0, 5, 0, 535)
     timesSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
     timesSection.BorderSizePixel = 0
     Instance.new("UICorner", timesSection)
@@ -4699,7 +4729,7 @@ local function BuildUI()
     end
 
     -- Set canvas size for dashboard scroll
-    dashboardScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 890)
+    dashboardScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 720)
 
     -- floating toggle
     -- Floating toggle: keep margin so it doesn't overlap header on small screens
@@ -5044,62 +5074,6 @@ local function BuildUI()
         sessionTime.Text = string.format("⏱️ Session: %dm %ds", minutes, seconds)
         sessionLocation.Text = "🗺️ Location: " .. Dashboard.sessionStats.currentLocation
         
-        -- Update Location Analytics Section (NEW)
-        local currentLoc = Dashboard.sessionStats.currentLocation
-        local efficiency = GetLocationEfficiency(currentLoc)
-        local rareChance = GetLocationRareChance(currentLoc)
-        
-        if Dashboard.ui.currentLocationAnalytics then
-            Dashboard.ui.currentLocationAnalytics.Text = string.format("📍 Current: %s | Efficiency: %d%% | Rare: %d%%", 
-                currentLoc, efficiency, rareChance)
-        end
-        
-        -- Update coordinates
-        if Dashboard.ui.coordinatesDisplay and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            local pos = LocalPlayer.Character.HumanoidRootPart.Position
-            Dashboard.ui.coordinatesDisplay.Text = string.format("🎯 Coordinates: X: %.0f, Y: %.0f, Z: %.0f", pos.X, pos.Y, pos.Z)
-        end
-        
-        -- Update location history
-        if Dashboard.ui.locationHistory and Dashboard.sessionStats.locationHistory then
-            local historyText = "📊 Session Locations: "
-            local locationPairs = {}
-            for location, count in pairs(Dashboard.sessionStats.locationHistory) do
-                table.insert(locationPairs, {location, count})
-            end
-            
-            if #locationPairs > 0 then
-                table.sort(locationPairs, function(a, b) return a[2] > b[2] end)
-                local historyParts = {}
-                for i, pair in ipairs(locationPairs) do
-                    if i <= 4 then -- Show top 4 locations
-                        table.insert(historyParts, pair[1] .. "(" .. pair[2] .. ")")
-                    end
-                end
-                historyText = historyText .. table.concat(historyParts, ", ")
-            else
-                historyText = historyText .. "None visited yet"
-            end
-            Dashboard.ui.locationHistory.Text = historyText
-        end
-        
-        -- Update conflict status
-        if Dashboard.ui.conflictStatus then
-            if OfficialControllerHook then
-                local hasConflict = OfficialControllerHook.checkConflict()
-                if hasConflict then
-                    Dashboard.ui.conflictStatus.Text = "⚠️ Conflict Detection: Official AutoFish detected!"
-                    Dashboard.ui.conflictStatus.TextColor3 = Color3.fromRGB(255,100,100)
-                else
-                    Dashboard.ui.conflictStatus.Text = "⚡ Conflict Detection: Active - No conflicts"
-                    Dashboard.ui.conflictStatus.TextColor3 = Color3.fromRGB(100,255,100)
-                end
-            else
-                Dashboard.ui.conflictStatus.Text = "⚠️ Conflict Detection: Not initialized"
-                Dashboard.ui.conflictStatus.TextColor3 = Color3.fromRGB(255,200,100)
-            end
-        end
-        
         -- Calculate efficiency
         local rareRate = Dashboard.sessionStats.fishCount > 0 and 
                         math.floor((Dashboard.sessionStats.rareCount / Dashboard.sessionStats.fishCount) * 100) or 0
@@ -5419,6 +5393,45 @@ _G.ModernAutoFish = {
             vfxCount = #vfxList,
             detectedAt = tick()
         }
+    end,
+
+    -- Auto AFK Enhancement API
+    StartAutoAFK = function()
+        return AutoAFKSystem.start()
+    end,
+    StopAutoAFK = function()
+        return AutoAFKSystem.stop()
+    end,
+    ToggleAutoAFK = function()
+        if AutoAFKSystem.enabled then
+            AutoAFKSystem.stop()
+            return false
+        else
+            AutoAFKSystem.start()
+            return true
+        end
+    end,
+    GetAutoAFKStatus = function()
+        return {
+            enabled = AutoAFKSystem.enabled,
+            monitoring = AutoAFKSystem.monitoring,
+            perfectCast = AutoAFKSystem.perfectCastEnabled,
+            perfectMinigame = AutoAFKSystem.perfectMinigameEnabled,
+            instantFinish = AutoAFKSystem.instantFinishEnabled,
+            officialAutoDetected = OfficialAutoDetector.isOfficialActive()
+        }
+    end,
+    TogglePerfectCast = function()
+        return AutoAFKSystem.togglePerfectCast()
+    end,
+    TogglePerfectMinigame = function()
+        return AutoAFKSystem.togglePerfectMinigame()
+    end,
+    ToggleInstantFinish = function()
+        return AutoAFKSystem.toggleInstantFinish()
+    end,
+    DetectOfficialAuto = function()
+        return OfficialAutoDetector.isOfficialActive()
     end
 }
 
@@ -5439,9 +5452,45 @@ _G.GET_VFX_STATUS = function()
     return _G.ModernAutoFish.GetVFXStatus()
 end
 
+-- Auto AFK Shortcuts
+_G.START_AUTO_AFK = function()
+    _G.ModernAutoFish.StartAutoAFK()
+    print("🚀 Auto AFK Enhancement started!")
+end
+
+_G.STOP_AUTO_AFK = function()
+    _G.ModernAutoFish.StopAutoAFK()
+    print("🛑 Auto AFK Enhancement stopped!")
+end
+
+_G.TOGGLE_AUTO_AFK = function()
+    local enabled = _G.ModernAutoFish.ToggleAutoAFK()
+    print("🚀 Auto AFK Enhancement: " .. (enabled and "Started" or "Stopped"))
+    return enabled
+end
+
+_G.AUTO_AFK_STATUS = function()
+    local status = _G.ModernAutoFish.GetAutoAFKStatus()
+    print("📊 Auto AFK Status:")
+    print("  Enabled:", status.enabled)
+    print("  Perfect Cast:", status.perfectCast)
+    print("  Perfect Minigame:", status.perfectMinigame) 
+    print("  Instant Finish:", status.instantFinish)
+    print("  Official Auto Detected:", status.officialAutoDetected)
+    return status
+end
+
+_G.DETECT_OFFICIAL_AUTO = function()
+    local detected = _G.ModernAutoFish.DetectOfficialAuto()
+    print("🔍 Official Auto Mode:", detected and "DETECTED" or "Not detected")
+    return detected
+end
+
 -- Initialize AutoSell server sync
 InitializeAutoSellSync()
 
 print("modern_autofish loaded - UI created and API available via _G.ModernAutoFish")
 print("🎪 VFX-Based Event Detection System loaded!")
+print("🚀 Auto AFK Enhancement System loaded!")
 print("Commands: _G.DETECT_EVENTS(), _G.TELEPORT_TO_EVENT('EventName'), _G.GET_VFX_STATUS()")
+print("Auto AFK: _G.START_AUTO_AFK(), _G.STOP_AUTO_AFK(), _G.AUTO_AFK_STATUS(), _G.DETECT_OFFICIAL_AUTO()")
