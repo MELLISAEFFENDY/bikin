@@ -27,7 +27,20 @@ local OfficialControllerHook = {
     isHooked = false,
     conflictDetected = false,
     lastSyncTime = 0,
-    syncInterval = 5 -- Sync every 5 seconds
+    syncInterval = 5, -- Sync every 5 seconds
+    
+    -- Method to check for conflicts
+    checkConflict = function()
+        local success, controller = pcall(function()
+            return ReplicatedStorage:FindFirstChild("Controllers") and 
+                   ReplicatedStorage.Controllers:FindFirstChild("AutoFishingController")
+        end)
+        
+        if success and controller then
+            return true -- Conflict detected
+        end
+        return false -- No conflict
+    end
 }
 
 -- Enhanced Location Detection System (Accurate Zone/Island Data)
@@ -135,9 +148,9 @@ local function HookAutoFishingController()
         OfficialControllerHook.isHooked = true
         
         -- Monitor for conflicts
-        spawn(function()
+        task.spawn(function()
             while OfficialControllerHook.isHooked do
-                wait(OfficialControllerHook.syncInterval)
+                task.wait(OfficialControllerHook.syncInterval)
                 
                 -- Check if official autofishing is running
                 local isOfficialActive = false
@@ -244,22 +257,22 @@ end
 -- Get location efficiency data
 local function GetLocationEfficiency(locationName)
     if LocationDetection.zoneData[locationName] then
-        return LocationDetection.zoneData[locationName].efficiency / 100
+        return LocationDetection.zoneData[locationName].efficiency -- Already in percentage
     end
-    return 0.1 -- Default 10% efficiency for unknown locations
+    return 10 -- Default 10% efficiency for unknown locations
 end
 
 -- Get location rare chance data
 local function GetLocationRareChance(locationName)
     if LocationDetection.zoneData[locationName] then
-        return LocationDetection.zoneData[locationName].rareChance
+        return math.floor(LocationDetection.zoneData[locationName].rareChance * 100) -- Convert to percentage
     end
-    return 0.1 -- Default 10% rare chance for unknown locations
+    return 10 -- Default 10% rare chance for unknown locations
 end
 
 -- Initialize hooks and detection
-spawn(function()
-    wait(2) -- Wait for game to load
+task.spawn(function()
+    task.wait(2) -- Wait for game to load
     HookAutoFishingController()
 end)
 
@@ -1012,7 +1025,15 @@ local Dashboard = {
         currentLocation = "Unknown"
     },
     heatmap = {},
-    optimalTimes = {}
+    optimalTimes = {},
+    
+    -- UI References for analytics
+    ui = {
+        currentLocationAnalytics = nil,
+        coordinatesDisplay = nil,
+        locationHistory = nil,
+        conflictStatus = nil
+    }
 }
 
 -- Fish Rarity Categories (Updated from fishname.txt)
@@ -1298,12 +1319,6 @@ local function SetupFishCaughtListener()
     end
 end
 
-local function GetLocationEfficiency(location)
-    local stats = Dashboard.locationStats[location]
-    if not stats or stats.total == 0 then return 0 end
-    return math.floor((stats.rare / stats.total) * 100)
-end
-
 local function GetBestFishingTime()
     local bestHour = 0
     local bestRatio = 0
@@ -1319,13 +1334,7 @@ local function GetBestFishingTime()
     return bestHour, math.floor(bestRatio * 100)
 end
 
-local function GetLocationEfficiency(location)
-    local stats = Dashboard.locationStats[location]
-    if not stats or stats.total == 0 then return 0 end
-    return math.floor((stats.rare / stats.total) * 100)
-end
-
-local function GetBestFishingTime()
+local function GetBestFishingTimeUpdated()
     local bestHour = 0
     local bestRatio = 0
     for hour, data in pairs(Dashboard.optimalTimes) do
@@ -4567,6 +4576,7 @@ local function BuildUI()
     currentLocationAnalytics.TextColor3 = Color3.fromRGB(150,255,150)
     currentLocationAnalytics.BackgroundTransparency = 1
     currentLocationAnalytics.TextXAlignment = Enum.TextXAlignment.Left
+    Dashboard.ui.currentLocationAnalytics = currentLocationAnalytics
 
     local coordinatesDisplay = Instance.new("TextLabel", locationSection)
     coordinatesDisplay.Size = UDim2.new(1, -20, 0, 20)
@@ -4577,6 +4587,7 @@ local function BuildUI()
     coordinatesDisplay.TextColor3 = Color3.fromRGB(200,200,200)
     coordinatesDisplay.BackgroundTransparency = 1
     coordinatesDisplay.TextXAlignment = Enum.TextXAlignment.Left
+    Dashboard.ui.coordinatesDisplay = coordinatesDisplay
 
     local locationHistory = Instance.new("TextLabel", locationSection)
     locationHistory.Size = UDim2.new(1, -20, 0, 40)
@@ -4588,6 +4599,7 @@ local function BuildUI()
     locationHistory.BackgroundTransparency = 1
     locationHistory.TextXAlignment = Enum.TextXAlignment.Left
     locationHistory.TextWrapped = true
+    Dashboard.ui.locationHistory = locationHistory
 
     local conflictStatus = Instance.new("TextLabel", locationSection)
     conflictStatus.Size = UDim2.new(1, -20, 0, 20)
@@ -4598,6 +4610,7 @@ local function BuildUI()
     conflictStatus.TextColor3 = Color3.fromRGB(100,255,100)
     conflictStatus.BackgroundTransparency = 1
     conflictStatus.TextXAlignment = Enum.TextXAlignment.Left
+    Dashboard.ui.conflictStatus = conflictStatus
 
     -- Location Heatmap Section
     local heatmapSection = Instance.new("Frame", dashboardScrollFrame)
@@ -5036,17 +5049,19 @@ local function BuildUI()
         local efficiency = GetLocationEfficiency(currentLoc)
         local rareChance = GetLocationRareChance(currentLoc)
         
-        currentLocationAnalytics.Text = string.format("📍 Current: %s | Efficiency: %d%% | Rare: %d%%", 
-            currentLoc, efficiency, rareChance)
+        if Dashboard.ui.currentLocationAnalytics then
+            Dashboard.ui.currentLocationAnalytics.Text = string.format("📍 Current: %s | Efficiency: %d%% | Rare: %d%%", 
+                currentLoc, efficiency, rareChance)
+        end
         
         -- Update coordinates
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        if Dashboard.ui.coordinatesDisplay and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
             local pos = LocalPlayer.Character.HumanoidRootPart.Position
-            coordinatesDisplay.Text = string.format("🎯 Coordinates: X: %.0f, Y: %.0f, Z: %.0f", pos.X, pos.Y, pos.Z)
+            Dashboard.ui.coordinatesDisplay.Text = string.format("🎯 Coordinates: X: %.0f, Y: %.0f, Z: %.0f", pos.X, pos.Y, pos.Z)
         end
         
         -- Update location history
-        if Dashboard.sessionStats.locationHistory then
+        if Dashboard.ui.locationHistory and Dashboard.sessionStats.locationHistory then
             local historyText = "📊 Session Locations: "
             local locationPairs = {}
             for location, count in pairs(Dashboard.sessionStats.locationHistory) do
@@ -5065,22 +5080,24 @@ local function BuildUI()
             else
                 historyText = historyText .. "None visited yet"
             end
-            locationHistory.Text = historyText
+            Dashboard.ui.locationHistory.Text = historyText
         end
         
         -- Update conflict status
-        if OfficialControllerHook then
-            local hasConflict = OfficialControllerHook.checkConflict()
-            if hasConflict then
-                conflictStatus.Text = "⚠️ Conflict Detection: Official AutoFish detected!"
-                conflictStatus.TextColor3 = Color3.fromRGB(255,100,100)
+        if Dashboard.ui.conflictStatus then
+            if OfficialControllerHook then
+                local hasConflict = OfficialControllerHook.checkConflict()
+                if hasConflict then
+                    Dashboard.ui.conflictStatus.Text = "⚠️ Conflict Detection: Official AutoFish detected!"
+                    Dashboard.ui.conflictStatus.TextColor3 = Color3.fromRGB(255,100,100)
+                else
+                    Dashboard.ui.conflictStatus.Text = "⚡ Conflict Detection: Active - No conflicts"
+                    Dashboard.ui.conflictStatus.TextColor3 = Color3.fromRGB(100,255,100)
+                end
             else
-                conflictStatus.Text = "⚡ Conflict Detection: Active - No conflicts"
-                conflictStatus.TextColor3 = Color3.fromRGB(100,255,100)
+                Dashboard.ui.conflictStatus.Text = "⚠️ Conflict Detection: Not initialized"
+                Dashboard.ui.conflictStatus.TextColor3 = Color3.fromRGB(255,200,100)
             end
-        else
-            conflictStatus.Text = "⚠️ Conflict Detection: Not initialized"
-            conflictStatus.TextColor3 = Color3.fromRGB(255,200,100)
         end
         
         -- Calculate efficiency
