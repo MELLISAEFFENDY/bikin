@@ -2,9 +2,6 @@
 -- Cleaned modern UI + Dual-mode AutoFishing (smart & secure)
 -- Added new feature: Auto Mode by Spinner_xxx
 
--- Error handling untuk debugging
-local success, errorMsg = pcall(function()
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -760,142 +757,6 @@ local Weather = {
 }
 
 -- Dashboard & Statistics System
--- Location Rotation System
-local LocationRotation = {
-    enabled = false,
-    sessionId = 0,
-    checkInterval = 300, -- 5 minutes default
-    efficiencyThreshold = 5, -- 5% minimum rare fish rate
-    minTimeAtLocation = 180, -- 3 minutes minimum at each location
-    lastRotationTime = 0,
-    lastEfficiencyCheck = 0,
-    currentLocationStartTime = tick(),
-    rotationHistory = {},
-    optimalLocations = {
-        -- Based on community data and efficiency
-        {name = "Crater Island", coords = CFrame.new(1010.01001, 252, 5078.45117), efficiency = 8.5},
-        {name = "Esoteric Depths", coords = CFrame.new(1944.77881, 393.562927, 1371.35913), efficiency = 7.2},
-        {name = "Lost Isle", coords = CFrame.new(-3618.15698, 240.836655, -1317.45801), efficiency = 6.8},
-        {name = "Coral Reefs", coords = CFrame.new(-3023.97119, 337.812927, 2195.60913), efficiency = 6.0},
-        {name = "Tropical Grove", coords = CFrame.new(-2095.34106, 197.199997, 3718.08008), efficiency = 5.8},
-        {name = "Kohana Volcano", coords = CFrame.new(-594.971252, 396.65213, 149.10907), efficiency = 5.5},
-        {name = "Stingray Shores", coords = CFrame.new(45.2788086, 252.562927, 2987.10913), efficiency = 5.2},
-        {name = "Kohana", coords = CFrame.new(-650.971191, 208.693695, 711.10907), efficiency = 4.8}
-    }
-}
-
--- Function to get current location efficiency
-local function GetCurrentLocationEfficiency()
-    local currentLocation = Dashboard.sessionStats.currentLocation
-    local stats = Dashboard.locationStats[currentLocation]
-    
-    if not stats or stats.total < 10 then -- Need at least 10 fish for reliable data
-        return 0
-    end
-    
-    return (stats.rare / stats.total) * 100
-end
-
--- Function to find best alternative location
-local function FindBestLocation()
-    local currentLocation = Dashboard.sessionStats.currentLocation
-    local bestLocation = nil
-    local bestEfficiency = 0
-    
-    -- Check recently visited locations (avoid too frequent rotation)
-    local recentLocations = {}
-    local now = tick()
-    for _, history in pairs(LocationRotation.rotationHistory) do
-        if now - history.time < 1800 then -- Within last 30 minutes
-            recentLocations[history.location] = true
-        end
-    end
-    
-    -- Find best location that wasn't recently visited
-    for _, location in pairs(LocationRotation.optimalLocations) do
-        if location.name ~= currentLocation and not recentLocations[location.name] then
-            -- Check historical efficiency for this location
-            local stats = Dashboard.locationStats[location.name]
-            local historicalEfficiency = location.efficiency -- Default efficiency
-            
-            if stats and stats.total > 5 then
-                historicalEfficiency = (stats.rare / stats.total) * 100
-            end
-            
-            if historicalEfficiency > bestEfficiency then
-                bestEfficiency = historicalEfficiency
-                bestLocation = location
-            end
-        end
-    end
-    
-    return bestLocation, bestEfficiency
-end
-
--- Function to rotate to better location
-local function RotateLocation()
-    if not LocationRotation.enabled then return end
-    
-    local now = tick()
-    local timeAtCurrentLocation = now - LocationRotation.currentLocationStartTime
-    
-    -- Don't rotate too quickly
-    if timeAtCurrentLocation < LocationRotation.minTimeAtLocation then
-        return
-    end
-    
-    local currentEfficiency = GetCurrentLocationEfficiency()
-    
-    -- Only rotate if efficiency is below threshold
-    if currentEfficiency >= LocationRotation.efficiencyThreshold then
-        return
-    end
-    
-    local bestLocation, bestEfficiency = FindBestLocation()
-    
-    if bestLocation and bestEfficiency > currentEfficiency + 1 then -- Need significant improvement
-        local currentLocation = Dashboard.sessionStats.currentLocation
-        
-        -- Record rotation history
-        table.insert(LocationRotation.rotationHistory, {
-            location = currentLocation,
-            time = now,
-            efficiency = currentEfficiency,
-            fishCount = Dashboard.locationStats[currentLocation] and Dashboard.locationStats[currentLocation].total or 0
-        })
-        
-        -- Teleport to new location
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character.HumanoidRootPart.CFrame = bestLocation.coords
-            
-            -- Update tracking
-            LocationRotation.currentLocationStartTime = now
-            LocationRotation.lastRotationTime = now
-            Dashboard.sessionStats.currentLocation = bestLocation.name
-            
-            Notify("Location Rotation", string.format("🗺️ Rotated to %s (%.1f%% → %.1f%% efficiency)", 
-                bestLocation.name, currentEfficiency, bestEfficiency))
-            
-            print(string.format("[Location Rotation] %s → %s (Efficiency: %.1f%% → %.1f%%)", 
-                currentLocation, bestLocation.name, currentEfficiency, bestEfficiency))
-        end
-    end
-end
-
--- Location Rotation Runner
-local function LocationRotationRunner(sessionId)
-    while LocationRotation.enabled and LocationRotation.sessionId == sessionId do
-        local now = tick()
-        
-        if now - LocationRotation.lastEfficiencyCheck >= LocationRotation.checkInterval then
-            LocationRotation.lastEfficiencyCheck = now
-            RotateLocation()
-        end
-        
-        task.wait(10) -- Check every 10 seconds, but only rotate based on interval
-    end
-end
-
 local Dashboard = {
     fishCaught = {},
     rareFishCaught = {},
@@ -905,13 +766,7 @@ local Dashboard = {
         fishCount = 0,
         rareCount = 0,
         totalValue = 0,
-        currentLocation = "Unknown",
-        playerCoordinates = {
-            x = 0,
-            y = 0,
-            z = 0,
-            lastUpdate = tick()
-        }
+        currentLocation = "Unknown"
     },
     heatmap = {},
     optimalTimes = {}
@@ -1088,19 +943,6 @@ local function DetectCurrentLocation()
     end
 end
 
--- Function to update player coordinates
-local function UpdatePlayerCoordinates()
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local pos = LocalPlayer.Character.HumanoidRootPart.Position
-        Dashboard.sessionStats.playerCoordinates = {
-            x = math.round(pos.X * 100) / 100,
-            y = math.round(pos.Y * 100) / 100,
-            z = math.round(pos.Z * 100) / 100,
-            lastUpdate = tick()
-        }
-    end
-end
-
 -- Update current location every few seconds
 local function LocationTracker()
     while true do
@@ -1108,15 +950,7 @@ local function LocationTracker()
         if newLocation ~= Dashboard.sessionStats.currentLocation then
             Dashboard.sessionStats.currentLocation = newLocation
             print("[Dashboard] Location changed to:", newLocation)
-            
-            -- Update location start time for rotation system
-            if LocationRotation.enabled then
-                LocationRotation.currentLocationStartTime = tick()
-            end
         end
-        
-        -- Update player coordinates
-        UpdatePlayerCoordinates()
         task.wait(3) -- Check every 3 seconds
     end
 end
@@ -1643,33 +1477,21 @@ local function ShouldSellFish(rarity)
 end
 
 local function CheckAndAutoSell()
-    -- Enhanced debugging and checks
-    if not AutoSell.enabled then
-        print("[AutoSell Debug] AutoSell is disabled, skipping check")
-        return
-    end
-    
-    if AutoSell.isCurrentlySelling then
-        print("[AutoSell Debug] Already selling, skipping check")
+    if not AutoSell.enabled or AutoSell.isCurrentlySelling then
         return
     end
     
     local totalFishToSell = GetTotalFishForSell()
-    print(string.format("[AutoSell Debug] Total fish for sell: %d, Threshold: %d", totalFishToSell, AutoSell.threshold))
-    
     if totalFishToSell < AutoSell.threshold then
-        print("[AutoSell Debug] Below threshold, not selling")
         return
     end
     
     -- Check cooldown
     local now = tick()
     if now - AutoSell.lastSellTime < AutoSell.sellCooldown then
-        print("[AutoSell Debug] Still in cooldown, skipping")
         return
     end
-
-    print("[AutoSell Debug] Starting auto sell process...")
+    
     AutoSell.isCurrentlySelling = true
     AutoSell.lastSellTime = now
     
@@ -1739,21 +1561,15 @@ LogFishCatch = function(fishName, location)
     -- Call original function
     originalLogFishCatch(fishName, location)
     
-    -- Debug logging
-    print(string.format("[LogFishCatch Debug] Fish: %s, AutoSell.enabled: %s", fishName, tostring(AutoSell.enabled)))
-    
     -- Add to AutoSell tracking
     if AutoSell.enabled then
         local rarity = GetFishRarity(fishName)
         if AutoSell.sellCount[rarity] then
             AutoSell.sellCount[rarity] = AutoSell.sellCount[rarity] + 1
-            print(string.format("[LogFishCatch Debug] Updated %s count to: %d", rarity, AutoSell.sellCount[rarity]))
         end
         
         -- Check if we should auto sell
         CheckAndAutoSell()
-    else
-        print("[LogFishCatch Debug] AutoSell disabled, skipping autosell check")
     end
 end
 -- ====================================================================
@@ -2419,20 +2235,6 @@ local function BuildUI()
     local dashboardTabPadding = Instance.new("UIPadding", dashboardTabBtn)
     dashboardTabPadding.PaddingLeft = UDim.new(0, 10)
 
-    local rotationTabBtn = Instance.new("TextButton", sidebar)
-    rotationTabBtn.Size = UDim2.new(1, -10, 0, 40)
-    rotationTabBtn.Position = UDim2.new(0, 5, 0, 260)
-    rotationTabBtn.Text = "🗺️ ROTASI"
-    rotationTabBtn.Font = Enum.Font.GothamSemibold
-    rotationTabBtn.TextSize = 14
-    rotationTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-    rotationTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-    rotationTabBtn.TextXAlignment = Enum.TextXAlignment.Left
-    local rotationTabCorner = Instance.new("UICorner", rotationTabBtn)
-    rotationTabCorner.CornerRadius = UDim.new(0, 6)
-    local rotationTabPadding = Instance.new("UIPadding", rotationTabBtn)
-    rotationTabPadding.PaddingLeft = UDim.new(0, 10)
-
     -- Content area on the right
     local contentContainer = Instance.new("Frame", panel)
     contentContainer.Size = UDim2.new(1, -145, 1, -50)
@@ -2658,7 +2460,7 @@ local function BuildUI()
     -- AUTO SELL SECTION - ADVANCED VERSION
     -- ====================================================================
     local autoSellSection = Instance.new("Frame", fishingAIScrollFrame)
-    autoSellSection.Size = UDim2.new(1, -10, 0, 230) -- Increased to accommodate emergency button
+    autoSellSection.Size = UDim2.new(1, -10, 0, 200)
     autoSellSection.Position = UDim2.new(0, 5, 0, 465) -- After AntiAFK
     autoSellSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
     autoSellSection.BorderSizePixel = 0
@@ -2790,17 +2592,6 @@ local function BuildUI()
     autoSellStatus.TextYAlignment = Enum.TextYAlignment.Center
     Instance.new("UICorner", autoSellStatus)
 
-    -- Emergency Disable Button
-    local emergencyDisableBtn = Instance.new("TextButton", autoSellSection)
-    emergencyDisableBtn.Size = UDim2.new(1, -20, 0, 20)
-    emergencyDisableBtn.Position = UDim2.new(0, 10, 0, 200)
-    emergencyDisableBtn.Text = "🚨 EMERGENCY DISABLE AUTOSELL"
-    emergencyDisableBtn.Font = Enum.Font.GothamBold
-    emergencyDisableBtn.TextSize = 9
-    emergencyDisableBtn.BackgroundColor3 = Color3.fromRGB(150,50,50)
-    emergencyDisableBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", emergencyDisableBtn)
-
     -- ====================================================================
     -- AUTO SELL EVENT HANDLERS
     -- ====================================================================
@@ -2873,27 +2664,6 @@ local function BuildUI()
         end
     end)
 
-    -- Emergency Disable Button Event
-    emergencyDisableBtn.MouseButton1Click:Connect(function()
-        -- Force disable everything
-        AutoSell.enabled = false
-        AutoSell.isCurrentlySelling = false
-        AutoSell.lastSellTime = 0
-        
-        -- Reset sell counts
-        ResetSellCounts()
-        
-        -- Update UI
-        autoSellToggle.Text = "🔴 AUTO SELL OFF"
-        autoSellToggle.BackgroundColor3 = Color3.fromRGB(160,60,60)
-        autoSellStatus.Text = "Status: Emergency Disabled"
-        autoSellStatus.TextColor3 = Color3.fromRGB(255,100,100)
-        
-        -- Show notification
-        Notify("Auto Sell", "🚨 EMERGENCY DISABLE: AutoSell completely stopped!")
-        print("[AutoSell Emergency] All AutoSell functions disabled!")
-    end)
-
     -- Update status periodically with sync indicators
     task.spawn(function()
         while true do
@@ -2921,7 +2691,7 @@ local function BuildUI()
     -- Future Features Section (placeholder for upcoming features)
     local futureSection = Instance.new("Frame", fishingAIScrollFrame)
     futureSection.Size = UDim2.new(1, -10, 0, 80)
-    futureSection.Position = UDim2.new(0, 5, 0, 705) -- Adjusted position after AutoSell (increased by 30px)
+    futureSection.Position = UDim2.new(0, 5, 0, 675) -- Adjusted position after AutoSell
     futureSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
     futureSection.BorderSizePixel = 0
     Instance.new("UICorner", futureSection)
@@ -3042,7 +2812,8 @@ local function BuildUI()
                 location = CFrame.new(-1551.25, 2.87, 1920.26),
                 checkFunction = function()
                     -- Check for Christmas-related VFX or special spawns
-                    local christmasVFX = workspace.CosmeticFolder:FindFirstChild("Enchant Glow")
+                    local christmasVFX = workspace:FindFirstChild("CosmeticFolder") and 
+                                        workspace.CosmeticFolder:FindFirstChild("Enchant Glow")
                     return christmasVFX ~= nil
                 end
             },
@@ -3060,7 +2831,8 @@ local function BuildUI()
                 location = CFrame.new(-650.971191, 208.693695, 711.10907),
                 checkFunction = function()
                     -- Check for double luck VFX or rare spawns
-                    local rareFishVFX = workspace.CosmeticFolder:FindFirstChild("Abyssal Chroma Dive")
+                    local rareFishVFX = workspace:FindFirstChild("CosmeticFolder") and 
+                                       workspace.CosmeticFolder:FindFirstChild("Abyssal Chroma Dive")
                     return rareFishVFX ~= nil or (ReplicatedStorage:FindFirstChild("Shared") and
                            ReplicatedStorage.Shared:FindFirstChild("DoubleLuckProducts"))
                 end
@@ -3070,8 +2842,9 @@ local function BuildUI()
                 location = CFrame.new(-1488.51196, 83.1732635, 1876.30298),
                 checkFunction = function()
                     -- Check for weather-related VFX
-                    local weatherVFX = workspace.CosmeticFolder:FindFirstChild("Bait Dive")
-                    return weatherVFX ~= nil or purchaseWeatherEventRemote ~= nil
+                    local weatherVFX = workspace:FindFirstChild("CosmeticFolder") and 
+                                      workspace.CosmeticFolder:FindFirstChild("Bait Dive")
+                    return weatherVFX ~= nil
                 end
             },
             ["Code Redemption"] = {
@@ -3096,11 +2869,13 @@ local function BuildUI()
             local isActive = false
             
             -- Check VFX indicators
-            for _, vfxName in pairs(eventData.vfx) do
-                local vfx = workspace.CosmeticFolder:FindFirstChild(vfxName)
-                if vfx then
-                    isActive = true
-                    break
+            if workspace:FindFirstChild("CosmeticFolder") then
+                for _, vfxName in pairs(eventData.vfx) do
+                    local vfx = workspace.CosmeticFolder:FindFirstChild(vfxName)
+                    if vfx then
+                        isActive = true
+                        break
+                    end
                 end
             end
             
@@ -3142,8 +2917,6 @@ local function BuildUI()
         return events
     end
 
-    -- Define UpdateEventDisplay first (moved up to avoid undefined reference)
-
     -- Create Event Section in Teleport Tab
     local eventSection = Instance.new("Frame", teleportFrame)
     eventSection.Size = UDim2.new(1, 0, 0, 200)
@@ -3158,19 +2931,9 @@ local function BuildUI()
     eventTitle.Text = "🎪 Active Events & Special Locations (VFX Detection)"
     eventTitle.Font = Enum.Font.GothamBold
     eventTitle.TextSize = 14
-    eventTitle.TextColor3 = Color3.fromRGB(255, 215, 0)
+    eventTitle.TextColor3 = Color3.fromRGB(255,215,0)
     eventTitle.BackgroundTransparency = 1
     eventTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    local refreshEventsBtn = Instance.new("TextButton", eventSection)
-    refreshEventsBtn.Size = UDim2.new(0, 80, 0, 25)
-    refreshEventsBtn.Position = UDim2.new(1, -90, 0, 5)
-    refreshEventsBtn.Text = "🔄 Refresh"
-    refreshEventsBtn.Font = Enum.Font.GothamSemibold
-    refreshEventsBtn.TextSize = 10
-    refreshEventsBtn.BackgroundColor3 = Color3.fromRGB(70,130,180)
-    refreshEventsBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", refreshEventsBtn)
 
     local eventScrollFrame = Instance.new("ScrollingFrame", eventSection)
     eventScrollFrame.Size = UDim2.new(1, -10, 1, -40)
@@ -3179,6 +2942,7 @@ local function BuildUI()
     eventScrollFrame.BorderSizePixel = 0
     eventScrollFrame.ScrollBarThickness = 4
     eventScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80,80,80)
+    eventScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
     Instance.new("UICorner", eventScrollFrame)
 
     -- Function to update event display (VFX-Based)
@@ -3225,25 +2989,14 @@ local function BuildUI()
                 eventDesc.TextColor3 = Color3.fromRGB(200,200,200)
                 eventDesc.BackgroundTransparency = 1
                 eventDesc.TextXAlignment = Enum.TextXAlignment.Left
-                
-                -- Color coding by event type
-                if event.type == "seasonal" then
-                    eventBtn.BackgroundColor3 = Color3.fromRGB(220,50,50) -- Red for Christmas
-                elseif event.type == "group" then
-                    eventBtn.BackgroundColor3 = Color3.fromRGB(50,150,50) -- Green for group
-                elseif event.type == "shop" then
-                    eventBtn.BackgroundColor3 = Color3.fromRGB(200,165,50) -- Gold for shop
-                elseif event.type == "weather" then
-                    eventBtn.BackgroundColor3 = Color3.fromRGB(100,150,200) -- Blue for weather
-                elseif event.type == "codes" then
-                    eventBtn.BackgroundColor3 = Color3.fromRGB(150,100,200) -- Purple for codes
-                end
-                
-                -- Teleport functionality
+
+                -- Teleport to event functionality
                 eventBtn.MouseButton1Click:Connect(function()
                     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
                         LocalPlayer.Character.HumanoidRootPart.CFrame = event.location
                         Notify("Event Teleport", "🎪 Teleported to " .. event.name)
+                    else
+                        Notify("Event Teleport", "Character not found")
                     end
                 end)
                 
@@ -3252,27 +3005,9 @@ local function BuildUI()
         end
         
         eventScrollFrame.CanvasSize = UDim2.new(0, 0, 0, eventYOffset)
-        
-        Notify("Event Detection", string.format("🔍 Found %d active events", #events))
     end
 
-    -- Refresh button functionality
-    refreshEventsBtn.MouseButton1Click:Connect(function()
-        UpdateEventDisplay()
-    end)
-
-    -- Auto-refresh events every 30 seconds
-    task.spawn(function()
-        while true do
-            UpdateEventDisplay()
-            task.wait(30)
-        end
-    end)
-
-    -- Initial event detection
-    UpdateEventDisplay()
-
-    -- Real-time VFX monitoring untuk instant detection (moved after UpdateEventDisplay)
+    -- Real-time VFX monitoring untuk instant detection
     local function MonitorVFXChanges()
         if workspace:FindFirstChild("CosmeticFolder") then
             workspace.CosmeticFolder.ChildAdded:Connect(function(child)
@@ -3291,8 +3026,39 @@ local function BuildUI()
         end
     end
 
+    -- Initial event detection
+    UpdateEventDisplay()
+
     -- Start VFX monitoring
     spawn(MonitorVFXChanges)
+
+    -- Auto-refresh events every 30 seconds
+    task.spawn(function()
+        while true do
+            UpdateEventDisplay()
+            task.wait(30)
+        end
+    end)
+
+    -- VFX-Based Event Monitoring Loop (Enhanced)
+    spawn(function()
+        while wait(EventDetection.checkInterval) do
+            local now = tick()
+            if now - EventDetection.lastEventCheck >= EventDetection.checkInterval then
+                EventDetection.lastEventCheck = now
+                EventDetection.activeEvents = DetectActiveEventsVFX()
+                UpdateEventDisplay()
+                
+                -- Notify for new events detected
+                for _, event in pairs(EventDetection.activeEvents) do
+                    if not event.notified then
+                        event.notified = true
+                        Notify("VFX Event Detected", event.name .. " - " .. event.description)
+                    end
+                end
+            end
+        end
+    end)
 
     -- Adjust scroll frame size to accommodate event section
     scrollFrame.Size = UDim2.new(1, 0, 1, -240)
@@ -4411,23 +4177,13 @@ local function BuildUI()
     sessionTime.TextXAlignment = Enum.TextXAlignment.Left
 
     local sessionLocation = Instance.new("TextLabel", sessionSection)
-    sessionLocation.Size = UDim2.new(1, -20, 0, 20)
-    sessionLocation.Position = UDim2.new(0, 10, 0, 60)
+    sessionLocation.Size = UDim2.new(0.5, -15, 0, 20)
+    sessionLocation.Position = UDim2.new(0.5, 5, 0, 60)
     sessionLocation.Text = "🗺️ Location: Unknown"
     sessionLocation.Font = Enum.Font.GothamSemibold
     sessionLocation.TextSize = 12
     sessionLocation.TextColor3 = Color3.fromRGB(150,255,150)
     sessionLocation.BackgroundTransparency = 1
-    sessionLocation.TextXAlignment = Enum.TextXAlignment.Left
-
-    local sessionCoordinates = Instance.new("TextLabel", sessionSection)
-    sessionCoordinates.Size = UDim2.new(1, -20, 0, 20)
-    sessionCoordinates.Position = UDim2.new(0, 10, 0, 85)
-    sessionCoordinates.Text = "📍 Player Coordinates: 0, 0, 0"
-    sessionCoordinates.Font = Enum.Font.GothamSemibold
-    sessionCoordinates.TextSize = 12
-    sessionCoordinates.TextColor3 = Color3.fromRGB(100,200,255)
-    sessionCoordinates.BackgroundTransparency = 1
     sessionLocation.TextXAlignment = Enum.TextXAlignment.Left
 
     local sessionEfficiency = Instance.new("TextLabel", sessionSection)
@@ -4598,283 +4354,6 @@ local function BuildUI()
     -- Set canvas size for dashboard scroll
     dashboardScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 720)
 
-    -- ========================================================================
-    -- ROTATION TAB (Location Rotation System)
-    -- ========================================================================
-    local rotationFrame = Instance.new("Frame", contentContainer)
-    rotationFrame.Size = UDim2.new(1, 0, 1, -10)
-    rotationFrame.Position = UDim2.new(0, 0, 0, 0)
-    rotationFrame.BackgroundTransparency = 1
-    rotationFrame.Visible = false
-
-    local rotationTitle = Instance.new("TextLabel", rotationFrame)
-    rotationTitle.Size = UDim2.new(1, 0, 0, 24)
-    rotationTitle.Text = "🗺️ Smart Location Rotation System"
-    rotationTitle.Font = Enum.Font.GothamBold
-    rotationTitle.TextSize = 16
-    rotationTitle.TextColor3 = Color3.fromRGB(235,235,235)
-    rotationTitle.BackgroundTransparency = 1
-    rotationTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    -- Create scrollable frame for rotation content
-    local rotationScrollFrame = Instance.new("ScrollingFrame", rotationFrame)
-    rotationScrollFrame.Size = UDim2.new(1, 0, 1, -30)
-    rotationScrollFrame.Position = UDim2.new(0, 0, 0, 30)
-    rotationScrollFrame.BackgroundColor3 = Color3.fromRGB(35,35,42)
-    rotationScrollFrame.BorderSizePixel = 0
-    rotationScrollFrame.ScrollBarThickness = 6
-    rotationScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80,80,80)
-    rotationScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
-    Instance.new("UICorner", rotationScrollFrame)
-
-    -- Main Control Section
-    local controlSection = Instance.new("Frame", rotationScrollFrame)
-    controlSection.Size = UDim2.new(1, -10, 0, 150)
-    controlSection.Position = UDim2.new(0, 5, 0, 5)
-    controlSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
-    controlSection.BorderSizePixel = 0
-    Instance.new("UICorner", controlSection)
-
-    local controlTitle = Instance.new("TextLabel", controlSection)
-    controlTitle.Size = UDim2.new(1, -20, 0, 25)
-    controlTitle.Position = UDim2.new(0, 10, 0, 5)
-    controlTitle.Text = "🎯 Rotation Control"
-    controlTitle.Font = Enum.Font.GothamBold
-    controlTitle.TextSize = 14
-    controlTitle.TextColor3 = Color3.fromRGB(255,215,0)
-    controlTitle.BackgroundTransparency = 1
-    controlTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    -- Enable/Disable Toggle
-    local rotationToggle = Instance.new("TextButton", controlSection)
-    rotationToggle.Size = UDim2.new(0, 120, 0, 30)
-    rotationToggle.Position = UDim2.new(0, 10, 0, 35)
-    rotationToggle.Text = "🔴 DISABLED"
-    rotationToggle.Font = Enum.Font.GothamBold
-    rotationToggle.TextSize = 12
-    rotationToggle.BackgroundColor3 = Color3.fromRGB(160,60,60)
-    rotationToggle.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", rotationToggle)
-
-    -- Status Display
-    local rotationStatus = Instance.new("TextLabel", controlSection)
-    rotationStatus.Size = UDim2.new(0.6, -20, 0, 30)
-    rotationStatus.Position = UDim2.new(0.4, 10, 0, 35)
-    rotationStatus.Text = "Status: Inactive"
-    rotationStatus.Font = Enum.Font.GothamSemibold
-    rotationStatus.TextSize = 11
-    rotationStatus.TextColor3 = Color3.fromRGB(200,200,200)
-    rotationStatus.BackgroundColor3 = Color3.fromRGB(35,35,40)
-    rotationStatus.TextXAlignment = Enum.TextXAlignment.Center
-    Instance.new("UICorner", rotationStatus)
-
-    -- Settings Section
-    local settingsSection = Instance.new("Frame", controlSection)
-    settingsSection.Size = UDim2.new(1, -20, 0, 75)
-    settingsSection.Position = UDim2.new(0, 10, 0, 70)
-    settingsSection.BackgroundTransparency = 1
-
-    -- Check Interval Setting
-    local intervalLabel = Instance.new("TextLabel", settingsSection)
-    intervalLabel.Size = UDim2.new(0.3, -5, 0, 20)
-    intervalLabel.Position = UDim2.new(0, 0, 0, 0)
-    intervalLabel.Text = "Check Interval (min):"
-    intervalLabel.Font = Enum.Font.Gotham
-    intervalLabel.TextSize = 10
-    intervalLabel.TextColor3 = Color3.fromRGB(200,200,200)
-    intervalLabel.BackgroundTransparency = 1
-    intervalLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-    local intervalInput = Instance.new("TextBox", settingsSection)
-    intervalInput.Size = UDim2.new(0, 50, 0, 20)
-    intervalInput.Position = UDim2.new(0.3, 5, 0, 0)
-    intervalInput.Text = "5"
-    intervalInput.Font = Enum.Font.Gotham
-    intervalInput.TextSize = 10
-    intervalInput.TextColor3 = Color3.fromRGB(255,255,255)
-    intervalInput.BackgroundColor3 = Color3.fromRGB(35,35,40)
-    intervalInput.BorderSizePixel = 0
-    intervalInput.TextXAlignment = Enum.TextXAlignment.Center
-    Instance.new("UICorner", intervalInput)
-
-    -- Efficiency Threshold Setting
-    local thresholdLabel = Instance.new("TextLabel", settingsSection)
-    thresholdLabel.Size = UDim2.new(0.3, -5, 0, 20)
-    thresholdLabel.Position = UDim2.new(0, 0, 0, 25)
-    thresholdLabel.Text = "Min Efficiency (%):"
-    thresholdLabel.Font = Enum.Font.Gotham
-    thresholdLabel.TextSize = 10
-    thresholdLabel.TextColor3 = Color3.fromRGB(200,200,200)
-    thresholdLabel.BackgroundTransparency = 1
-    thresholdLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-    local thresholdInput = Instance.new("TextBox", settingsSection)
-    thresholdInput.Size = UDim2.new(0, 50, 0, 20)
-    thresholdInput.Position = UDim2.new(0.3, 5, 0, 25)
-    thresholdInput.Text = "5"
-    thresholdInput.Font = Enum.Font.Gotham
-    thresholdInput.TextSize = 10
-    thresholdInput.TextColor3 = Color3.fromRGB(255,255,255)
-    thresholdInput.BackgroundColor3 = Color3.fromRGB(35,35,40)
-    thresholdInput.BorderSizePixel = 0
-    thresholdInput.TextXAlignment = Enum.TextXAlignment.Center
-    Instance.new("UICorner", thresholdInput)
-
-    -- Min Time Setting
-    local minTimeLabel = Instance.new("TextLabel", settingsSection)
-    minTimeLabel.Size = UDim2.new(0.3, -5, 0, 20)
-    minTimeLabel.Position = UDim2.new(0, 0, 0, 50)
-    minTimeLabel.Text = "Min Time (min):"
-    minTimeLabel.Font = Enum.Font.Gotham
-    minTimeLabel.TextSize = 10
-    minTimeLabel.TextColor3 = Color3.fromRGB(200,200,200)
-    minTimeLabel.BackgroundTransparency = 1
-    minTimeLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-    local minTimeInput = Instance.new("TextBox", settingsSection)
-    minTimeInput.Size = UDim2.new(0, 50, 0, 20)
-    minTimeInput.Position = UDim2.new(0.3, 5, 0, 50)
-    minTimeInput.Text = "3"
-    minTimeInput.Font = Enum.Font.Gotham
-    minTimeInput.TextSize = 10
-    minTimeInput.TextColor3 = Color3.fromRGB(255,255,255)
-    minTimeInput.BackgroundColor3 = Color3.fromRGB(35,35,40)
-    minTimeInput.BorderSizePixel = 0
-    minTimeInput.TextXAlignment = Enum.TextXAlignment.Center
-    Instance.new("UICorner", minTimeInput)
-
-    -- Current Status Section
-    local statusSection = Instance.new("Frame", rotationScrollFrame)
-    statusSection.Size = UDim2.new(1, -10, 0, 120)
-    statusSection.Position = UDim2.new(0, 5, 0, 160)
-    statusSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
-    statusSection.BorderSizePixel = 0
-    Instance.new("UICorner", statusSection)
-
-    local statusTitle = Instance.new("TextLabel", statusSection)
-    statusTitle.Size = UDim2.new(1, -20, 0, 25)
-    statusTitle.Position = UDim2.new(0, 10, 0, 5)
-    statusTitle.Text = "📊 Current Location Analysis"
-    statusTitle.Font = Enum.Font.GothamBold
-    statusTitle.TextSize = 14
-    statusTitle.TextColor3 = Color3.fromRGB(100,200,255)
-    statusTitle.BackgroundTransparency = 1
-    statusTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    local currentLocationLabel = Instance.new("TextLabel", statusSection)
-    currentLocationLabel.Size = UDim2.new(1, -20, 0, 20)
-    currentLocationLabel.Position = UDim2.new(0, 10, 0, 30)
-    currentLocationLabel.Text = "🗺️ Current: Unknown"
-    currentLocationLabel.Font = Enum.Font.GothamSemibold
-    currentLocationLabel.TextSize = 11
-    currentLocationLabel.TextColor3 = Color3.fromRGB(255,255,255)
-    currentLocationLabel.BackgroundTransparency = 1
-    currentLocationLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-    local currentEfficiencyLabel = Instance.new("TextLabel", statusSection)
-    currentEfficiencyLabel.Size = UDim2.new(1, -20, 0, 20)
-    currentEfficiencyLabel.Position = UDim2.new(0, 10, 0, 50)
-    currentEfficiencyLabel.Text = "📈 Efficiency: 0.0%"
-    currentEfficiencyLabel.Font = Enum.Font.GothamSemibold
-    currentEfficiencyLabel.TextSize = 11
-    currentEfficiencyLabel.TextColor3 = Color3.fromRGB(255,255,255)
-    currentEfficiencyLabel.BackgroundTransparency = 1
-    currentEfficiencyLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-    local timeAtLocationLabel = Instance.new("TextLabel", statusSection)
-    timeAtLocationLabel.Size = UDim2.new(1, -20, 0, 20)
-    timeAtLocationLabel.Position = UDim2.new(0, 10, 0, 70)
-    timeAtLocationLabel.Text = "⏱️ Time at Location: 0m 0s"
-    timeAtLocationLabel.Font = Enum.Font.GothamSemibold
-    timeAtLocationLabel.TextSize = 11
-    timeAtLocationLabel.TextColor3 = Color3.fromRGB(255,255,255)
-    timeAtLocationLabel.BackgroundTransparency = 1
-    timeAtLocationLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-    local nextCheckLabel = Instance.new("TextLabel", statusSection)
-    nextCheckLabel.Size = UDim2.new(1, -20, 0, 20)
-    nextCheckLabel.Position = UDim2.new(0, 10, 0, 90)
-    nextCheckLabel.Text = "🔄 Next Check: 5m 0s"
-    nextCheckLabel.Font = Enum.Font.GothamSemibold
-    nextCheckLabel.TextSize = 11
-    nextCheckLabel.TextColor3 = Color3.fromRGB(255,255,255)
-    nextCheckLabel.BackgroundTransparency = 1
-    nextCheckLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-    -- Optimal Locations Section
-    local locationsSection = Instance.new("Frame", rotationScrollFrame)
-    locationsSection.Size = UDim2.new(1, -10, 0, 200)
-    locationsSection.Position = UDim2.new(0, 5, 0, 285)
-    locationsSection.BackgroundColor3 = Color3.fromRGB(45,45,52)
-    locationsSection.BorderSizePixel = 0
-    Instance.new("UICorner", locationsSection)
-
-    local locationsTitle = Instance.new("TextLabel", locationsSection)
-    locationsTitle.Size = UDim2.new(1, -20, 0, 25)
-    locationsTitle.Position = UDim2.new(0, 10, 0, 5)
-    locationsTitle.Text = "🎯 Optimal Fishing Locations"
-    locationsTitle.Font = Enum.Font.GothamBold
-    locationsTitle.TextSize = 14
-    locationsTitle.TextColor3 = Color3.fromRGB(255,215,0)
-    locationsTitle.BackgroundTransparency = 1
-    locationsTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    -- Create location list
-    local locationYOffset = 30
-    for i, location in pairs(LocationRotation.optimalLocations) do
-        if i <= 6 then -- Show top 6 locations
-            local locationBtn = Instance.new("TextButton", locationsSection)
-            locationBtn.Size = UDim2.new(0.48, -5, 0, 25)
-            locationBtn.Position = UDim2.new((i-1) % 2 * 0.5, 5, 0, locationYOffset + math.floor((i-1)/2) * 30)
-            locationBtn.Text = string.format("%s (%.1f%%)", location.name, location.efficiency)
-            locationBtn.Font = Enum.Font.GothamSemibold
-            locationBtn.TextSize = 10
-            locationBtn.BackgroundColor3 = Color3.fromRGB(60,60,70)
-            locationBtn.TextColor3 = Color3.fromRGB(255,255,255)
-            locationBtn.BorderSizePixel = 0
-            Instance.new("UICorner", locationBtn)
-            
-            -- Manual teleport functionality
-            locationBtn.MouseButton1Click:Connect(function()
-                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = location.coords
-                    Dashboard.sessionStats.currentLocation = location.name
-                    LocationRotation.currentLocationStartTime = tick()
-                    Notify("Manual Teleport", "🗺️ Teleported to " .. location.name)
-                end
-            end)
-        end
-    end
-
-    -- Rotation History Section
-    local historySection = Instance.new("Frame", rotationScrollFrame)
-    historySection.Size = UDim2.new(1, -10, 0, 200)
-    historySection.Position = UDim2.new(0, 5, 0, 490)
-    historySection.BackgroundColor3 = Color3.fromRGB(45,45,52)
-    historySection.BorderSizePixel = 0
-    Instance.new("UICorner", historySection)
-
-    local historyTitle = Instance.new("TextLabel", historySection)
-    historyTitle.Size = UDim2.new(1, -20, 0, 25)
-    historyTitle.Position = UDim2.new(0, 10, 0, 5)
-    historyTitle.Text = "📜 Rotation History"
-    historyTitle.Font = Enum.Font.GothamBold
-    historyTitle.TextSize = 14
-    historyTitle.TextColor3 = Color3.fromRGB(150,255,150)
-    historyTitle.BackgroundTransparency = 1
-    historyTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-    local historyList = Instance.new("ScrollingFrame", historySection)
-    historyList.Size = UDim2.new(1, -20, 0, 165)
-    historyList.Position = UDim2.new(0, 10, 0, 30)
-    historyList.BackgroundColor3 = Color3.fromRGB(35,35,40)
-    historyList.BorderSizePixel = 0
-    historyList.ScrollBarThickness = 4
-    historyList.CanvasSize = UDim2.new(0, 0, 0, 0)
-    Instance.new("UICorner", historyList)
-
-    dashboardScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 720)
-
     -- floating toggle
     -- Floating toggle: keep margin so it doesn't overlap header on small screens
     local floatBtn = Instance.new("TextButton", screenGui); floatBtn.Name = "FloatToggle"; floatBtn.Size = UDim2.new(0,50,0,50); floatBtn.Position = UDim2.new(0,15,0,15); floatBtn.Text = "🎣"; Instance.new("UICorner", floatBtn)
@@ -4975,7 +4454,7 @@ local function BuildUI()
     end)
 
     -- Robust tab switching: collect tabs and provide SwitchTo
-    local Tabs = { FishingAI = fishingAIFrame, Teleport = teleportFrame, Player = playerFrame, Feature = featureFrame, Dashboard = dashboardFrame, Rotation = rotationFrame }
+    local Tabs = { FishingAI = fishingAIFrame, Teleport = teleportFrame, Player = playerFrame, Feature = featureFrame, Dashboard = dashboardFrame }
     local function SwitchTo(name)
         for k, v in pairs(Tabs) do
             v.Visible = (k == name)
@@ -4993,8 +4472,6 @@ local function BuildUI()
             featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            rotationTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            rotationTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Smart AI Fishing Configuration"
         elseif name == "Teleport" then
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
@@ -5007,9 +4484,7 @@ local function BuildUI()
             featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            rotationTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            rotationTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            contentTitle.Text = "Teleportation System"
+            contentTitle.Text = "Island Locations"
         elseif name == "Player" then
             playerTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             playerTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
@@ -5021,8 +4496,6 @@ local function BuildUI()
             featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            rotationTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            rotationTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Player Teleport"
             updatePlayerList(searchBox.Text) -- Refresh when switching to player tab
         elseif name == "Feature" then
@@ -5036,23 +4509,7 @@ local function BuildUI()
             playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            rotationTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            rotationTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Character Features"
-        elseif name == "Rotation" then
-            rotationTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
-            rotationTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
-            fishingAITabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            fishingAITabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            teleportTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            teleportTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            playerTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            contentTitle.Text = "Location Rotation System"
         else -- Dashboard
             dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             dashboardTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
@@ -5064,8 +4521,6 @@ local function BuildUI()
             playerTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             featureTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            rotationTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
-            rotationTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Fishing Analytics"
         end
     end
@@ -5075,146 +4530,6 @@ local function BuildUI()
     playerTabBtn.MouseButton1Click:Connect(function() SwitchTo("Player") end)
     featureTabBtn.MouseButton1Click:Connect(function() SwitchTo("Feature") end)
     dashboardTabBtn.MouseButton1Click:Connect(function() SwitchTo("Dashboard") end)
-    rotationTabBtn.MouseButton1Click:Connect(function() SwitchTo("Rotation") end)
-
-    -- Rotation System Controls
-    rotationToggle.MouseButton1Click:Connect(function()
-        LocationRotation.enabled = not LocationRotation.enabled
-        if LocationRotation.enabled then
-            rotationToggle.Text = "🟢 ENABLED"
-            rotationToggle.BackgroundColor3 = Color3.fromRGB(60,160,60)
-            rotationStatus.Text = "Status: Active - Monitoring Efficiency"
-            LocationRotation.nextCheckTime = tick() + (tonumber(intervalInput.Text) or 5) * 60
-            Notify("Location Rotation", "🗺️ Automatic location rotation enabled!")
-        else
-            rotationToggle.Text = "🔴 DISABLED"
-            rotationToggle.BackgroundColor3 = Color3.fromRGB(160,60,60)
-            rotationStatus.Text = "Status: Inactive"
-            Notify("Location Rotation", "🗺️ Automatic location rotation disabled")
-        end
-    end)
-
-    -- Settings input handlers
-    intervalInput.FocusLost:Connect(function()
-        local newInterval = tonumber(intervalInput.Text)
-        if newInterval and newInterval >= 1 and newInterval <= 60 then
-            LocationRotation.checkInterval = newInterval * 60
-            if LocationRotation.enabled then
-                LocationRotation.nextCheckTime = tick() + newInterval * 60
-            end
-        else
-            intervalInput.Text = tostring(LocationRotation.checkInterval / 60)
-        end
-    end)
-
-    thresholdInput.FocusLost:Connect(function()
-        local newThreshold = tonumber(thresholdInput.Text)
-        if newThreshold and newThreshold >= 0 and newThreshold <= 100 then
-            LocationRotation.efficiencyThreshold = newThreshold / 100
-        else
-            thresholdInput.Text = tostring(LocationRotation.efficiencyThreshold * 100)
-        end
-    end)
-
-    minTimeInput.FocusLost:Connect(function()
-        local newMinTime = tonumber(minTimeInput.Text)
-        if newMinTime and newMinTime >= 1 and newMinTime <= 30 then
-            LocationRotation.minTimeAtLocation = newMinTime * 60
-        else
-            minTimeInput.Text = tostring(LocationRotation.minTimeAtLocation / 60)
-        end
-    end)
-
-    -- Real-time UI updates for rotation tab
-    local function UpdateRotationUI()
-        if not rotationFrame.Visible then return end
-        
-        -- Update current location
-        local currentLoc = Dashboard.sessionStats.currentLocation or "Unknown"
-        currentLocationLabel.Text = "🗺️ Current: " .. currentLoc
-        
-        -- Update efficiency
-        local efficiency = LocationRotation:GetCurrentLocationEfficiency()
-        currentEfficiencyLabel.Text = string.format("📈 Efficiency: %.1f%%", efficiency * 100)
-        if efficiency < LocationRotation.efficiencyThreshold then
-            currentEfficiencyLabel.TextColor3 = Color3.fromRGB(255,100,100)
-        else
-            currentEfficiencyLabel.TextColor3 = Color3.fromRGB(100,255,100)
-        end
-        
-        -- Update time at location
-        if LocationRotation.currentLocationStartTime then
-            local timeElapsed = tick() - LocationRotation.currentLocationStartTime
-            local minutes = math.floor(timeElapsed / 60)
-            local seconds = math.floor(timeElapsed % 60)
-            timeAtLocationLabel.Text = string.format("⏱️ Time at Location: %dm %ds", minutes, seconds)
-        end
-        
-        -- Update next check time
-        if LocationRotation.enabled and LocationRotation.nextCheckTime then
-            local timeUntilCheck = LocationRotation.nextCheckTime - tick()
-            if timeUntilCheck > 0 then
-                local minutes = math.floor(timeUntilCheck / 60)
-                local seconds = math.floor(timeUntilCheck % 60)
-                nextCheckLabel.Text = string.format("🔄 Next Check: %dm %ds", minutes, seconds)
-            else
-                nextCheckLabel.Text = "🔄 Checking now..."
-            end
-        else
-            nextCheckLabel.Text = "🔄 Next Check: Disabled"
-        end
-        
-        -- Update rotation history
-        if #LocationRotation.rotationHistory > 0 then
-            historyList:ClearAllChildren()
-            local yPos = 0
-            for i = math.max(1, #LocationRotation.rotationHistory - 10), #LocationRotation.rotationHistory do
-                local entry = LocationRotation.rotationHistory[i]
-                local historyEntry = Instance.new("TextLabel", historyList)
-                historyEntry.Size = UDim2.new(1, -10, 0, 20)
-                historyEntry.Position = UDim2.new(0, 5, 0, yPos)
-                historyEntry.Text = string.format("[%s] %s → %s (%.1f%%)", 
-                    os.date("%H:%M", entry.timestamp), 
-                    entry.fromLocation, 
-                    entry.toLocation, 
-                    entry.efficiency * 100)
-                historyEntry.Font = Enum.Font.Gotham
-                historyEntry.TextSize = 9
-                historyEntry.TextColor3 = Color3.fromRGB(200,200,200)
-                historyEntry.BackgroundTransparency = 1
-                historyEntry.TextXAlignment = Enum.TextXAlignment.Left
-                yPos = yPos + 22
-            end
-            historyList.CanvasSize = UDim2.new(0, 0, 0, yPos)
-        end
-    end
-
-    -- Update rotation UI every second
-    spawn(function()
-        while wait(1) do
-            UpdateRotationUI()
-        end
-    end)
-
-    -- VFX-Based Event Monitoring Loop (Enhanced)
-    spawn(function()
-        while wait(EventDetection.checkInterval) do
-            local now = tick()
-            if now - EventDetection.lastEventCheck >= EventDetection.checkInterval then
-                EventDetection.lastEventCheck = now
-                EventDetection.activeEvents = DetectActiveEventsVFX()
-                UpdateEventDisplay()
-                
-                -- Notify for new events detected
-                for _, event in pairs(EventDetection.activeEvents) do
-                    if not event.notified then
-                        event.notified = true
-                        Notify("VFX Event Detected", event.name .. " - " .. event.description)
-                    end
-                end
-            end
-        end
-    end)
 
     -- Start with FishingAI visible (replaces Main)
     SwitchTo("FishingAI")
@@ -5539,18 +4854,6 @@ _G.ModernAutoFish = {
     
     -- AutoSell API
     ToggleAutoSell = function() AutoSell.enabled = not AutoSell.enabled end,
-    DisableAutoSell = function() 
-        AutoSell.enabled = false
-        AutoSell.isCurrentlySelling = false
-        print("[AutoSell] Force disabled!")
-        return "AutoSell disabled"
-    end,
-    EnableAutoSell = function() 
-        AutoSell.enabled = true
-        print("[AutoSell] Force enabled!")
-        return "AutoSell enabled"
-    end,
-    GetAutoSellEnabled = function() return AutoSell.enabled end,
     SetSellThreshold = function(threshold) 
         if threshold > 0 and threshold <= 1000 then 
             AutoSell.threshold = threshold
@@ -5589,7 +4892,6 @@ _G.ModernAutoFish = {
     Enhancement = Enhancement,
     AutoSell = AutoSell,
     MovementEnhancement = MovementEnhancement,
-    LocationRotation = LocationRotation,
     
     -- Enhancement API
     StartEnhancement = function() 
@@ -5603,33 +4905,6 @@ _G.ModernAutoFish = {
     end,
     ActivateAltar = ActivateEnchantingAltar,
     RollEnchant = RollEnchant,
-    
-    -- Location Rotation API
-    EnableRotation = function() 
-        LocationRotation.enabled = true
-        LocationRotation.nextCheckTime = tick() + LocationRotation.checkInterval
-    end,
-    DisableRotation = function() 
-        LocationRotation.enabled = false
-    end,
-    ToggleRotation = function() 
-        LocationRotation.enabled = not LocationRotation.enabled
-        if LocationRotation.enabled then
-            LocationRotation.nextCheckTime = tick() + LocationRotation.checkInterval
-        end
-    end,
-    SetRotationInterval = function(minutes) 
-        if minutes >= 1 and minutes <= 60 then
-            LocationRotation.checkInterval = minutes * 60
-        end
-    end,
-    SetRotationThreshold = function(percent) 
-        if percent >= 0 and percent <= 100 then
-            LocationRotation.efficiencyThreshold = percent / 100
-        end
-    end,
-    GetRotationStatus = function() return LocationRotation end,
-    ManualRotation = function() LocationRotation:RotateLocation() end,
     
     -- Movement Enhancement API
     EnableFloat = EnableFloat,
@@ -5692,7 +4967,6 @@ _G.ModernAutoFish = {
         }
     end,
 
-    -- Event Detection API
     -- VFX-Based Event Detection API
     DetectEvents = function()
         return DetectActiveEventsVFX() -- Use new VFX detection
@@ -5745,43 +5019,9 @@ _G.ModernAutoFish = {
     end
 }
 
--- Quick Emergency Commands for debugging
-_G.EMERGENCY_DISABLE_AUTOSELL = function()
-    AutoSell.enabled = false
-    AutoSell.isCurrentlySelling = false
-    AutoSell.lastSellTime = 0
-    print("🚨 EMERGENCY: AutoSell completely disabled!")
-    return "AutoSell emergency disabled"
-end
-
-_G.CHECK_AUTOSELL_STATUS = function()
-    print("=== AutoSell Status ===")
-    print("Enabled:", AutoSell.enabled)
-    print("Currently Selling:", AutoSell.isCurrentlySelling)
-    print("Threshold:", AutoSell.threshold)
-    print("Total Fish for Sell:", GetTotalFishForSell())
-    print("Last Sell Time:", AutoSell.lastSellTime)
-    print("======================")
-    return {
-        enabled = AutoSell.enabled,
-        isCurrentlySelling = AutoSell.isCurrentlySelling,
-        threshold = AutoSell.threshold,
-        totalFishForSell = GetTotalFishForSell(),
-        lastSellTime = AutoSell.lastSellTime
-    }
-end
-
--- Event Detection Quick Commands
-_G.CHECK_EVENTS = function()
-    local events = DetectActiveEvents()
-    print("=== Active Events ===")
-    print("Total Events Found:", #events)
-    for i, event in pairs(events) do
-        print(string.format("%d. %s (%s)", i, event.name, event.type))
-        print("   Description:", event.description)
-    end
-    print("====================")
-    return events
+-- VFX Event Detection Shortcuts
+_G.DETECT_EVENTS = function()
+    return _G.ModernAutoFish.DetectEventsVFX()
 end
 
 _G.TELEPORT_TO_EVENT = function(eventName)
@@ -5792,21 +5032,13 @@ _G.TELEPORT_TO_EVENT = function(eventName)
     return _G.ModernAutoFish.TeleportToEvent(eventName)
 end
 
+_G.GET_VFX_STATUS = function()
+    return _G.ModernAutoFish.GetVFXStatus()
+end
+
 -- Initialize AutoSell server sync
 InitializeAutoSellSync()
 
--- Start Location Rotation System
-spawn(function()
-    LocationRotationRunner(LocationRotation.sessionId or 0)
-end)
-
 print("modern_autofish loaded - UI created and API available via _G.ModernAutoFish")
-
-end) -- End of pcall
-
-if not success then
-    warn("modern_autofish ERROR: " .. tostring(errorMsg))
-    print("Error details:", errorMsg)
-else
-    print("modern_autofish: Successfully loaded without errors!")
-end
+print("🎪 VFX-Based Event Detection System loaded!")
+print("Commands: _G.DETECT_EVENTS(), _G.TELEPORT_TO_EVENT('EventName'), _G.GET_VFX_STATUS()")
