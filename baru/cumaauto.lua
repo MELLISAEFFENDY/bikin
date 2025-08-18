@@ -38,45 +38,19 @@ local function notify(msg)
 end
 
 function toggleFishing(state)
-
     autoFishing = state
     notify("Auto Fishing Started!")
     while autoFishing do
-        local ok, err
         task.wait(randomWait())
-        ok, err = pcall(function()
-            print("[DEBUG] CancelFishing")
-            CancelFishing:InvokeServer()
-        end)
-        if not ok then warn("[ERROR] CancelFishing: "..tostring(err)) end
-
+        CancelFishing:InvokeServer()
         task.wait(randomWait())
-        ok, err = pcall(function()
-            print("[DEBUG] EquipRod")
-            EquipRod:FireServer(1)
-        end)
-        if not ok then warn("[ERROR] EquipRod: "..tostring(err)) end
-
+        EquipRod:FireServer(1)
         task.wait(randomWait())
-        ok, err = pcall(function()
-            print("[DEBUG] ChargeRod")
-            ChargeRod:InvokeServer(workspace:GetServerTimeNow())
-        end)
-        if not ok then warn("[ERROR] ChargeRod: "..tostring(err)) end
-
+        ChargeRod:InvokeServer(workspace:GetServerTimeNow())
         task.wait(randomWait())
-        ok, err = pcall(function()
-            print("[DEBUG] RequestFishing")
-            RequestFishing:InvokeServer(-1.23, 0.98)
-        end)
-        if not ok then warn("[ERROR] RequestFishing: "..tostring(err)) end
-
+        RequestFishing:InvokeServer(-1.23, 0.98)
         task.wait(0.4 + randomWait())
-        ok, err = pcall(function()
-            print("[DEBUG] FishingComplete")
-            FishingComplete:FireServer()
-        end)
-        if not ok then warn("[ERROR] FishingComplete: "..tostring(err)) end
+        FishingComplete:FireServer()
     end
 end
 
