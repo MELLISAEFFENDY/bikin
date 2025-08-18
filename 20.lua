@@ -35,24 +35,40 @@ local AutoAFKSystem = {
     perfectCast = function()
         if not AutoAFKSystem.perfectCastEnabled then return end
         
-        local character = LocalPlayer.Character
-        if not character then return end
-        
-        local tool = character:FindFirstChildOfClass("Tool")
-        if tool and tool.Name:find("Rod") then
-            local success, err = pcall(function()
+        local success, err = pcall(function()
+            local character = LocalPlayer.Character
+            if not character then return end
+            
+            local tool = character:FindFirstChildOfClass("Tool")
+            if tool and (tool.Name:find("Rod") or tool.Name:find("rod")) then
+                -- Method 1: Try events folder
                 if tool:FindFirstChild("events") then
                     local events = tool.events
                     if events:FindFirstChild("cast") then
-                        -- Perfect cast parameters (95% power, optimal direction)
                         events.cast:FireServer(95, math.random(80, 100))
                     end
                 end
-            end)
-            
-            if not success then
-                print("[Auto AFK] Cast enhancement error:", err)
+                
+                -- Method 2: Try direct RemoteEvent
+                for _, child in pairs(tool:GetChildren()) do
+                    if child:IsA("RemoteEvent") and child.Name:lower():find("cast") then
+                        child:FireServer(95, math.random(80, 100))
+                    end
+                end
+                
+                -- Method 3: Try common fishing event names
+                local commonNames = {"Cast", "FishCast", "ThrowLine", "FishingCast"}
+                for _, name in ipairs(commonNames) do
+                    local event = tool:FindFirstChild(name)
+                    if event and event:IsA("RemoteEvent") then
+                        event:FireServer(95, math.random(80, 100))
+                    end
+                end
             end
+        end)
+        
+        if not success then
+            print("[Auto AFK] Cast enhancement error:", err)
         end
     end,
     
@@ -60,42 +76,59 @@ local AutoAFKSystem = {
     perfectMinigame = function()
         if not AutoAFKSystem.perfectMinigameEnabled then return end
         
-        local playerGui = LocalPlayer.PlayerGui
-        local fishingGui = playerGui:FindFirstChild("fishing")
-        
-        if fishingGui then
-            local success, err = pcall(function()
-                -- Check for minigame elements
-                local bar = fishingGui:FindFirstChild("bar")
-                local safezone = fishingGui:FindFirstChild("safezone") 
-                local playerbar = fishingGui:FindFirstChild("playerbar")
-                
-                if bar and safezone and playerbar then
-                    -- Perfect timing calculation
-                    local perfectZone = safezone.AbsolutePosition.X + (safezone.AbsoluteSize.X / 2)
-                    local currentPos = playerbar.AbsolutePosition.X
-                    
-                    -- Auto-perfect input when in optimal zone
-                    if math.abs(perfectZone - currentPos) < 10 then
-                        Mouse.Button1Down:Fire()
-                        task.wait(0.05)
-                        Mouse.Button1Up:Fire()
-                    end
-                end
-                
-                -- Check for reel minigame
-                local reel = fishingGui:FindFirstChild("reel")
-                if reel and reel.Visible then
-                    local reelButton = reel:FindFirstChild("button")
-                    if reelButton then
-                        reelButton.MouseButton1Click:Fire()
-                    end
-                end
-            end)
+        local success, err = pcall(function()
+            local playerGui = LocalPlayer.PlayerGui
             
-            if not success then
-                print("[Auto AFK] Minigame enhancement error:", err)
+            -- Method 1: Look for fishing GUI
+            local fishingGuis = {"fishing", "FishingGUI", "Fishing", "FishingMiniGame"}
+            for _, guiName in ipairs(fishingGuis) do
+                local fishingGui = playerGui:FindFirstChild(guiName)
+                
+                if fishingGui and fishingGui.Enabled then
+                    -- Check for minigame elements
+                    local bar = fishingGui:FindFirstChild("bar")
+                    local safezone = fishingGui:FindFirstChild("safezone") 
+                    local playerbar = fishingGui:FindFirstChild("playerbar")
+                    
+                    if bar and safezone and playerbar then
+                        -- Perfect timing calculation
+                        local perfectZone = safezone.AbsolutePosition.X + (safezone.AbsoluteSize.X / 2)
+                        local currentPos = playerbar.AbsolutePosition.X
+                        
+                        -- Auto-perfect input when in optimal zone
+                        if math.abs(perfectZone - currentPos) < 15 then
+                            -- Execute perfect click using UserInputService
+                            local inputService = game:GetService("UserInputService")
+                            inputService.InputBegan:Fire({KeyCode = Enum.KeyCode.ButtonX1, UserInputType = Enum.UserInputType.MouseButton1}, false)
+                            task.wait(0.05)
+                            inputService.InputEnded:Fire({KeyCode = Enum.KeyCode.ButtonX1, UserInputType = Enum.UserInputType.MouseButton1}, false)
+                        end
+                    end
+                    
+                    -- Check for reel minigame
+                    local reel = fishingGui:FindFirstChild("reel")
+                    if reel and reel.Visible then
+                        local reelButton = reel:FindFirstChild("button") or reel:FindFirstChild("Button")
+                        if reelButton and reelButton:IsA("GuiButton") then
+                            reelButton.MouseButton1Click:Fire()
+                        end
+                    end
+                    
+                    -- Check for progress bar style minigame
+                    local progressBar = fishingGui:FindFirstChild("ProgressBar") or fishingGui:FindFirstChild("Progress")
+                    if progressBar then
+                        -- Auto-click for progress style minigames (simplified)
+                        local inputService = game:GetService("UserInputService")
+                        inputService.InputBegan:Fire({KeyCode = Enum.KeyCode.ButtonX1, UserInputType = Enum.UserInputType.MouseButton1}, false)
+                        task.wait(0.05)
+                        inputService.InputEnded:Fire({KeyCode = Enum.KeyCode.ButtonX1, UserInputType = Enum.UserInputType.MouseButton1}, false)
+                    end
+                end
             end
+        end)
+        
+        if not success then
+            print("[Auto AFK] Minigame enhancement error:", err)
         end
     end,
     
@@ -196,31 +229,38 @@ local AutoAFKSystem = {
 local OfficialAutoDetector = {
     isOfficialActive = function()
         local success, result = pcall(function()
-            -- Check for official auto controllers
-            local controllers = ReplicatedStorage:FindFirstChild("Controllers")
-            if controllers and controllers:FindFirstChild("AutoFishingController") then
-                return true
+            -- Method 1: Check for official auto controllers
+            if ReplicatedStorage:FindFirstChild("Controllers") then
+                local controllers = ReplicatedStorage.Controllers
+                if controllers:FindFirstChild("AutoFishingController") then
+                    return true
+                end
             end
             
-            -- Check for auto fishing GUI indicators
+            -- Method 2: Check for auto fishing GUI indicators
             local playerGui = LocalPlayer.PlayerGui
-            local autoGui = playerGui:FindFirstChild("AutoFishing") or 
-                           playerGui:FindFirstChild("AutoFish") or
-                           playerGui:FindFirstChild("auto_fishing")
+            local possibleGuis = {"AutoFishing", "AutoFish", "auto_fishing", "AutoFishGUI"}
+            for _, guiName in ipairs(possibleGuis) do
+                local gui = playerGui:FindFirstChild(guiName)
+                if gui and gui.Enabled then return true end
+            end
             
-            if autoGui and autoGui.Enabled then return true end
-            
-            -- Check for auto fishing tool indicators
-            local character = LocalPlayer.Character
-            if character then
-                local tool = character:FindFirstChildOfClass("Tool")
-                if tool and tool:GetAttribute("AutoFishing") then return true end
+            -- Method 3: Check for auto fishing tool indicators
+            if LocalPlayer.Character then
+                local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                if tool then
+                    if tool:GetAttribute("AutoFishing") or 
+                       tool:GetAttribute("Auto") or
+                       tool.Name:lower():find("auto") then 
+                        return true 
+                    end
+                end
             end
             
             return false
         end)
         
-        return success and result
+        return success and result or false
     end
 }
 
