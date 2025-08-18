@@ -71,7 +71,7 @@ function toggleFishing(state)
         end)
         if not ok then warn("[ERROR] RequestFishing: "..tostring(err)) end
 
-        task.wait(0.01)
+        task.wait(0.1)
         ok, err = pcall(function()
             print("[DEBUG] FishingComplete")
             FishingComplete:FireServer()
