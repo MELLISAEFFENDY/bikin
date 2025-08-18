@@ -404,7 +404,7 @@ end
 -- Config
 local Config = {
     mode = "smart",  -- Default to smart mode
-    autoRecastDelay = 0.6,
+    autoRecastDelay = 0.4,
     safeModeChance = 70,
     secure_max_actions_per_minute = 12000000,
     secure_detection_cooldown = 5,
@@ -1407,7 +1407,7 @@ local function AutofishRunner(mySession)
         if not ok then
             warn("modern_autofish: cycle error:", err)
             Notify("modern_autofish", "Cycle error: " .. tostring(err))
-            task.wait(0.5 + math.random()*0.5)
+            task.wait(0.4 + math.random()*0.5)
         end
         
         -- Smart delay based on mode
