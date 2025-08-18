@@ -144,18 +144,27 @@ local adminEventsList = {
 
 -- Function to detect admin events from GUI notifications
 local function ScanForAdminEvents()
+    print("XSAN: Scanning for admin events...") -- Debug message
     pcall(function()
         -- Method 1: Check PlayerGui for event notifications
         local playerGui = LocalPlayer:WaitForChild("PlayerGui")
         
+        local elementCount = 0
         for _, gui in pairs(playerGui:GetChildren()) do
             if gui:IsA("ScreenGui") then
                 for _, descendant in pairs(gui:GetDescendants()) do
                     if descendant:IsA("TextLabel") or descendant:IsA("TextButton") then
+                        elementCount = elementCount + 1
                         local text = descendant.Text:lower()
+                        
+                        -- Debug: Print some UI elements being scanned
+                        if elementCount <= 5 and text ~= "" then
+                            print("XSAN DEBUG: Scanning UI element:", descendant.Name, "Text:", text:sub(1, 50))
+                        end
                         
                         -- Method A: Check for direct admin event notifications (like the blue box in screenshot)
                         if text:find("admin event") or text:find("limited time") then
+                            print("XSAN: Found admin event text:", text)
                             -- Check for specific events in the text
                             for eventName, eventData in pairs(adminEventsList) do
                                 for _, keyword in pairs(eventData.keywords) do
@@ -305,29 +314,33 @@ local function ScanForAdminEvents()
             end
         end
         
+        print("XSAN: Scanned", elementCount, "UI elements")
+        
         -- Method 2: Check StarterGui notifications
         pcall(function()
-            for _, notification in pairs(StarterGui.CoreGui:GetDescendants()) do
-                if notification:IsA("TextLabel") then
-                    local text = notification.Text:lower()
-                    if text:find("admin") or text:find("event") then
-                        for eventName, eventData in pairs(adminEventsList) do
-                            for _, keyword in pairs(eventData.keywords) do
-                                if text:find(keyword) then
-                                    if not detectedEvents[eventName] then
-                                        detectedEvents[eventName] = {
-                                            startTime = tick(),
-                                            detected = true,
-                                            location = nil,
-                                            gui = notification
-                                        }
-                                        
-                                        Notify("🚨 ADMIN EVENT DETECTED!", 
-                                            eventData.icon .. " " .. eventName .. " ACTIVE!\n\n" ..
-                                            "📍 From CoreGui notifications\n" ..
-                                            "⭐ " .. eventData.rarity .. " Event",
-                                            6
-                                        )
+            if StarterGui:FindFirstChild("CoreGui") then
+                for _, notification in pairs(StarterGui.CoreGui:GetDescendants()) do
+                    if notification:IsA("TextLabel") then
+                        local text = notification.Text:lower()
+                        if text:find("admin") or text:find("event") then
+                            for eventName, eventData in pairs(adminEventsList) do
+                                for _, keyword in pairs(eventData.keywords) do
+                                    if text:find(keyword) then
+                                        if not detectedEvents[eventName] then
+                                            detectedEvents[eventName] = {
+                                                startTime = tick(),
+                                                detected = true,
+                                                location = nil,
+                                                gui = notification
+                                            }
+                                            
+                                            Notify("🚨 ADMIN EVENT DETECTED!", 
+                                                eventData.icon .. " " .. eventName .. " ACTIVE!\n\n" ..
+                                                "📍 From CoreGui notifications\n" ..
+                                                "⭐ " .. eventData.rarity .. " Event",
+                                                6
+                                            )
+                                        end
                                     end
                                 end
                             end
@@ -337,6 +350,7 @@ local function ScanForAdminEvents()
             end
         end)
     end)
+    print("XSAN: Event scan complete")
 end
 
 -- Function to find event locations in workspace
@@ -525,6 +539,7 @@ end
 
 -- Auto-scan system
 local function StartAutoScan()
+    print("XSAN: Starting auto-scan system...")
     spawn(function()
         while true do
             ScanForAdminEvents()
@@ -533,10 +548,47 @@ local function StartAutoScan()
             wait(3)
         end
     end)
+    print("XSAN: Auto-scan system started!")
+end
+
+-- Test function to manually trigger scan
+local function TestScan()
+    print("XSAN: Manual test scan triggered")
+    ScanForAdminEvents()
+    ScanEventLocations()
+end
+
+-- Test function to simulate an event detection
+local function TestEventDetection(eventName)
+    eventName = eventName or "Black Hole"
+    if adminEventsList[eventName] then
+        local eventData = adminEventsList[eventName]
+        detectedEvents[eventName] = {
+            startTime = tick(),
+            detected = true,
+            location = nil,
+            gui = nil
+        }
+        
+        Notify("🧪 TEST EVENT DETECTED!", 
+            eventData.icon .. " " .. eventName .. " (TEST)\n\n" ..
+            "📍 This is a test detection\n" ..
+            "⭐ " .. eventData.rarity .. " Event\n" ..
+            "📝 " .. eventData.description,
+            8
+        )
+        
+        print("XSAN: TEST - Simulated", eventName, "detection")
+    else
+        print("XSAN: TEST - Unknown event:", eventName)
+    end
 end
 
 -- Start initialization after all functions are defined
 InitializeDetector()
+
+-- Start auto-scanning automatically
+StartAutoScan()
 
 -- Export Functions
 return {
@@ -547,6 +599,8 @@ return {
     TeleportToEvent = TeleportToEvent,
     StartAutoScan = StartAutoScan,
     ShowEventsStatus = ShowEventsStatus,
+    TestScan = TestScan,
+    TestEventDetection = TestEventDetection,
     
     -- Quick Teleport Functions for New Events
     TeleportToBlackHole = TeleportToBlackHole,
