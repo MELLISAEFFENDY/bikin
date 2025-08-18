@@ -2,6 +2,9 @@
 -- Cleaned modern UI + Dual-mode AutoFishing (smart & secure)
 -- Added new feature: Auto Mode by Spinner_xxx
 
+-- Error handling untuk debugging
+local success, errorMsg = pcall(function()
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -3139,27 +3142,7 @@ local function BuildUI()
         return events
     end
 
-    -- Real-time VFX monitoring untuk instant detection
-    local function MonitorVFXChanges()
-        if workspace:FindFirstChild("CosmeticFolder") then
-            workspace.CosmeticFolder.ChildAdded:Connect(function(child)
-                -- Instant detection saat VFX baru muncul
-                wait(1) -- Small delay untuk stability
-                EventDetection.activeEvents = DetectActiveEventsVFX()
-                UpdateEventDisplay()
-            end)
-            
-            workspace.CosmeticFolder.ChildRemoved:Connect(function(child)
-                -- Update saat VFX hilang
-                wait(1)
-                EventDetection.activeEvents = DetectActiveEventsVFX()
-                UpdateEventDisplay()
-            end)
-        end
-    end
-
-    -- Start VFX monitoring
-    spawn(MonitorVFXChanges)
+    -- Define UpdateEventDisplay first (moved up to avoid undefined reference)
 
     -- Create Event Section in Teleport Tab
     local eventSection = Instance.new("Frame", teleportFrame)
@@ -3288,6 +3271,28 @@ local function BuildUI()
 
     -- Initial event detection
     UpdateEventDisplay()
+
+    -- Real-time VFX monitoring untuk instant detection (moved after UpdateEventDisplay)
+    local function MonitorVFXChanges()
+        if workspace:FindFirstChild("CosmeticFolder") then
+            workspace.CosmeticFolder.ChildAdded:Connect(function(child)
+                -- Instant detection saat VFX baru muncul
+                wait(1) -- Small delay untuk stability
+                EventDetection.activeEvents = DetectActiveEventsVFX()
+                UpdateEventDisplay()
+            end)
+            
+            workspace.CosmeticFolder.ChildRemoved:Connect(function(child)
+                -- Update saat VFX hilang
+                wait(1)
+                EventDetection.activeEvents = DetectActiveEventsVFX()
+                UpdateEventDisplay()
+            end)
+        end
+    end
+
+    -- Start VFX monitoring
+    spawn(MonitorVFXChanges)
 
     -- Adjust scroll frame size to accommodate event section
     scrollFrame.Size = UDim2.new(1, 0, 1, -240)
@@ -4988,6 +4993,8 @@ local function BuildUI()
             featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            rotationTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            rotationTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Smart AI Fishing Configuration"
         elseif name == "Teleport" then
             teleportTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
@@ -5000,7 +5007,9 @@ local function BuildUI()
             featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
-            contentTitle.Text = "Island Locations"
+            rotationTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            rotationTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            contentTitle.Text = "Teleportation System"
         elseif name == "Player" then
             playerTabBtn.BackgroundColor3 = Color3.fromRGB(45,45,50)
             playerTabBtn.TextColor3 = Color3.fromRGB(235,235,235)
@@ -5012,6 +5021,8 @@ local function BuildUI()
             featureTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             dashboardTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
             dashboardTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
+            rotationTabBtn.BackgroundColor3 = Color3.fromRGB(40,40,46)
+            rotationTabBtn.TextColor3 = Color3.fromRGB(200,200,200)
             contentTitle.Text = "Player Teleport"
             updatePlayerList(searchBox.Text) -- Refresh when switching to player tab
         elseif name == "Feature" then
@@ -5786,7 +5797,16 @@ InitializeAutoSellSync()
 
 -- Start Location Rotation System
 spawn(function()
-    LocationRotationRunner(sessionId)
+    LocationRotationRunner(LocationRotation.sessionId or 0)
 end)
 
 print("modern_autofish loaded - UI created and API available via _G.ModernAutoFish")
+
+end) -- End of pcall
+
+if not success then
+    warn("modern_autofish ERROR: " .. tostring(errorMsg))
+    print("Error details:", errorMsg)
+else
+    print("modern_autofish: Successfully loaded without errors!")
+end
