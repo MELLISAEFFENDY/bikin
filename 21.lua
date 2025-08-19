@@ -21,52 +21,75 @@ if not LocalPlayer then
     return
 end
 
+-- Notification function
+local function Notify(title, text)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {Title = title, Text = text, Duration = 4})
+    end)
+    print("[modern_autofish]", title, text)
+end
+
 -- ====================================================================
 -- XSAN EVENT DETECTOR SYSTEM
 -- ====================================================================
-local EventDetector = {
-    detectedEvents = {},
-    eventLocations = {},
-    adminEventsList = {
-        ["Black Hole"] = {
-            keywords = {"black", "hole", "blackhole", "black hole"},
-            icon = "🕳️",
-            rarity = "MYTHIC",
-            description = "Fish in Black Hole for x5 Galaxy & Corrupt mutations!"
+
+local EventDetector
+pcall(function()
+    EventDetector = {
+        detectedEvents = {},
+        eventLocations = {},
+        adminEventsList = {
+            ["Black Hole"] = {
+                keywords = {"black", "hole", "blackhole", "black hole"},
+                icon = "🕳️",
+                rarity = "MYTHIC",
+                description = "Fish in Black Hole for x5 Galaxy & Corrupt mutations!"
+            },
+            ["Ghost Shark Hunt"] = {
+                keywords = {"ghost", "shark", "hunt", "ghostshark"},
+                icon = "🦈",
+                rarity = "LEGENDARY", 
+                description = "Ghost Shark Hunt event active! Rare sharks available!"
+            },
+            ["Worm Hunt"] = {
+                keywords = {"worm", "hunt", "wormhunt", "fishing event"},
+                icon = "🪱",
+                rarity = "EPIC",
+                description = "Worm Hunt fishing event active!"
+            },
+            ["Ghost Worm"] = {
+                keywords = {"ghost", "worm", "ghostworm"},
+                icon = "👻",
+                rarity = "LEGENDARY",
+                description = "Limited 1 in 1,000,000 Ghost Worm Fish!"
+            },
+            ["Meteor Rain"] = {
+                keywords = {"meteor", "rain", "meteorrain"},
+                icon = "☄️",
+                rarity = "LEGENDARY",
+                description = "Fish in Meteor Rain area for x6 mutation chance!"
+            },
+            ["Kraken Event"] = {
+                keywords = {"kraken", "tentacle"},
+                icon = "🐙",
+                rarity = "MYTHIC",
+                description = "Legendary Kraken has appeared!"
+            }
         },
-        ["Ghost Shark Hunt"] = {
-            keywords = {"ghost", "shark", "hunt", "ghostshark"},
-            icon = "🦈",
-            rarity = "LEGENDARY", 
-            description = "Ghost Shark Hunt event active! Rare sharks available!"
-        },
-        ["Worm Hunt"] = {
-            keywords = {"worm", "hunt", "wormhunt", "fishing event"},
-            icon = "🪱",
-            rarity = "EPIC",
-            description = "Worm Hunt fishing event active!"
-        },
-        ["Ghost Worm"] = {
-            keywords = {"ghost", "worm", "ghostworm"},
-            icon = "👻",
-            rarity = "LEGENDARY",
-            description = "Limited 1 in 1,000,000 Ghost Worm Fish!"
-        },
-        ["Meteor Rain"] = {
-            keywords = {"meteor", "rain", "meteorrain"},
-            icon = "☄️",
-            rarity = "LEGENDARY",
-            description = "Fish in Meteor Rain area for x6 mutation chance!"
-        },
-        ["Kraken Event"] = {
-            keywords = {"kraken", "tentacle"},
-            icon = "🐙",
-            rarity = "MYTHIC",
-            description = "Legendary Kraken has appeared!"
-        }
-    },
-    isScanning = false
-}
+        isScanning = false
+    }
+end)
+
+-- Fallback if EventDetector fails to initialize
+if not EventDetector then
+    EventDetector = {
+        detectedEvents = {},
+        eventLocations = {},
+        adminEventsList = {},
+        isScanning = false
+    }
+    print("XSAN: EventDetector fallback initialized")
+end
 
 -- Event Detection Functions
 function EventDetector.ScanForAdminEvents()
@@ -97,8 +120,7 @@ function EventDetector.ScanForAdminEvents()
                                         Notify("🚨 ADMIN EVENT DETECTED!", 
                                             eventData.icon .. " " .. eventName .. " ACTIVE!\n\n" ..
                                             "⭐ " .. eventData.rarity .. " Event\n" ..
-                                            "📝 " .. eventData.description,
-                                            8
+                                            "📝 " .. eventData.description
                                         )
                                         
                                         print("XSAN: Admin Event Detected -", eventName)
@@ -118,7 +140,7 @@ function EventDetector.ScanForAdminEvents()
                                     gui = descendant
                                 }
                                 
-                                Notify("🚨 BLACK HOLE EVENT!", "🕳️ BLACK HOLE DETECTED! Fish for x5 mutations!", 10)
+                                Notify("🚨 BLACK HOLE EVENT!", "🕳️ BLACK HOLE DETECTED! Fish for x5 mutations!")
                                 print("XSAN: BLACK HOLE EVENT DETECTED!")
                             end
                         end
@@ -160,8 +182,11 @@ function ScanEventLocations()
     end)
 end
 
--- Auto-scan system for events
+-- Auto-scan system for events (disabled for now to prevent errors)
+-- Uncomment after script loads successfully
+--[[
 spawn(function()
+    wait(3) -- Wait for game to fully load
     while true do
         EventDetector.ScanForAdminEvents()
         wait(2)
@@ -169,8 +194,14 @@ spawn(function()
         wait(3)
     end
 end)
+--]]
 
 print("XSAN: Event Detector System loaded and scanning...")
+
+-- Debug information
+print("XSAN: LocalPlayer:", LocalPlayer)
+print("XSAN: EventDetector table:", EventDetector)
+print("XSAN: Notify function:", Notify)
 
 -- Teleport to detected events
 function TeleportToEvent(eventName)
@@ -294,14 +325,6 @@ local function FixRodOrientation()
             toolGrip.Parent = equippedTool
         end
     end
-end
-
--- Simple notifier
-local function Notify(title, text)
-    pcall(function()
-        StarterGui:SetCore("SendNotification", {Title = title, Text = text, Duration = 4})
-    end)
-    print("[modern_autofish]", title, text)
 end
 
 -- Remote helper (best-effort)
@@ -4591,9 +4614,15 @@ local function BuildUI()
     Instance.new("UICorner", manualScanBtn)
 
     manualScanBtn.MouseButton1Click:Connect(function()
-        EventDetector.ScanForAdminEvents()
-        ScanEventLocations()
-        Notify("Event Scanner", "🔍 Manual scan completed!")
+        pcall(function()
+            if EventDetector and EventDetector.ScanForAdminEvents then
+                EventDetector.ScanForAdminEvents()
+            end
+            if ScanEventLocations then
+                ScanEventLocations()
+            end
+            Notify("Event Scanner", "🔍 Manual scan completed!")
+        end)
     end)
 
     -- Update canvas size for event scroll frame
