@@ -69,7 +69,7 @@ local EventDetector = {
 }
 
 -- Event Detection Functions
-local function ScanForAdminEvents()
+function EventDetector.ScanForAdminEvents()
     if EventDetector.isScanning then return end
     EventDetector.isScanning = true
     
@@ -131,7 +131,7 @@ local function ScanForAdminEvents()
     EventDetector.isScanning = false
 end
 
-local function ScanEventLocations()
+function ScanEventLocations()
     pcall(function()
         for eventName, eventInfo in pairs(EventDetector.detectedEvents) do
             if eventInfo.detected and not eventInfo.location then
@@ -160,25 +160,10 @@ local function ScanEventLocations()
     end)
 end
 
-local function TeleportToEvent(eventName)
-    if EventDetector.eventLocations[eventName] then
-        local targetCFrame = EventDetector.eventLocations[eventName]
-        pcall(function()
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                LocalPlayer.Character.HumanoidRootPart.CFrame = targetCFrame
-                Notify("Event Teleport", "✅ Teleported to " .. eventName .. "!", 5)
-                print("XSAN: Teleported to event -", eventName)
-            end
-        end)
-    else
-        Notify("Event Teleport", "❌ " .. eventName .. " location not found!", 3)
-    end
-end
-
 -- Auto-scan system for events
 spawn(function()
     while true do
-        ScanForAdminEvents()
+        EventDetector.ScanForAdminEvents()
         wait(2)
         ScanEventLocations()
         wait(3)
@@ -204,11 +189,6 @@ function TeleportToEvent(eventName)
         print("❌ Event location not available for " .. eventName)
         Notify("Event Teleport", "❌ Event location not available!")
     end
-end
-
--- Wrapper function for ScanEventLocations to be used in UI
-function ScanEventLocationsWrapper()
-    ScanEventLocations()
 end
 
 -- ====================================================================
@@ -4612,7 +4592,7 @@ local function BuildUI()
 
     manualScanBtn.MouseButton1Click:Connect(function()
         EventDetector.ScanForAdminEvents()
-        ScanEventLocationsWrapper()
+        ScanEventLocations()
         Notify("Event Scanner", "🔍 Manual scan completed!")
     end)
 
